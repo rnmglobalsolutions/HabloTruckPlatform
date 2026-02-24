@@ -7,6 +7,7 @@ public static class UlidIds
     public static string NewEntitlementId() => NewId();
     public static string NewInviteCodeId() => NewId();
     public static string NewSeatAssignmentId() => NewId();
+    public static string NewFailedActionId() => NewId();
 
     private static string NewId()
     {

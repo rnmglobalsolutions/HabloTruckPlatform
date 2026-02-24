@@ -1,7 +1,6 @@
-﻿// src/HabloTruck.Platform.Application/Abstractions/IUserResolver.cs
-using HabloTruckPlatform.Application.Models;
+﻿using HabloTruckPlatform.Application.Models;
 
-namespace HabloTruck.Platform.Application.Abstractions;
+namespace HabloTruckPlatform.Application.Abstractions;
 
 public interface IUserResolver
 {

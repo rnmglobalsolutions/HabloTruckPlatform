@@ -62,4 +62,8 @@ public sealed class User
 
     public bool IsIndividualGraceActive(DateTimeOffset nowUtc)
         => IndividualGraceEndsAtUtc is not null && IndividualGraceEndsAtUtc > nowUtc;
+
+    // Grace Period
+    public string? CurrentGracePk { get; set; }
+    public string? CurrentGraceRk { get; set; }
 }

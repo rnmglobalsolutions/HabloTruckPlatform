@@ -1,5 +1,4 @@
-﻿// src/HabloTruck.Platform.Application/Abstractions/IStripeEventStore.cs
-namespace HabloTruckPlatform.Application.Abstractions;
+﻿namespace HabloTruckPlatform.Application.Abstractions;
 
 public interface IStripeEventStore
 {

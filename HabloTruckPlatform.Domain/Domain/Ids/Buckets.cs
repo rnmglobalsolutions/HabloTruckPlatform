@@ -43,9 +43,14 @@ public static class Buckets
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email is required.", nameof(email));
 
+        // Normalize inside (so callers can't forget)
         var normalized = email.Trim().ToLowerInvariant();
 
-        var prefix = normalized.Length >= 2 ? normalized[..2] : "xx";
+        // First 2 chars to distribute naturally; safe for 1-char emails too
+        var prefix = normalized.Length >= 2
+            ? normalized[..2]
+            : normalized.Length == 1 ? normalized : "xx";
+
         return $"{TablePrefixes.Email}#{prefix}";
     }
 

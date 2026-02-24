@@ -7,7 +7,8 @@ public sealed class SeatAssignment
     public required string EntitlementId { get; init; }
 
     public required string Status { get; set; } // "active", "revoked"
-    public required DateTimeOffset AssignedAtUtc { get; init; }
+    public DateTimeOffset AssignedAtUtc { get; set; }
+    public DateTimeOffset UpdatedAtUtc { get; set; }
     public DateTimeOffset? RevokedAtUtc { get; set; }
 
     public bool IsActive()
