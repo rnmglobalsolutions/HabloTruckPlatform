@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../HabloTruckPlatform.Application/HabloTruckPlatform.Application.csproj" />
+  <Project Path="../HabloTruckPlatform.Domain/HabloTruckPlatform.Domain.csproj" />
+  <Project Path="../HabloTruckPlatform.Infrastructure/HabloTruckPlatform.Infrastructure.csproj" />
+  <Project Path="../HabloTruckPlatform.Tests/HabloTruckPlatform.Domain.Tests.csproj" />
+  <Project Path="HabloTruckPlatform.Functions.csproj" />
+</Solution>
