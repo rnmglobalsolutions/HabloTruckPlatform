@@ -12,4 +12,7 @@ public static class TableNames
     public const string Entitlements = "HT_Entitlements";
     public const string EntitlementExpiryIndex = "HT_EntitlementExpiryIndex";
     public const string Seats = "HT_Seats";
+    public const string InviteCodes = "HT_InviteCodes";
+    public const string InviteCompanyIndex = "HT_InviteCompanyIndex";
+    public const string FailedActions = "HT_FailedActions";
 }

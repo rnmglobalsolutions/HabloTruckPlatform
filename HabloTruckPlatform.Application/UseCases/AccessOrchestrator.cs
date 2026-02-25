@@ -105,26 +105,19 @@ public sealed class AccessOrchestrator
         }
         catch (Exception ex)
         {
-            // Store for replay. Do not throw.
-            var failed = new Application.Models.FailedAction
+            // enqueue for retry
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
             {
-                ActionId = UlidIds.NewFailedActionId(),
-                ActionType = "manychat_sync_access",
-                CorrelationId = user.UserId,
-                PayloadJson = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    userId = user.UserId,
-                    subscriberId = user.ManyChatSubscriberId,
-                    decision
-                }),
-                Status = "pending",
-                RetryCount = 0,
-                CreatedAtUtc = _clock.UtcNow,
-                LastTriedAtUtc = _clock.UtcNow,
-                LastError = ex.ToString()
-            };
+                userPk = HabloTruckPlatform.Domain.Ids.Buckets.UserBucketPk(user.UserId),
+                userId = user.UserId,
+                reason = "sync_access"
+            }, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
 
-            await _failedActionStore.SaveAsync(failed, ct);
+            await _failedActionStore.EnqueueAsync(
+                FailedActionRetryService.ActionManyChatSync,
+                payload,
+                nextRetryUtc: DateTimeOffset.UtcNow.AddMinutes(2),
+                ct);
         }
     }
 }

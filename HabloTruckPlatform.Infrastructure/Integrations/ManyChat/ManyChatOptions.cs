@@ -1,4 +1,4 @@
-﻿namespace HabloTruckPlatform.Infrastructure.ManyChat;
+﻿namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
 public sealed class ManyChatOptions
 {

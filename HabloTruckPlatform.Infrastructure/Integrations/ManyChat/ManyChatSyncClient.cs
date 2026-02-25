@@ -6,7 +6,7 @@ using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Options;
 
-namespace HabloTruckPlatform.Infrastructure.ManyChat;
+namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
 public sealed class ManyChatSyncClient : IManyChatSync
 {
