@@ -1,6 +1,4 @@
-﻿using System.Text;
-using HabloTruckPlatform.Application.Config;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Stripe;
 
 namespace HabloTruckPlatform.Infrastructure.Stripe;
@@ -10,9 +8,9 @@ public sealed class StripeSignatureValidator
     private readonly string _webhookSecret;
     private readonly ILogger<StripeSignatureValidator> _logger;
 
-    public StripeSignatureValidator(AppOptions options, ILogger<StripeSignatureValidator> logger)
+    public StripeSignatureValidator(StripeOptions options, ILogger<StripeSignatureValidator> logger)
     {
-        _webhookSecret = options.Stripe.WebhookSecret;
+        _webhookSecret = options.WebhookSecret;
         _logger = logger;
     }
 

@@ -1,200 +1,146 @@
-using System.Net;
-using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
-using HabloTruckPlatform.Application.Models;
-using HabloTruckPlatform.Application.UseCases;
+using HabloTruckPlatform.Application.Stripex;
+using HabloTruckPlatform.Infrastructure.Stripe;
+using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Stripe;
+using Microsoft.Extensions.Logging;
+using System.Net;
 
-namespace HabloTruckPlatform.Functions;
+namespace HabloTruckPlatform.Functions.Functions;
 
 public sealed class StripeWebhookFunction
 {
+    private readonly StripeSignatureValidator _sigValidator;
+    private readonly StripeEventParser _parser;
     private readonly IStripeEventStore _eventStore;
-    private readonly StripeSubscriptionHandler _subHandler;
-    private readonly CheckoutSessionHandler _checkoutHandler;
-
-    private readonly string _webhookSecret;
+    private readonly IStripeSubscriptionHandler _subscriptionHandler;
+    private readonly IUserResolver _userResolver;
+    private readonly Metrics _metrics;
+    private readonly ILogger<StripeWebhookFunction> _logger;
 
     public StripeWebhookFunction(
+        StripeSignatureValidator sigValidator,
+        StripeEventParser parser,
         IStripeEventStore eventStore,
-        StripeSubscriptionHandler subHandler,
-        CheckoutSessionHandler checkoutHandler)
+        IStripeSubscriptionHandler subscriptionHandler,
+        IUserResolver userResolver,
+        Metrics metrics,
+        ILogger<StripeWebhookFunction> logger)
     {
+        _sigValidator = sigValidator;
+        _parser = parser;
         _eventStore = eventStore;
-        _subHandler = subHandler;
-        _checkoutHandler = checkoutHandler;
-
-        _webhookSecret = Environment.GetEnvironmentVariable("Stripe__WebhookSecret")
-                         ?? throw new InvalidOperationException("Missing Stripe__WebhookSecret setting.");
+        _subscriptionHandler = subscriptionHandler;
+        _userResolver = userResolver;
+        _metrics = metrics;
+        _logger = logger;
     }
 
     [Function("StripeWebhook")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "stripe/webhook")] HttpRequestData req,
-        FunctionContext executionContext)
+        FunctionContext ctx)
     {
-        var body = await new StreamReader(req.Body).ReadToEndAsync();
+        var ct = ctx.CancellationToken;
 
-        if (!req.Headers.TryGetValues("Stripe-Signature", out var sigHeaders))
-            return await Ok(req); // don't leak info
+        string json;
+        using (var reader = new StreamReader(req.Body))
+            json = await reader.ReadToEndAsync();
 
-        var sigHeader = sigHeaders.FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(sigHeader))
-            return await Ok(req);
+        var stripeSignature = req.Headers.TryGetValues("Stripe-Signature", out var values)
+            ? values.FirstOrDefault()
+            : null;
 
-        Event stripeEvent;
+        Stripe.Event stripeEvent;
         try
         {
-            // Verify signature + parse event
-            stripeEvent = EventUtility.ConstructEvent(body, sigHeader, _webhookSecret);
+            stripeEvent = _sigValidator.Validate(json, stripeSignature);
         }
-        catch
+        catch (Exception ex)
         {
-            // Invalid signature or bad payload
-            return await Ok(req);
+            _logger.LogWarning(ex, "Invalid Stripe signature");
+            return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        // Convert Stripe unix created -> DateTimeOffset
-        var createdUtc = new DateTimeOffset(
-            DateTime.SpecifyKind(stripeEvent.Created, DateTimeKind.Utc));
+        _metrics.StripeEventReceived(stripeEvent.Type);
 
-        // Idempotency gate (Stripe retries are normal)
+        // Stripe.Net 50.3.0: Created is DateTime (UTC)
+        var createdUtc = new DateTimeOffset(stripeEvent.Created, TimeSpan.Zero);
+
+        // Idempotency gate (atomic insert-if-not-exists)
         var firstTime = await _eventStore.TryMarkProcessedAsync(
             stripeEvent.Id,
             stripeEvent.Type,
             createdUtc,
-            executionContext.CancellationToken);
+            ct);
 
         if (!firstTime)
-            return await Ok(req);
-
-        try
         {
-            switch (stripeEvent.Type)
+            _logger.LogInformation("Duplicate Stripe event ignored: {EventId}", stripeEvent.Id);
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
+
+        // Parse (into our DTOs, no Stripe SDK types beyond this point)
+        var parsed = _parser.Parse(stripeEvent);
+
+        // If no customer id, nothing to do (ignore safely)
+        if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
+        {
+            _logger.LogInformation("Event without customer ignored: {Type}", parsed.EventType);
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
+
+        // Inject event metadata required by handler (out-of-order + audit)
+        parsed.Data!.StripeEventId = stripeEvent.Id;
+        parsed.Data.StripeEventCreatedUtc = createdUtc;
+
+        // Resolve user reference (PK/RK) by StripeCustomerId lookup
+        var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(parsed.Data.CustomerId!, ct);
+
+        using (LogContext.BeginUserScope(_logger, userRef?.UserId, null, parsed.Data.CustomerId))
+        {
+            try
             {
-                // -------------------
-                // Individual subscription signals
-                // -------------------
-                case "customer.subscription.updated":
-                    {
-                        var sub = stripeEvent.Data.Object as Subscription;
-                        if (sub is null) break;
-
-                        var dto = new StripeSubscriptionUpdate(
-                            StripeEventId: stripeEvent.Id,
-                            StripeEventCreatedUtc: createdUtc,
-                            StripeCustomerId: sub.CustomerId,
-                            StripeSubscriptionId: sub.Id,
-                            SubscriptionStatus: sub.Status);
-
-                        await _subHandler.HandleSubscriptionUpdatedAsync(dto, executionContext.CancellationToken);
-                        break;
-                    }
-
-                case "customer.subscription.deleted":
-                    {
-                        var sub = stripeEvent.Data.Object as Subscription;
-                        if (sub is null) break;
-
-                        var dto = new StripeSubscriptionDeleted(
-                            StripeEventId: stripeEvent.Id,
-                            StripeEventCreatedUtc: createdUtc,
-                            StripeCustomerId: sub.CustomerId,
-                            StripeSubscriptionId: sub.Id);
-
-                        await _subHandler.HandleSubscriptionDeletedAsync(dto, executionContext.CancellationToken);
-                        break;
-                    }
-
-                case "invoice.paid":
-                    {
-                        var inv = stripeEvent.Data.Object as Invoice;
-                        if (inv is null) break;
-
-                        var dto = new StripeInvoicePaid(
-                            StripeEventId: stripeEvent.Id,
-                            StripeEventCreatedUtc: createdUtc,
-                            StripeCustomerId: inv.CustomerId);
-
-                        await _subHandler.HandleInvoicePaidAsync(dto, executionContext.CancellationToken);
-                        break;
-                    }
-
-                case "invoice.payment_failed":
-                    {
-                        var inv = stripeEvent.Data.Object as Invoice;
-                        if (inv is null) break;
-
-                        var dto = new StripeInvoicePaymentFailed(
-                            StripeEventId: stripeEvent.Id,
-                            StripeEventCreatedUtc: createdUtc,
-                            StripeCustomerId: inv.CustomerId);
-
-                        await _subHandler.HandleInvoicePaymentFailedAsync(dto, executionContext.CancellationToken);
-                        break;
-                    }
-
-                // -------------------
-                // B2B packs purchase
-                // -------------------
-                case "checkout.session.completed":
-                    {
-                        var session = stripeEvent.Data.Object as Stripe.Checkout.Session;
-                        if (session is null) break;
-
-                        // Metadata keys you must set in Stripe Checkout:
-                        // company_id, company_name, admin_email, seats_total, term
-                        var md = session.Metadata ?? new Dictionary<string, string>();
-
-                        var companyId = Get(md, "company_id") ?? "";
-                        var companyName = Get(md, "company_name");
-                        var adminEmail = Get(md, "admin_email")?.Trim().ToLowerInvariant();
-
-                        var seatsTotal = TryInt(Get(md, "seats_total")) ?? 0;
-                        var term = (Get(md, "term") ?? "annual").Trim().ToLowerInvariant();
-
-                        var dto = new StripeCheckoutSessionCompleted(
-                            StripeEventId: stripeEvent.Id,
-                            StripeEventCreatedUtc: createdUtc,
-                            StripeCustomerId: session.CustomerId,
-                            CheckoutSessionId: session.Id,
-                            PaymentIntentId: session.PaymentIntentId,
-                            CompanyId: companyId,
-                            CompanyName: companyName,
-                            AdminEmailNormalized: adminEmail,
-                            SeatsTotal: seatsTotal,
-                            Term: term);
-
-                        await _checkoutHandler.HandleCheckoutSessionCompletedAsync(dto, executionContext.CancellationToken);
-                        break;
-                    }
-
-                default:
-                    // ignore other events
-                    break;
+                await DispatchAsync(parsed, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing Stripe event {Type}", parsed.EventType);
+                // DO NOT fail webhook → Stripe will retry; idempotency already marked, so we just log.
             }
         }
-        catch
-        {
-            // IMPORTANT: For webhook resilience, return 200 so Stripe doesn't keep retrying forever.
-            // You can add FailedAction outbox here later for "poison" events.
-        }
 
-        return await Ok(req);
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 
-    private static async Task<HttpResponseData> Ok(HttpRequestData req)
+    private async Task DispatchAsync(StripeParsedEvent parsed, CancellationToken ct)
     {
-        var res = req.CreateResponse(HttpStatusCode.OK);
-        await res.WriteStringAsync("ok");
-        return res;
+        switch (parsed.EventType)
+        {
+            case "checkout.session.completed":
+                await _subscriptionHandler.HandleCheckoutCompletedAsync(parsed.Data!, ct);
+                break;
+
+            case "invoice.paid":
+                await _subscriptionHandler.HandleInvoicePaidAsync(parsed.Data!, ct);
+                break;
+
+            case "invoice.payment_failed":
+                await _subscriptionHandler.HandleInvoicePaymentFailedAsync(parsed.Data!, ct);
+                break;
+
+            case "customer.subscription.updated":
+                await _subscriptionHandler.HandleSubscriptionUpdatedAsync(parsed.Data!, ct);
+                break;
+
+            case "customer.subscription.deleted":
+                await _subscriptionHandler.HandleSubscriptionDeletedAsync(parsed.Data!, ct);
+                break;
+
+            default:
+                _logger.LogInformation("Unhandled Stripe event type: {Type}", parsed.EventType);
+                break;
+        }
     }
-
-    private static string? Get(IDictionary<string, string> md, string key)
-        => md.TryGetValue(key, out var v) ? v : null;
-
-    private static int? TryInt(string? s)
-        => int.TryParse(s, out var n) ? n : null;
 }

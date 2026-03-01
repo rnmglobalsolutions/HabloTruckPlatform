@@ -21,4 +21,5 @@ public sealed class Entitlement
         => EndUtc is not null && EndUtc <= nowUtc;
 
     public bool IsLifetime => EndUtc is null;
+    public DateTimeOffset UpdatedAtUtc { get; set; }
 }

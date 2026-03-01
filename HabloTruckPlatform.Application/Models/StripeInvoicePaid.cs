@@ -2,5 +2,6 @@
 
 public sealed record StripeInvoicePaid(
     string StripeEventId,
+    string StripeSubscriptionId,
     DateTimeOffset StripeEventCreatedUtc,
     string StripeCustomerId);

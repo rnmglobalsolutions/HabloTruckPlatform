@@ -1,5 +1,6 @@
 ﻿using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
+using HabloTruckPlatform.Application.Stripex;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
@@ -10,7 +11,7 @@ namespace HabloTruckPlatform.Application.UseCases;
 /// Handles Stripe subscription/invoice signals (already parsed into DTOs).
 /// No Stripe SDK types here.
 /// </summary>
-public sealed class StripeSubscriptionHandler
+public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 {
     private readonly IUserResolver _userResolver;
     private readonly IUserStore _userStore;
@@ -39,9 +40,71 @@ public sealed class StripeSubscriptionHandler
         _individualGracePolicy = individualGracePolicy;
     }
 
-    // ----------------------------
-    // customer.subscription.updated
-    // ----------------------------
+    // =========================================================
+    // WEBHOOK-FRIENDLY METHODS (StripeEventData)
+    // =========================================================
+
+    public async Task HandleCheckoutCompletedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        // If you already handle checkout in CheckoutSessionHandler, you can forward there instead.
+        // For now, keep it minimal: upsert lookups if we can resolve user by email or ManyChat.
+        // (You can remove this if checkout is handled elsewhere.)
+        if (data is null) return;
+
+        // Optional: if you do company-pack checkout, you probably handle it in CheckoutSessionHandler.
+        // Keep as no-op if you want.
+        await Task.CompletedTask;
+    }
+
+    public Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        var dto = new StripeSubscriptionUpdate(
+            StripeEventId: data.StripeEventId,
+            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
+            StripeCustomerId: data.CustomerId ?? "",
+            StripeSubscriptionId: data.SubscriptionId,
+            SubscriptionStatus: data.Status ?? "unknown");
+
+        return HandleSubscriptionUpdatedAsync(dto, ct);
+    }
+
+    public Task<AccessDecision?> HandleSubscriptionDeletedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        var dto = new StripeSubscriptionDeleted(
+            StripeEventId: data.StripeEventId,
+            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
+            StripeCustomerId: data.CustomerId ?? "",
+            StripeSubscriptionId: data.SubscriptionId);
+
+        return HandleSubscriptionDeletedAsync(dto, ct);
+    }
+
+    public Task<AccessDecision?> HandleInvoicePaidAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        var dto = new StripeInvoicePaid(
+            StripeEventId: data.StripeEventId,
+            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
+            StripeCustomerId: data.CustomerId ?? "",
+            StripeSubscriptionId: data.SubscriptionId);
+
+        return HandleInvoicePaidAsync(dto, ct);
+    }
+
+    public Task<AccessDecision?> HandleInvoicePaymentFailedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        var dto = new StripeInvoicePaymentFailed(
+            StripeEventId: data.StripeEventId,
+            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
+            StripeCustomerId: data.CustomerId ?? "",
+            StripeSubscriptionId: data.SubscriptionId);
+
+        return HandleInvoicePaymentFailedAsync(dto, ct);
+    }
+
+    // =========================================================
+    // DTO-BASED METHODS (existing)
+    // =========================================================
+
     public async Task<AccessDecision?> HandleSubscriptionUpdatedAsync(
         StripeSubscriptionUpdate input,
         CancellationToken ct = default)
@@ -57,38 +120,29 @@ public sealed class StripeSubscriptionHandler
                 ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
                 : null;
 
-        // Update Stripe facts
         user.StripeCustomerId = input.StripeCustomerId;
         user.StripeSubscriptionId = input.StripeSubscriptionId;
 
-        // Apply domain subscription transition (sets IndividualGraceEndsAtUtc when needed)
         SubscriptionState.ApplyStripeStatus(
             user,
             newStatus: input.SubscriptionStatus,
             nowUtc: _clock.UtcNow,
             gracePolicy: _individualGracePolicy);
 
-        // Audit
         user.LastStripeEventId = input.StripeEventId;
         user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
         user.UpdatedAtUtc = _clock.UtcNow;
 
-        // Maintain GraceIndex
         await SyncGraceIndex(user, userRef.Value, ct);
 
         var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
 
-        // Persist user + lookups
         await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
-        // Recompute final access (includes company seat logic)
         return decision;
     }
 
-    // ----------------------------
-    // customer.subscription.deleted
-    // ----------------------------
     public async Task<AccessDecision?> HandleSubscriptionDeletedAsync(
         StripeSubscriptionDeleted input,
         CancellationToken ct = default)
@@ -107,7 +161,6 @@ public sealed class StripeSubscriptionHandler
         user.StripeCustomerId = input.StripeCustomerId;
         user.StripeSubscriptionId = input.StripeSubscriptionId;
 
-        // Treat deletion as grace-worthy terminal status
         SubscriptionState.ApplyStripeStatus(
             user,
             newStatus: "deleted",
@@ -128,9 +181,6 @@ public sealed class StripeSubscriptionHandler
         return decision;
     }
 
-    // ----------------------------
-    // invoice.paid
-    // ----------------------------
     public async Task<AccessDecision?> HandleInvoicePaidAsync(
         StripeInvoicePaid input,
         CancellationToken ct = default)
@@ -146,7 +196,6 @@ public sealed class StripeSubscriptionHandler
                 ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
                 : null;
 
-        // Fast restore signal (subscription.updated should also arrive, but this reduces lag)
         SubscriptionState.ApplyStripeStatus(
             user,
             newStatus: "active",
@@ -167,9 +216,6 @@ public sealed class StripeSubscriptionHandler
         return decision;
     }
 
-    // ----------------------------
-    // invoice.payment_failed
-    // ----------------------------
     public async Task<AccessDecision?> HandleInvoicePaymentFailedAsync(
         StripeInvoicePaymentFailed input,
         CancellationToken ct = default)
@@ -185,7 +231,6 @@ public sealed class StripeSubscriptionHandler
                 ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
                 : null;
 
-        // Start/extend individual grace
         SubscriptionState.ApplyStripeStatus(
             user,
             newStatus: "past_due",
@@ -203,7 +248,6 @@ public sealed class StripeSubscriptionHandler
         await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
-        // Trigger recovery flow (best effort)
         if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
         {
             try
@@ -212,16 +256,17 @@ public sealed class StripeSubscriptionHandler
             }
             catch
             {
-                // ignore; outbox/retry can handle later via ManyChatSync implementation
+                // best-effort
             }
         }
 
         return decision;
     }
 
-    // ----------------------------
+    // =========================================================
     // Helpers
-    // ----------------------------
+    // =========================================================
+
     private static bool IsOutOfOrder(User user, DateTimeOffset eventCreatedUtc)
     {
         if (user.LastStripeEventCreatedUtc is null) return false;
@@ -244,21 +289,18 @@ public sealed class StripeSubscriptionHandler
         }
         else
         {
-            // clear pointers (will be persisted by caller once)
             var pk = user.CurrentGracePk;
             var rk = user.CurrentGraceRk;
 
             user.CurrentGracePk = null;
             user.CurrentGraceRk = null;
 
-            // O(1) delete if we have pointers
             if (!string.IsNullOrWhiteSpace(pk) && !string.IsNullOrWhiteSpace(rk))
             {
                 await _graceIndexStore.DeleteAsync(pk!, rk!, ct);
             }
             else
             {
-                // fallback (if you keep it)
                 await _graceIndexStore.DeleteForUserAsync(userRef, ct);
             }
         }
