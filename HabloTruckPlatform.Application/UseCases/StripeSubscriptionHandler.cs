@@ -18,6 +18,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IGraceIndexStore _graceIndexStore;
     private readonly IManyChatSync _manyChatSync;
     private readonly AccessOrchestrator _accessOrchestrator;
+    private readonly GracePolicy _gracePolicy;
     private readonly IClock _clock;
 
     private readonly GracePolicy _individualGracePolicy;
@@ -28,6 +29,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         IGraceIndexStore graceIndexStore,
         IManyChatSync manyChatSync,
         AccessOrchestrator accessOrchestrator,
+        GracePolicy gracePolicy,
         IClock clock,
         GracePolicy individualGracePolicy)
     {
@@ -36,6 +38,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _graceIndexStore = graceIndexStore;
         _manyChatSync = manyChatSync;
         _accessOrchestrator = accessOrchestrator;
+        _graceIndexStore = graceIndexStore;
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
     }
@@ -46,14 +49,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
     public async Task HandleCheckoutCompletedAsync(StripeEventData data, CancellationToken ct = default)
     {
-        // If you already handle checkout in CheckoutSessionHandler, you can forward there instead.
-        // For now, keep it minimal: upsert lookups if we can resolve user by email or ManyChat.
-        // (You can remove this if checkout is handled elsewhere.)
-        if (data is null) return;
-
-        // Optional: if you do company-pack checkout, you probably handle it in CheckoutSessionHandler.
-        // Keep as no-op if you want.
-        await Task.CompletedTask;
+        return HandleCheckoutSessionCompletedAsync(data, ct);
     }
 
     public Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeEventData data, CancellationToken ct = default)
@@ -104,6 +100,163 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     // =========================================================
     // DTO-BASED METHODS (existing)
     // =========================================================
+
+    public async Task HandleCheckoutSessionCompletedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+
+
+        if (data is null) throw new ArgumentNullException(nameof(data));
+        if (string.IsNullOrWhiteSpace(data.CustomerId))
+            throw new ArgumentException("StripeEventData.CustomerId is required for checkout completion.");
+
+        var nowUtc = _clock.UtcNow;
+
+        // ---- Read metadata
+        var planType = GetMeta(data, "planType")?.Trim().ToLowerInvariant() ?? "individual";
+
+        // B2B
+        var companyId = GetMeta(data, "companyId")?.Trim();
+        var companyName = GetMeta(data, "companyName")?.Trim();
+        var seatsMeta = GetMeta(data, "seats");
+        var durationDaysMeta = GetMeta(data, "durationDays");
+
+        // ---- Ensure User exists (prefer email, then manychat)
+        var emailNormalized = NormalizeEmail(data.CustomerEmail) ?? NormalizeEmail(GetMeta(data, "email"));
+        var manyChatSubscriberId = GetMeta(data, "manychatSubscriberId") ?? GetMeta(data, "subscriberId");
+        var phoneE164 = GetMeta(data, "phone");
+
+        var user = await _userStore.GetOrCreateAsync(emailNormalized, manyChatSubscriberId, phoneE164, ct);
+
+        // ---- Attach Stripe facts to user (very important for lookups)
+        user.StripeCustomerId = data.CustomerId!.Trim();
+        user.StripeSubscriptionId = string.IsNullOrWhiteSpace(data.SubscriptionId) ? user.StripeSubscriptionId : data.SubscriptionId!.Trim();
+        user.UpdatedAtUtc = nowUtc;
+
+        // Persist + lookups (lookups are insert-only in PROD)
+        await _userStore.UpsertAsync(user, ct);
+        await _userStore.UpsertLookupsAsync(user, ct);
+
+        // ---- Handle plan types
+        switch (planType)
+        {
+            case "individual":
+            {
+                // Set user to active (your domain method may differ)
+                SubscriptionState.ApplyStripeStatus(
+                    user,
+                    newStatus: "active",
+                    nowUtc: nowUtc,
+                    gracePolicy: _gracePolicy); // or inject policy; adjust if you already inject
+
+                user.UpdatedAtUtc = nowUtc;
+                await _userStore.UpsertAsync(user, ct);
+
+                await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+
+                // optional: notify ManyChat
+                if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+                {
+                    try { await _manyChatSync.TriggerAccessGrantedFlowAsync(user.ManyChatSubscriberId!, ct); }
+                    catch { /* best-effort */ }
+                }
+
+                _logger.LogInformation("Checkout handled: individual userId={UserId}", user.UserId);
+                break;
+            }
+
+            case "fleet":
+            {
+                if (string.IsNullOrWhiteSpace(companyId))
+                    throw new InvalidOperationException("fleet checkout requires metadata companyId.");
+
+                // Seats: prefer actual quantity (if parser supplies), else metadata
+                var seats = data.Quantity > 0 ? data.Quantity : ParseInt(seatsMeta, fallback: 0);
+                if (seats <= 0) throw new InvalidOperationException("fleet checkout requires seats quantity > 0.");
+
+                // Ensure Company exists/updated
+                await _companyStore.UpsertFromCheckoutAsync(
+                    companyId: companyId!,
+                    companyName: companyName,
+                    adminEmailNormalized: emailNormalized,
+                    stripeCustomerId: data.CustomerId,
+                    ct: ct);
+
+                // Create/Update entitlement (monthly subscription => EndUtc usually null; Stripe controls lifecycle)
+                var entitlementId = ResolveEntitlementIdForFleet(companyId!, data.SubscriptionId);
+
+                var ent = await _entitlementStore.GetAsync(companyId!, entitlementId, ct)
+                          ?? new Entitlement
+                          {
+                              CompanyId = companyId!,
+                              EntitlementId = entitlementId,
+                              CreatedAtUtc = nowUtc,
+                              Status = "active"
+                          };
+
+                ent.Status = "active";
+                ent.SeatsAllowed = seats;
+                ent.UpdatedAtUtc = nowUtc;
+
+                // For subscription entitlements, EndUtc can be null; deletion handled by subscription.deleted + grace
+                ent.EndUtc = null;
+
+                await _entitlementStore.UpsertAsync(ent, ct);
+
+                // If you maintain expiry index only when EndUtc != null, no index needed here.
+
+                _logger.LogInformation("Checkout handled: fleet companyId={CompanyId} entId={EntitlementId} seats={Seats}",
+                    companyId, entitlementId, seats);
+                break;
+            }
+
+            case "cdl_cohort":
+            {
+                if (string.IsNullOrWhiteSpace(companyId))
+                    throw new InvalidOperationException("cdl_cohort checkout requires metadata companyId.");
+
+                var seats = ParseInt(seatsMeta, fallback: data.Quantity);
+                if (seats <= 0) throw new InvalidOperationException("cdl_cohort checkout requires seats > 0.");
+
+                var durationDays = ParseInt(durationDaysMeta, fallback: 90);
+                if (durationDays <= 0) durationDays = 90;
+
+                await _companyStore.UpsertFromCheckoutAsync(
+                    companyId: companyId!,
+                    companyName: companyName,
+                    adminEmailNormalized: emailNormalized,
+                    stripeCustomerId: data.CustomerId,
+                    ct: ct);
+
+                // Cohort entitlement is time-bounded (prepaid)
+                var entitlementId = UlidIds.NewEntitlementId();
+
+                var ent = new Entitlement
+                {
+                    CompanyId = companyId!,
+                    EntitlementId = entitlementId,
+                    Status = "active",
+                    SeatsAllowed = seats,
+                    SeatsUsed = 0,
+                    CreatedAtUtc = nowUtc,
+                    UpdatedAtUtc = nowUtc,
+                    EndUtc = nowUtc.AddDays(durationDays)
+                };
+
+                await _entitlementStore.CreateAsync(ent, ct);
+
+                // ✅ index expiry for sweeper
+                await _expiryIndex.UpsertAsync(new EntitlementRef(companyId!, entitlementId), ent.EndUtc.Value, ct);
+
+                _logger.LogInformation("Checkout handled: cdl_cohort companyId={CompanyId} entId={EntitlementId} seats={Seats} endUtc={EndUtc}",
+                    companyId, entitlementId, seats, ent.EndUtc);
+
+                break;
+            }
+
+            default:
+                throw new InvalidOperationException($"Unknown planType '{planType}'.");
+        }
+    }
 
     public async Task<AccessDecision?> HandleSubscriptionUpdatedAsync(
         StripeSubscriptionUpdate input,
@@ -304,5 +457,31 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 await _graceIndexStore.DeleteForUserAsync(userRef, ct);
             }
         }
+    }
+
+    private static string? GetMeta(StripeEventData data, string key)
+    {
+        if (data.Metadata is null) return null;
+        return data.Metadata.TryGetValue(key, out var v) ? v : null;
+    }
+
+    private static string? NormalizeEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static int ParseInt(string? s, int fallback)
+        => int.TryParse(s, out var n) ? n : fallback;
+
+    // Fleet entitlements should be stable per subscription (recommended)
+    private static string ResolveEntitlementIdForFleet(string companyId, string? subscriptionId)
+    {
+        // If you have a better deterministic mapping, use it.
+        // Best: "ent_{subscriptionId}" if present; else fallback to "ent_default"
+        if (!string.IsNullOrWhiteSpace(subscriptionId))
+            return $"ent_{subscriptionId.Trim()}";
+
+        return $"ent_{companyId}_default";
     }
 }
