@@ -31,7 +31,7 @@ public sealed class StripeEventParser
             {
                 CustomerId = session.CustomerId,
                 SubscriptionId = session.SubscriptionId,
-                Email = session.CustomerDetails?.Email,
+                CustomerEmail = session.CustomerDetails?.Email,
                 Metadata = session.Metadata
             });
     }
@@ -126,6 +126,7 @@ public sealed class StripeEventData
     public string? Status { get; set; }
 
     // Optional fields (checkout/session)
-    public string? Email { get; set; }
+    public string? CustomerEmail { get; set; }
+    public int Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }

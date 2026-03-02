@@ -28,7 +28,8 @@ public sealed class ManyChatSyncClient : IManyChatSync
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
-    public async Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
+    public async Task SyncUserAccessAsync(
+        User user, AccessDecision decision, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
             return;

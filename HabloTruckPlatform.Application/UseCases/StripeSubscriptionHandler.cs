@@ -3,7 +3,9 @@ using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.Stripex;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -20,8 +22,11 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly AccessOrchestrator _accessOrchestrator;
     private readonly GracePolicy _gracePolicy;
     private readonly IClock _clock;
-
     private readonly GracePolicy _individualGracePolicy;
+    private readonly ICompanyStore _companyStore;
+    private readonly IEntitlementStore _entitlementStore;
+    private readonly IEntitlementExpiryIndexStore _expiryIndex;
+    private readonly ILogger<StripeSubscriptionHandler> _logger;
 
     public StripeSubscriptionHandler(
         IUserResolver userResolver,
@@ -31,7 +36,11 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         AccessOrchestrator accessOrchestrator,
         GracePolicy gracePolicy,
         IClock clock,
-        GracePolicy individualGracePolicy)
+        GracePolicy individualGracePolicy,
+        ICompanyStore companyStore,
+        IEntitlementStore entitlementStore,
+        IEntitlementExpiryIndexStore expiryIndex,
+        ILogger<StripeSubscriptionHandler> logger)
     {
         _userResolver = userResolver;
         _userStore = userStore;
@@ -39,8 +48,13 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _manyChatSync = manyChatSync;
         _accessOrchestrator = accessOrchestrator;
         _graceIndexStore = graceIndexStore;
+        _gracePolicy = gracePolicy;
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
+        _companyStore = companyStore;
+        _entitlementStore = entitlementStore;
+        _expiryIndex = expiryIndex;
+        _logger = logger;
     }
 
     // =========================================================
@@ -49,7 +63,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
     public async Task HandleCheckoutCompletedAsync(StripeEventData data, CancellationToken ct = default)
     {
-        return HandleCheckoutSessionCompletedAsync(data, ct);
+        await HandleCheckoutSessionCompletedAsync(data, ct);
     }
 
     public Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeEventData data, CancellationToken ct = default)
@@ -146,17 +160,28 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     user,
                     newStatus: "active",
                     nowUtc: nowUtc,
-                    gracePolicy: _gracePolicy); // or inject policy; adjust if you already inject
+                    gracePolicy: _gracePolicy);
 
                 user.UpdatedAtUtc = nowUtc;
                 await _userStore.UpsertAsync(user, ct);
 
                 await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
 
+                // Build decision from stored snapshot (no recompute needed for retry)
+                var snap = user.EffectiveAccess;
+                if (snap is null)
+                    return;
+
+                var decision = new AccessDecision(
+                    snap.Mode,
+                    snap.Source,
+                    snap.GraceEndsAtUtc,
+                    Reason: "Set ManyChat Tags and Fields");
+
                 // optional: notify ManyChat
                 if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
                 {
-                    try { await _manyChatSync.TriggerAccessGrantedFlowAsync(user.ManyChatSubscriberId!, ct); }
+                    try { await _manyChatSync.SyncUserAccessAsync(user, decision, ct); }
                     catch { /* best-effort */ }
                 }
 
@@ -189,16 +214,28 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                           {
                               CompanyId = companyId!,
                               EntitlementId = entitlementId,
-                              CreatedAtUtc = nowUtc,
+                              SeatsUsed = 0,
+                              SeatsTotal = seats,
+                              StartUtc = nowUtc,
                               Status = "active"
                           };
 
-                ent.Status = "active";
-                ent.SeatsAllowed = seats;
-                ent.UpdatedAtUtc = nowUtc;
+                var updated = new Entitlement
+                {
+                    CompanyId = ent.CompanyId,
+                    EntitlementId = ent.EntitlementId,
 
-                // For subscription entitlements, EndUtc can be null; deletion handled by subscription.deleted + grace
-                ent.EndUtc = null;
+                    SeatsUsed = ent.SeatsUsed,
+                    SeatsTotal = seats,
+
+                    StartUtc = ent.StartUtc == default ? nowUtc : ent.StartUtc,
+                    EndUtc = ent.EndUtc,
+
+                    Status = "active",
+                    UpdatedAtUtc = nowUtc
+                };
+
+                ent = updated;
 
                 await _entitlementStore.UpsertAsync(ent, ct);
 
@@ -235,9 +272,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     CompanyId = companyId!,
                     EntitlementId = entitlementId,
                     Status = "active",
-                    SeatsAllowed = seats,
+                    SeatsTotal = seats,
                     SeatsUsed = 0,
-                    CreatedAtUtc = nowUtc,
+                    StartUtc = nowUtc,
                     UpdatedAtUtc = nowUtc,
                     EndUtc = nowUtc.AddDays(durationDays)
                 };
