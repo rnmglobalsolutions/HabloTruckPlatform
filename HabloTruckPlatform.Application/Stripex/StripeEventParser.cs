@@ -3,11 +3,6 @@ using Stripe;
 
 namespace HabloTruckPlatform.Application.Stripex;
 
-using Newtonsoft.Json.Linq;
-using Stripe;
-
-namespace HabloTruckPlatform.Application.Stripex;
-
 public sealed class StripeEventParser
 {
     public StripeParsedEvent Parse(Event stripeEvent)
@@ -175,7 +170,7 @@ public sealed class StripeEventParser
     private static StripeEventData Stamp(Event e, StripeEventData data)
     {
         data.StripeEventId = e.Id;
-        data.StripeEventCreatedUtc = DateTimeOffset.FromUnixTimeSeconds(e.Created).ToUniversalTime();
+        data.StripeEventCreatedUtc = e.Created;
         return data;
     }
 
@@ -258,7 +253,6 @@ public sealed class StripeEventData
     // Optional fields (checkout/session)
     public string? CustomerEmail { get; set; }
     public int Quantity { get; set; }
-    public string? PriceId { get; set; }
     public string? Interval { get; set; } // "month" / "year" (best-effort)
     public Dictionary<string, string>? Metadata { get; set; }
 }

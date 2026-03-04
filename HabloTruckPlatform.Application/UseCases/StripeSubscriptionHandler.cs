@@ -75,8 +75,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             StripeEventId: data.StripeEventId,
             StripeEventCreatedUtc: data.StripeEventCreatedUtc,
             StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId,
-            SubscriptionStatus: data.Status ?? "unknown");
+            StripeSubscriptionId: data.SubscriptionId ?? "",
+            SubscriptionStatus: data.Status ?? "unknown",
+            CancelAtPeriodEnd: data.CancelAtPeriodEnd ?? false,
+            CurrentPeriodEndUtc: data.CurrentPeriodEndUtc,
+            CanceledAtUtc: data.CanceledAtUtc,
+            EndedAtUtc: data.EndedAtUtc);
 
         return HandleSubscriptionUpdatedAsync(dto, ct);
     }
@@ -87,7 +91,10 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             StripeEventId: data.StripeEventId,
             StripeEventCreatedUtc: data.StripeEventCreatedUtc,
             StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId);
+            StripeSubscriptionId: data.SubscriptionId ?? "",
+            CurrentPeriodEndUtc: data.CurrentPeriodEndUtc,
+            CanceledAtUtc: data.CanceledAtUtc,
+            EndedAtUtc: data.EndedAtUtc);
 
         return HandleSubscriptionDeletedAsync(dto, ct);
     }
@@ -98,7 +105,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             StripeEventId: data.StripeEventId,
             StripeEventCreatedUtc: data.StripeEventCreatedUtc,
             StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId);
+            StripeSubscriptionId: data.SubscriptionId ?? "");
 
         return HandleInvoicePaidAsync(dto, ct);
     }
@@ -109,7 +116,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             StripeEventId: data.StripeEventId,
             StripeEventCreatedUtc: data.StripeEventCreatedUtc,
             StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId);
+            StripeSubscriptionId: data.SubscriptionId ?? "");
 
         return HandleInvoicePaymentFailedAsync(dto, ct);
     }

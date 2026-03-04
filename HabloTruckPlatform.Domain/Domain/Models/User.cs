@@ -67,6 +67,11 @@ public sealed class User
     public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }
     public DateTimeOffset? LastManyChatSyncAtUtc { get; set; }
 
+    // Metadata
+    public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
+    public string? CohortId { get; set; } // CDL_A_2026_01
+    public string? SchoolId { get; set; } // roadmaster_houston
+
     // Convenience helpers (optional)
     public bool HasActiveSeat()
         => string.Equals(SeatStatus, "active", StringComparison.OrdinalIgnoreCase);
@@ -76,13 +81,4 @@ public sealed class User
 
     public bool IsIndividualGraceActive(DateTimeOffset nowUtc)
         => IndividualGraceEndsAtUtc is not null && IndividualGraceEndsAtUtc > nowUtc;
-
-    // Grace Period
-    public string? CurrentGracePk { get; set; }
-    public string? CurrentGraceRk { get; set; }
-
-    // Metadata
-    public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
-    public string? CohortId { get; set; } // CDL_A_2026_01
-    public string? SchoolId { get; set; } // roadmaster_houston
 }

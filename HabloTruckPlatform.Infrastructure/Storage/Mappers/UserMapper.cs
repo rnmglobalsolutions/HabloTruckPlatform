@@ -96,7 +96,7 @@ public static class UserMapper
             SchoolId = e.SchoolId,
 
             LastSyncedAccessMode = e.LastSyncedAccessMode,
-            LastSyncedAccessSource = e.LastSyncedAccessSource,
+            LastSyncedAccessSource = e.LastSyncedAccessSource ?? 0,
             LastSyncedGraceEndsAtUtc = e.LastSyncedGraceEndsAtUtc,
             LastManyChatSyncAtUtc = e.LastManyChatSyncAtUtc,
             

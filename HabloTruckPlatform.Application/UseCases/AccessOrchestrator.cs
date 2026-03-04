@@ -5,6 +5,7 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
+using System.Text.Json;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
