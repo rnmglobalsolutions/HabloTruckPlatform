@@ -23,6 +23,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly GracePolicy _gracePolicy;
     private readonly IClock _clock;
     private readonly GracePolicy _individualGracePolicy;
+    private readonly StripePriceCatalogOptions _priceCatalog;
     private readonly ICompanyStore _companyStore;
     private readonly IEntitlementStore _entitlementStore;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
@@ -37,6 +38,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         GracePolicy gracePolicy,
         IClock clock,
         GracePolicy individualGracePolicy,
+        StripePriceCatalogOptions priceCatalog,
         ICompanyStore companyStore,
         IEntitlementStore entitlementStore,
         IEntitlementExpiryIndexStore expiryIndex,
@@ -51,6 +53,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _gracePolicy = gracePolicy;
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
+        _priceCatalog = priceCatalog;
         _companyStore = companyStore;
         _entitlementStore = entitlementStore;
         _expiryIndex = expiryIndex;
@@ -117,8 +120,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
     public async Task HandleCheckoutSessionCompletedAsync(StripeEventData data, CancellationToken ct = default)
     {
-
-
         if (data is null) throw new ArgumentNullException(nameof(data));
         if (string.IsNullOrWhiteSpace(data.CustomerId))
             throw new ArgumentException("StripeEventData.CustomerId is required for checkout completion.");
@@ -127,9 +128,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         // ---- Read metadata
         var planType = GetMeta(data, "planType")?.Trim().ToLowerInvariant() ?? "individual";
+        var cohortId = GetMeta(data, "ht_cohort")?.Trim();                   // recommended
+        var schoolId = GetMeta(data, "ht_school_id")?.Trim();               // recommended
+
 
         // B2B
-        var companyId = GetMeta(data, "companyId")?.Trim();
+        var companyId = GetMeta(data, "companyId")?.Trim() ?? GetMeta(data, "ht_company_id")?.Trim();
         var companyName = GetMeta(data, "companyName")?.Trim();
         var seatsMeta = GetMeta(data, "seats");
         var durationDaysMeta = GetMeta(data, "durationDays");
@@ -145,6 +149,37 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         user.StripeCustomerId = data.CustomerId!.Trim();
         user.StripeSubscriptionId = string.IsNullOrWhiteSpace(data.SubscriptionId) ? user.StripeSubscriptionId : data.SubscriptionId!.Trim();
         user.UpdatedAtUtc = nowUtc;
+
+        // attach cohort fields (optional)
+        user.CohortId = string.IsNullOrWhiteSpace(cohortId) ? user.CohortId : cohortId;
+        user.SchoolId = string.IsNullOrWhiteSpace(schoolId) ? user.SchoolId : schoolId;
+
+        // --------- Determine plan by PriceId (source of truth)
+        var priceId = data.PriceId?.Trim();
+
+        if (string.IsNullOrWhiteSpace(priceId))
+        {
+            // fallback: if metadata says planType, accept it; else assume individual monthly
+            planType ??= "individual";
+        }
+        else
+        {
+            if (priceId == _priceCatalog.IndividualMonthlyPriceId)
+                planType = "individual_monthly";
+            else if (priceId == _priceCatalog.IndividualYearlyPriceId)
+                planType = "individual_yearly";
+            else if (priceId == _priceCatalog.FleetSeatMonthlyPriceId)
+                planType = "fleet_seat";
+            else if (priceId == _priceCatalog.CdlCohort25PriceId
+                  || priceId == _priceCatalog.CdlCohort50PriceId
+                  || priceId == _priceCatalog.CdlCohort100PriceId)
+                planType = "cdl_cohort";
+            else
+                planType ??= "individual"; // unknown price -> safe fallback
+        }
+
+        // store for analytics/debug
+        user.PlanType = planType;
 
         // Persist + lookups (lookups are insert-only in PROD)
         await _userStore.UpsertAsync(user, ct);

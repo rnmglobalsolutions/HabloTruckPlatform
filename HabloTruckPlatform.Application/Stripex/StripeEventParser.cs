@@ -121,6 +121,7 @@ public sealed class StripeEventData
     // Core identifiers
     public string? CustomerId { get; set; }
     public string? SubscriptionId { get; set; }
+    public string? PriceId { get; set; }
 
     // Status (subscription.updated, invoice.payment_failed, etc.)
     public string? Status { get; set; }

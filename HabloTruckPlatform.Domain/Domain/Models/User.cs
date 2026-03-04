@@ -66,4 +66,9 @@ public sealed class User
     // Grace Period
     public string? CurrentGracePk { get; set; }
     public string? CurrentGraceRk { get; set; }
+
+    // Metadata
+    public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
+    public string? CohortId { get; set; } // CDL_A_2026_01
+    public string? SchoolId { get; set; } // roadmaster_houston
 }

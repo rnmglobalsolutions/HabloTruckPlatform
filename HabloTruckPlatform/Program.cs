@@ -71,10 +71,18 @@ var host = new HostBuilder()
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
-
         // Stripe configuration
         services.Configure<StripeOptions>(ctx.Configuration.GetSection("Stripe"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<StripeOptions>>().Value);
+
+        services.Configure<StripePriceCatalogOptions>(ctx.Configuration.GetSection("StripePriceCatalog"));
+        services.AddSingleton(sp =>
+        {
+            var opt = sp.GetRequiredService<IOptions<StripePriceCatalogOptions>>().Value;
+            opt.Validate();
+            return opt;
+        });
+
         services.AddSingleton<StripeSignatureValidator>();
         services.AddSingleton<StripeEventParser>();
 

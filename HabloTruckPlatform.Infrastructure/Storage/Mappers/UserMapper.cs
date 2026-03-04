@@ -37,6 +37,10 @@ public static class UserMapper
 
             CurrentGracePk = u.CurrentGracePk,
             CurrentGraceRk = u.CurrentGraceRk,
+
+            PlanType = u.PlanType,
+            CohortId = u.CohortId,
+            SchoolId = u.SchoolId,
         };
     }
 
@@ -80,7 +84,11 @@ public static class UserMapper
             UpdatedAtUtc = e.UpdatedAtUtc,
 
             CurrentGracePk = e.CurrentGracePk,
-            CurrentGraceRk = e.CurrentGraceRk
+            CurrentGraceRk = e.CurrentGraceRk,
+
+            PlanType = e.PlanType,
+            CohortId = e.CohortId,
+            SchoolId = e.SchoolId,
         };
     }
 }
