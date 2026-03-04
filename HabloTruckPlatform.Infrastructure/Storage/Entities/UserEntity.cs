@@ -1,13 +1,10 @@
-﻿
-
-using Azure;
+﻿using Azure;
 using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
 public sealed class UserEntity : ITableEntity
 {
-    // PK: HT#U#NNN (bucket), RK: UserId (ULID/GUID string)
     public required string PartitionKey { get; set; }
     public required string RowKey { get; set; }
 
@@ -19,10 +16,21 @@ public sealed class UserEntity : ITableEntity
     public string? ManyChatSubscriberId { get; set; }
     public string? PhoneE164 { get; set; }
 
-    // Stripe facts
+    // Stripe
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
     public string? SubscriptionStatus { get; set; }
+
+    // ✅ NEW: upgrades/downgrades
+    public string? StripePriceId { get; set; }
+    public DateTimeOffset? StripeCurrentPeriodEndUtc { get; set; }
+    public bool? StripeCancelAtPeriodEnd { get; set; }
+    public string? IndividualPlanTerm { get; set; } // "monthly"|"annual"
+
+    // optional analytics
+    public string? PlanType { get; set; }           // "individual"|"fleet"|"cdl_cohort"
+    public string? CohortId { get; set; }
+    public string? SchoolId { get; set; }
 
     // Individual grace
     public DateTimeOffset? IndividualGraceEndsAtUtc { get; set; }
@@ -32,28 +40,17 @@ public sealed class UserEntity : ITableEntity
     public string? SeatEntitlementId { get; set; }
     public string? SeatStatus { get; set; } // active/revoked/none
 
-    // Effective snapshot (projection)
-    public string? EffectiveAccessMode { get; set; }    // "Full"|"Grace"|"Blocked"
-    public int? EffectiveAccessSource { get; set; }     // AccessSource flags int
+    // Effective snapshot
+    public string? EffectiveAccessMode { get; set; }
+    public int? EffectiveAccessSource { get; set; }
     public DateTimeOffset? EffectiveGraceEndsAtUtc { get; set; }
 
-    // Audit / ordering guard
+    // Audit
     public string? LastStripeEventId { get; set; }
     public DateTimeOffset? LastStripeEventCreatedUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
-    // Grace Period
+    // Grace pointers
     public string? CurrentGracePk { get; set; }
     public string? CurrentGraceRk { get; set; }
-
-    // Subscription details
-    public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
-    public string? CohortId { get; set; } // CDL_A_2026_01
-    public string? SchoolId { get; set; } // roadmaster_houston
-    
-    // ManyChat sync dedupe (avoid spamming)
-    public string? LastSyncedAccessMode { get; set; }          // "Full"|"Grace"|"Blocked"
-    public int? LastSyncedAccessSource { get; set; }           // AccessSource flags int
-    public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }
-    public DateTimeOffset? LastManyChatSyncAtUtc { get; set; }
 }

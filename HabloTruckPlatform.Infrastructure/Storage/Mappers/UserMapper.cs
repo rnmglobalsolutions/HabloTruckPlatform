@@ -21,6 +21,15 @@ public static class UserMapper
             StripeSubscriptionId = u.StripeSubscriptionId,
             SubscriptionStatus = u.SubscriptionStatus,
 
+            // ✅ NEW
+            StripePriceId = u.StripePriceId,
+            StripeCurrentPeriodEndUtc = u.StripeCurrentPeriodEndUtc,
+            StripeCancelAtPeriodEnd = u.StripeCancelAtPeriodEnd,
+            IndividualPlanTerm = u.IndividualPlanTerm,
+            PlanType = u.PlanType,
+            CohortId = u.CohortId,
+            SchoolId = u.SchoolId,
+
             IndividualGraceEndsAtUtc = u.IndividualGraceEndsAtUtc,
 
             CompanyId = u.CompanyId,
@@ -37,15 +46,6 @@ public static class UserMapper
 
             CurrentGracePk = u.CurrentGracePk,
             CurrentGraceRk = u.CurrentGraceRk,
-
-            PlanType = u.PlanType,
-            CohortId = u.CohortId,
-            SchoolId = u.SchoolId,
-
-            LastSyncedAccessMode = u.LastSyncedAccessMode,
-            LastSyncedAccessSource = u.LastSyncedAccessSource,
-            LastSyncedGraceEndsAtUtc = u.LastSyncedGraceEndsAtUtc,
-            LastManyChatSyncAtUtc = u.LastManyChatSyncAtUtc,
         };
     }
 
@@ -76,6 +76,15 @@ public static class UserMapper
             StripeSubscriptionId = e.StripeSubscriptionId,
             SubscriptionStatus = e.SubscriptionStatus,
 
+            // ✅ NEW
+            StripePriceId = e.StripePriceId,
+            StripeCurrentPeriodEndUtc = e.StripeCurrentPeriodEndUtc,
+            StripeCancelAtPeriodEnd = e.StripeCancelAtPeriodEnd ?? false,
+            IndividualPlanTerm = e.IndividualPlanTerm,
+            PlanType = e.PlanType,
+            CohortId = e.CohortId,
+            SchoolId = e.SchoolId,
+
             IndividualGraceEndsAtUtc = e.IndividualGraceEndsAtUtc,
 
             CompanyId = e.CompanyId,
@@ -89,17 +98,7 @@ public static class UserMapper
             UpdatedAtUtc = e.UpdatedAtUtc,
 
             CurrentGracePk = e.CurrentGracePk,
-            CurrentGraceRk = e.CurrentGraceRk,
-
-            PlanType = e.PlanType,
-            CohortId = e.CohortId,
-            SchoolId = e.SchoolId,
-
-            LastSyncedAccessMode = e.LastSyncedAccessMode,
-            LastSyncedAccessSource = e.LastSyncedAccessSource ?? 0,
-            LastSyncedGraceEndsAtUtc = e.LastSyncedGraceEndsAtUtc,
-            LastManyChatSyncAtUtc = e.LastManyChatSyncAtUtc,
-            
+            CurrentGraceRk = e.CurrentGraceRk
         };
     }
 }

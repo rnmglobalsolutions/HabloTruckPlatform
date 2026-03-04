@@ -1,5 +1,5 @@
-﻿using HabloTruckPlatform.Application.Models;
-using HabloTruckPlatform.Application.Stripex;
+﻿using HabloTruckPlatform.Application.Integrations.Stripex;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
 

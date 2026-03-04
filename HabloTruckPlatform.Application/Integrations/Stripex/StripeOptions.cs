@@ -1,7 +1,8 @@
-﻿namespace HabloTruckPlatform.Application.Stripex;
+﻿namespace HabloTruckPlatform.Application.Integrations.Stripex;
 
-public sealed class StripePriceCatalogOptions
+public sealed class StripeOptions
 {
+    public required string WebhookSecret { get; init; }
     // Individual
     public string IndividualMonthlyPriceId { get; set; } = "";
     public string IndividualYearlyPriceId { get; set; } = "";

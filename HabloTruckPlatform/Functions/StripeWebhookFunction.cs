@@ -1,6 +1,5 @@
 using HabloTruckPlatform.Application.Abstractions;
-using HabloTruckPlatform.Application.Stripex;
-using HabloTruckPlatform.Infrastructure.Stripe;
+using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;

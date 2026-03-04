@@ -1,6 +1,6 @@
 using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
-using HabloTruckPlatform.Application.Stripex;
+using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
@@ -8,7 +8,6 @@ using HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Factory;
 using HabloTruckPlatform.Infrastructure.Storage.Stores;
-using HabloTruckPlatform.Infrastructure.Stripe;
 using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -73,12 +72,9 @@ var host = new HostBuilder()
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
         // Stripe configuration
         services.Configure<StripeOptions>(ctx.Configuration.GetSection("Stripe"));
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<StripeOptions>>().Value);
-
-        services.Configure<StripePriceCatalogOptions>(ctx.Configuration.GetSection("StripePriceCatalog"));
         services.AddSingleton(sp =>
         {
-            var opt = sp.GetRequiredService<IOptions<StripePriceCatalogOptions>>().Value;
+            var opt = sp.GetRequiredService<IOptions<StripeOptions>>().Value;
             opt.Validate();
             return opt;
         });

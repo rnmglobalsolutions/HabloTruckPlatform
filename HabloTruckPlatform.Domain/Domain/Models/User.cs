@@ -57,11 +57,13 @@ public sealed class User
     public string? CurrentGracePk { get; set; }
     public string? CurrentGraceRk { get; set; }
 
-    // Cancelling Subscription
+    // Stripe Subscription
+    public string? StripePriceId { get; set; }
+    public string? IndividualPlanTerm { get; set; } // monthly | annual
     public DateTimeOffset? StripeCurrentPeriodEndUtc { get; set; }
-
     public bool StripeCancelAtPeriodEnd { get; set; }
 
+    // Decision sync
     public string? LastSyncedAccessMode { get; set; }
     public int LastSyncedAccessSource { get; set; } // cast from enum flags
     public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }

@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using Stripe;
 
-namespace HabloTruckPlatform.Application.Stripex;
+namespace HabloTruckPlatform.Application.Integrations.Stripex;
 
 public sealed class StripeEventParser
 {

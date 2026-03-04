@@ -5,6 +5,7 @@ public sealed record StripeSubscriptionDeleted(
     DateTimeOffset StripeEventCreatedUtc,
     string StripeCustomerId,
     string StripeSubscriptionId,
+    string? PriceId,
     DateTimeOffset? CurrentPeriodEndUtc,
     DateTimeOffset? CanceledAtUtc,
     DateTimeOffset? EndedAtUtc);
