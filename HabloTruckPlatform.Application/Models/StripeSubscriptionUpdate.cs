@@ -5,4 +5,8 @@ public sealed record StripeSubscriptionUpdate(
     DateTimeOffset StripeEventCreatedUtc,
     string StripeCustomerId,
     string StripeSubscriptionId,
-    string SubscriptionStatus);
+    string SubscriptionStatus,
+    bool CancelAtPeriodEnd,
+    DateTimeOffset? CurrentPeriodEndUtc,
+    DateTimeOffset? CanceledAtUtc,
+    DateTimeOffset? EndedAtUtc);

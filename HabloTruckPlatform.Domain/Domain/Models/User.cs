@@ -53,6 +53,20 @@ public sealed class User
     public DateTimeOffset? LastStripeEventCreatedUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
+    // Grace Period
+    public string? CurrentGracePk { get; set; }
+    public string? CurrentGraceRk { get; set; }
+
+    // Cancelling Subscription
+    public DateTimeOffset? StripeCurrentPeriodEndUtc { get; set; }
+
+    public bool StripeCancelAtPeriodEnd { get; set; }
+
+    public string? LastSyncedAccessMode { get; set; }
+    public int LastSyncedAccessSource { get; set; } // cast from enum flags
+    public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }
+    public DateTimeOffset? LastManyChatSyncAtUtc { get; set; }
+
     // Convenience helpers (optional)
     public bool HasActiveSeat()
         => string.Equals(SeatStatus, "active", StringComparison.OrdinalIgnoreCase);

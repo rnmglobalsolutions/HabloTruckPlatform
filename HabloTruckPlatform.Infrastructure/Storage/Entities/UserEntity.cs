@@ -50,4 +50,10 @@ public sealed class UserEntity : ITableEntity
     public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
     public string? CohortId { get; set; } // CDL_A_2026_01
     public string? SchoolId { get; set; } // roadmaster_houston
+    
+    // ManyChat sync dedupe (avoid spamming)
+    public string? LastSyncedAccessMode { get; set; }          // "Full"|"Grace"|"Blocked"
+    public int? LastSyncedAccessSource { get; set; }           // AccessSource flags int
+    public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }
+    public DateTimeOffset? LastManyChatSyncAtUtc { get; set; }
 }

@@ -65,8 +65,11 @@ public sealed class StripeWebhookFunction
 
         _metrics.StripeEventReceived(stripeEvent.Type);
 
-        // Stripe.Net 50.3.0: Created is DateTime (UTC)
-        var createdUtc = new DateTimeOffset(stripeEvent.Created, TimeSpan.Zero);
+        // Robust createdUtc (avoid SDK type ambiguity)
+        var createdToken = stripeEvent.RawJObject?["created"];
+        var createdUtc = createdToken != null && long.TryParse(createdToken.ToString(), out var seconds)
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds).ToUniversalTime()
+            : DateTimeOffset.UtcNow;
 
         // Idempotency gate (atomic insert-if-not-exists)
         var firstTime = await _eventStore.TryMarkProcessedAsync(
@@ -81,21 +84,19 @@ public sealed class StripeWebhookFunction
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
-        // Parse (into our DTOs, no Stripe SDK types beyond this point)
         var parsed = _parser.Parse(stripeEvent);
 
-        // If no customer id, nothing to do (ignore safely)
         if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
         {
             _logger.LogInformation("Event without customer ignored: {Type}", parsed.EventType);
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
-        // Inject event metadata required by handler (out-of-order + audit)
+        // Inject event metadata (if parser doesn't already stamp)
         parsed.Data!.StripeEventId = stripeEvent.Id;
         parsed.Data.StripeEventCreatedUtc = createdUtc;
 
-        // Resolve user reference (PK/RK) by StripeCustomerId lookup
+        // Optional: logging scope (extra lookup)
         var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(parsed.Data.CustomerId!, ct);
 
         using (LogContext.BeginUserScope(_logger, userRef?.UserId, null, parsed.Data.CustomerId))
@@ -107,7 +108,7 @@ public sealed class StripeWebhookFunction
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing Stripe event {Type}", parsed.EventType);
-                // DO NOT fail webhook → Stripe will retry; idempotency already marked, so we just log.
+                // DO NOT fail webhook → Stripe will retry; idempotency already marked, so just log.
             }
         }
 

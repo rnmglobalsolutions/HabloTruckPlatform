@@ -41,6 +41,11 @@ public static class UserMapper
             PlanType = u.PlanType,
             CohortId = u.CohortId,
             SchoolId = u.SchoolId,
+
+            LastSyncedAccessMode = u.LastSyncedAccessMode,
+            LastSyncedAccessSource = u.LastSyncedAccessSource,
+            LastSyncedGraceEndsAtUtc = u.LastSyncedGraceEndsAtUtc,
+            LastManyChatSyncAtUtc = u.LastManyChatSyncAtUtc,
         };
     }
 
@@ -89,6 +94,12 @@ public static class UserMapper
             PlanType = e.PlanType,
             CohortId = e.CohortId,
             SchoolId = e.SchoolId,
+
+            LastSyncedAccessMode = e.LastSyncedAccessMode,
+            LastSyncedAccessSource = e.LastSyncedAccessSource,
+            LastSyncedGraceEndsAtUtc = e.LastSyncedGraceEndsAtUtc,
+            LastManyChatSyncAtUtc = e.LastManyChatSyncAtUtc,
+            
         };
     }
 }

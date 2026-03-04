@@ -20,8 +20,10 @@ public sealed class AccessOrchestrator
     private readonly IManyChatSync _manyChatSync;
     private readonly IFailedActionStore _failedActionStore;
     private readonly IClock _clock;
-
     private readonly CompanyGracePolicy _companyGracePolicy;
+
+    private static readonly JsonSerializerOptions JsonOpts =
+        new(JsonSerializerDefaults.Web);
 
     public AccessOrchestrator(
         IUserStore userStore,
@@ -50,10 +52,10 @@ public sealed class AccessOrchestrator
     /// - grace sweeper / entitlement sweeper
     /// </summary>
     public async Task<AccessDecision> RecomputeForUserAsync(
-    string userPk,
-    string userId,
-    bool persistUser = true,
-    CancellationToken ct = default)
+        string userPk,
+        string userId,
+        bool persistUser = true,
+        CancellationToken ct = default)
     {
         var user = await _userStore.GetAsync(userPk, userId, ct)
                    ?? throw new InvalidOperationException($"User not found: {userPk}/{userId}");
@@ -88,36 +90,77 @@ public sealed class AccessOrchestrator
         if (persistUser)
             await _userStore.UpsertAsync(user, ct);
 
-        await SafeManyChatSync(user, decision, ct);
+        await SafeManyChatSync(user, decision, persistUser, ct);
 
         return decision;
     }
 
-    private async Task SafeManyChatSync(User user, AccessDecision decision, CancellationToken ct)
+    private async Task SafeManyChatSync(User user, AccessDecision decision, bool persistUser, CancellationToken ct)
     {
         // If there is no subscriber id, we can't sync.
         if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
             return;
 
+        // (3) Dedupe: only sync if decision materially changed
+        if (!ShouldSyncManyChat(user, decision))
+            return;
+
         try
         {
             await _manyChatSync.SyncUserAccessAsync(user, decision, ct);
+
+            // Update sync watermark so we don't spam on next recompute
+            user.LastSyncedAccessMode = decision.Mode.ToString();
+            user.LastSyncedAccessSource = (int)decision.Source;
+            user.LastSyncedGraceEndsAtUtc = decision.GraceEndsAtUtc;
+            user.LastManyChatSyncAtUtc = _clock.UtcNow;
+
+            // Persist the watermark (only if caller wanted persistence; otherwise still safe to persist)
+            if (persistUser)
+                await _userStore.UpsertAsync(user, ct);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            // enqueue for retry
-            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            // (4) enqueue for retry with subscriberId + companyId included
+            var payload = JsonSerializer.Serialize(new
             {
-                userPk = HabloTruckPlatform.Domain.Ids.Buckets.UserBucketPk(user.UserId),
+                userPk = Buckets.UserBucketPk(user.UserId),
                 userId = user.UserId,
+                subscriberId = user.ManyChatSubscriberId,
+                companyId = user.CompanyId,
                 reason = "sync_access"
-            }, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            }, JsonOpts);
 
             await _failedActionStore.EnqueueAsync(
                 FailedActionRetryService.ActionManyChatSync,
                 payload,
-                nextRetryUtc: DateTimeOffset.UtcNow.AddMinutes(2),
+                nextRetryUtc: _clock.UtcNow.AddMinutes(2),
                 ct);
         }
+    }
+
+    private static bool ShouldSyncManyChat(User user, AccessDecision decision)
+    {
+        // If we've never synced, sync now
+        if (string.IsNullOrWhiteSpace(user.LastSyncedAccessMode))
+            return true;
+
+        // Compare mode
+        if (!string.Equals(user.LastSyncedAccessMode, decision.Mode.ToString(), StringComparison.Ordinal))
+            return true;
+
+        // Compare source flags
+        if (user.LastSyncedAccessSource != (int)decision.Source)
+            return true;
+
+        // Compare grace end timestamp (nullable)
+        var prevGrace = user.LastSyncedGraceEndsAtUtc;
+        var nextGrace = decision.GraceEndsAtUtc;
+
+        if (prevGrace is null && nextGrace is not null) return true;
+        if (prevGrace is not null && nextGrace is null) return true;
+        if (prevGrace is not null && nextGrace is not null && prevGrace.Value != nextGrace.Value) return true;
+
+        return false;
     }
 }

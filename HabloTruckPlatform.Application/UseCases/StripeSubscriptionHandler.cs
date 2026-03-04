@@ -202,24 +202,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
                 await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
 
-                // Build decision from stored snapshot (no recompute needed for retry)
-                var snap = user.EffectiveAccess;
-                if (snap is null)
-                    return;
-
-                var decision = new AccessDecision(
-                    snap.Mode,
-                    snap.Source,
-                    snap.GraceEndsAtUtc,
-                    Reason: "Set ManyChat Tags and Fields");
-
-                // optional: notify ManyChat
-                if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
-                {
-                    try { await _manyChatSync.SyncUserAccessAsync(user, decision, ct); }
-                    catch { /* best-effort */ }
-                }
-
                 _logger.LogInformation("Checkout handled: individual userId={UserId}", user.UserId);
                 break;
             }
