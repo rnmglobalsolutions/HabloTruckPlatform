@@ -170,7 +170,7 @@ public sealed class StripeEventParser
     private static StripeEventData Stamp(Event e, StripeEventData data)
     {
         data.StripeEventId = e.Id;
-        data.StripeEventCreatedUtc = e.Created;
+        data.StripeEventCreatedUtc = new DateTimeOffset(e.Created, TimeSpan.Zero);
         return data;
     }
 
@@ -178,11 +178,11 @@ public sealed class StripeEventParser
     {
         if (token is null) return null;
 
-        // Stripe usually gives Unix seconds for these fields.
-        if (token.Type == JTokenType.Integer && long.TryParse(token.ToString(), out var seconds))
+        // Unix seconds
+        if ((token.Type == JTokenType.Integer || token.Type == JTokenType.Float)
+            && long.TryParse(token.ToString().Split('.')[0], out var seconds))
             return DateTimeOffset.FromUnixTimeSeconds(seconds).ToUniversalTime();
 
-        // Sometimes it may be an ISO string depending on mapping; handle it anyway.
         if (DateTimeOffset.TryParse(token.ToString(), out var dto))
             return dto.ToUniversalTime();
 
@@ -192,18 +192,25 @@ public sealed class StripeEventParser
     private static (string? priceId, string? interval) TryGetSubscriptionPrice(JObject? raw)
     {
         // subscription.items.data[0].price.id and .recurring.interval
-        var item = raw?["items"]?["data"]?.First;
+
+        var arr = raw?["items"]?["data"] as JArray;
+        var item = arr?.FirstOrDefault() as JObject;
+
         var priceId = item?["price"]?["id"]?.ToString();
         var interval = item?["price"]?["recurring"]?["interval"]?.ToString();
+
         return (NullIfBlank(priceId), NullIfBlank(interval));
     }
 
     private static (string? priceId, string? interval) TryGetInvoicePrice(JObject? raw)
     {
         // invoice.lines.data[0].price.id and recurring.interval
-        var line = raw?["lines"]?["data"]?.First;
+        var arr = raw?["items"]?["data"] as JArray;
+        var line = arr?.FirstOrDefault() as JObject;
+
         var priceId = line?["price"]?["id"]?.ToString();
         var interval = line?["price"]?["recurring"]?["interval"]?.ToString();
+
         return (NullIfBlank(priceId), NullIfBlank(interval));
     }
 
@@ -211,9 +218,12 @@ public sealed class StripeEventParser
     {
         // checkout.session: if you expand line_items, it may be present:
         // session.line_items.data[0].price.id and recurring.interval
-        var li = raw?["line_items"]?["data"]?.First;
+        var arr = raw?["line_items"]?["data"] as JArray;
+        var li = arr?.FirstOrDefault() as JObject;
+
         var priceId = li?["price"]?["id"]?.ToString();
         var interval = li?["price"]?["recurring"]?["interval"]?.ToString();
+
         return (NullIfBlank(priceId), NullIfBlank(interval));
     }
 
@@ -239,16 +249,19 @@ public sealed class StripeEventData
     // Core identifiers
     public string? CustomerId { get; set; }
     public string? SubscriptionId { get; set; }
-    public string? PriceId { get; set; }
+    
 
     // Status (subscription.updated/deleted, etc.)
     public string? Status { get; set; }
 
+
     // Subscription timing / cancellation facts (PRO)
+    public string? PriceId { get; set; }
     public bool? CancelAtPeriodEnd { get; set; }
     public DateTimeOffset? CurrentPeriodEndUtc { get; set; }
     public DateTimeOffset? CanceledAtUtc { get; set; }
     public DateTimeOffset? EndedAtUtc { get; set; }
+
 
     // Optional fields (checkout/session)
     public string? CustomerEmail { get; set; }
