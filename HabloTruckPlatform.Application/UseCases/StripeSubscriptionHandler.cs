@@ -313,6 +313,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         var nowUtc = _clock.UtcNow;
 
+        _logger.LogInformation(
+            "Stripe plan change detected user={UserId} priceId={PriceId} term={Term}",
+            user.UserId,
+            user.StripePriceId,
+            user.IndividualPlanTerm);
+
         // ---- persist Stripe facts
         user.StripeCustomerId = input.StripeCustomerId?.Trim();
         user.StripeSubscriptionId = input.StripeSubscriptionId?.Trim();
