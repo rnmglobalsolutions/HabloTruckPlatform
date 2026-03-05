@@ -1,6 +1,6 @@
 ﻿using HabloTruckPlatform.Domain.Models;
 
-namespace HabloTruckPlatform.Domain.Access;
+namespace HabloTruckPlatform.Domain.Domain.Abstractions;
 
 public interface ISeatAllocationService
 {

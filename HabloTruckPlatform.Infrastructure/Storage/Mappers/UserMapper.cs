@@ -20,16 +20,6 @@ public static class UserMapper
             StripeCustomerId = u.StripeCustomerId,
             StripeSubscriptionId = u.StripeSubscriptionId,
             SubscriptionStatus = u.SubscriptionStatus,
-
-            // ✅ NEW
-            StripePriceId = u.StripePriceId,
-            StripeCurrentPeriodEndUtc = u.StripeCurrentPeriodEndUtc,
-            StripeCancelAtPeriodEnd = u.StripeCancelAtPeriodEnd,
-            IndividualPlanTerm = u.IndividualPlanTerm,
-            PlanType = u.PlanType,
-            CohortId = u.CohortId,
-            SchoolId = u.SchoolId,
-
             IndividualGraceEndsAtUtc = u.IndividualGraceEndsAtUtc,
 
             CompanyId = u.CompanyId,
@@ -46,6 +36,20 @@ public static class UserMapper
 
             CurrentGracePk = u.CurrentGracePk,
             CurrentGraceRk = u.CurrentGraceRk,
+
+            StripePriceId = u.StripePriceId,
+            IndividualPlanTerm = u.IndividualPlanTerm,
+            StripeCurrentPeriodEndUtc = u.StripeCurrentPeriodEndUtc,
+            StripeCancelAtPeriodEnd = u.StripeCancelAtPeriodEnd,
+
+            LastSyncedAccessMode = u.LastSyncedAccessMode,
+            LastSyncedAccessSource = u.LastSyncedAccessSource,
+            LastSyncedGraceEndsAtUtc = u.LastSyncedGraceEndsAtUtc,
+            LastManyChatSyncAtUtc = u.LastManyChatSyncAtUtc,
+
+            PlanType = u.PlanType,
+            CohortId = u.CohortId,
+            SchoolId = u.SchoolId
         };
     }
 
@@ -75,16 +79,6 @@ public static class UserMapper
             StripeCustomerId = e.StripeCustomerId,
             StripeSubscriptionId = e.StripeSubscriptionId,
             SubscriptionStatus = e.SubscriptionStatus,
-
-            // ✅ NEW
-            StripePriceId = e.StripePriceId,
-            StripeCurrentPeriodEndUtc = e.StripeCurrentPeriodEndUtc,
-            StripeCancelAtPeriodEnd = e.StripeCancelAtPeriodEnd ?? false,
-            IndividualPlanTerm = e.IndividualPlanTerm,
-            PlanType = e.PlanType,
-            CohortId = e.CohortId,
-            SchoolId = e.SchoolId,
-
             IndividualGraceEndsAtUtc = e.IndividualGraceEndsAtUtc,
 
             CompanyId = e.CompanyId,
@@ -98,7 +92,21 @@ public static class UserMapper
             UpdatedAtUtc = e.UpdatedAtUtc,
 
             CurrentGracePk = e.CurrentGracePk,
-            CurrentGraceRk = e.CurrentGraceRk
+            CurrentGraceRk = e.CurrentGraceRk,
+
+            StripePriceId = e.StripePriceId,
+            IndividualPlanTerm = e.IndividualPlanTerm,
+            StripeCurrentPeriodEndUtc = e.StripeCurrentPeriodEndUtc,
+            StripeCancelAtPeriodEnd = e.StripeCancelAtPeriodEnd ?? false,
+
+            LastSyncedAccessMode = e.LastSyncedAccessMode,
+            LastSyncedAccessSource = e.LastSyncedAccessSource,
+            LastSyncedGraceEndsAtUtc = e.LastSyncedGraceEndsAtUtc,
+            LastManyChatSyncAtUtc = e.LastManyChatSyncAtUtc,
+
+            PlanType = e.PlanType,
+            CohortId = e.CohortId,
+            SchoolId = e.SchoolId
         };
     }
 }

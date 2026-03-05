@@ -50,6 +50,12 @@ public sealed class UserEntity : ITableEntity
     public DateTimeOffset? LastStripeEventCreatedUtc { get; set; }
     public DateTimeOffset? UpdatedAtUtc { get; set; }
 
+    // Decision sync
+    public string? LastSyncedAccessMode { get; set; }
+    public int LastSyncedAccessSource { get; set; } // cast from enum flags
+    public DateTimeOffset? LastSyncedGraceEndsAtUtc { get; set; }
+    public DateTimeOffset? LastManyChatSyncAtUtc { get; set; }
+
     // Grace pointers
     public string? CurrentGracePk { get; set; }
     public string? CurrentGraceRk { get; set; }
