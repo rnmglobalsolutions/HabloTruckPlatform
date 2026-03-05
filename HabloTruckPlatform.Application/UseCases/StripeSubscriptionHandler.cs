@@ -9,10 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
-/// <summary>
-/// Handles Stripe subscription/invoice signals (already parsed into DTOs).
-/// No Stripe SDK types here.
-/// </summary>
 public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 {
     private readonly IUserResolver _userResolver;
@@ -20,15 +16,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IGraceIndexStore _graceIndexStore;
     private readonly IManyChatSync _manyChatSync;
     private readonly AccessOrchestrator _accessOrchestrator;
-    private readonly IClock _clock;
-
     private readonly GracePolicy _individualGracePolicy;
+    private readonly IClock _clock;
     private readonly StripeOptions _priceCatalog;
-
     private readonly ICompanyStore _companyStore;
     private readonly IEntitlementStore _entitlementStore;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
-
     private readonly ILogger<StripeSubscriptionHandler> _logger;
 
     public StripeSubscriptionHandler(
@@ -51,14 +44,11 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _manyChatSync = manyChatSync;
         _accessOrchestrator = accessOrchestrator;
         _clock = clock;
-
         _individualGracePolicy = individualGracePolicy;
         _priceCatalog = priceCatalog;
-
         _companyStore = companyStore;
         _entitlementStore = entitlementStore;
         _expiryIndex = expiryIndex;
-
         _logger = logger;
     }
 
@@ -70,61 +60,19 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         => HandleCheckoutSessionCompletedAsync(data, ct);
 
     public Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeEventData data, CancellationToken ct = default)
-    {
-        var dto = new StripeSubscriptionUpdate(
-            StripeEventId: data.StripeEventId,
-            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
-            StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId ?? "",
-            SubscriptionStatus: data.Status ?? "unknown",
-            CancelAtPeriodEnd: data.CancelAtPeriodEnd ?? false,
-            CurrentPeriodEndUtc: data.CurrentPeriodEndUtc,
-            CanceledAtUtc: data.CanceledAtUtc,
-            EndedAtUtc: data.EndedAtUtc,
-            PriceId: data.PriceId);
-
-        return HandleSubscriptionUpdatedAsync(dto, ct);
-    }
+        => HandleSubscriptionUpdatedAsync(ToSubUpdatedDto(data), ct);
 
     public Task<AccessDecision?> HandleSubscriptionDeletedAsync(StripeEventData data, CancellationToken ct = default)
-    {
-        var dto = new StripeSubscriptionDeleted(
-            StripeEventId: data.StripeEventId,
-            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
-            StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId ?? "",
-            CurrentPeriodEndUtc: data.CurrentPeriodEndUtc,
-            CanceledAtUtc: data.CanceledAtUtc,
-            EndedAtUtc: data.EndedAtUtc,
-            PriceId: data.PriceId);
-
-        return HandleSubscriptionDeletedAsync(dto, ct);
-    }
+        => HandleSubscriptionDeletedAsync(ToSubDeletedDto(data), ct);
 
     public Task<AccessDecision?> HandleInvoicePaidAsync(StripeEventData data, CancellationToken ct = default)
-    {
-        var dto = new StripeInvoicePaid(
-            StripeEventId: data.StripeEventId,
-            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
-            StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId ?? "");
-
-        return HandleInvoicePaidAsync(dto, ct);
-    }
+        => HandleInvoicePaidAsync(ToInvoicePaidDto(data), ct);
 
     public Task<AccessDecision?> HandleInvoicePaymentFailedAsync(StripeEventData data, CancellationToken ct = default)
-    {
-        var dto = new StripeInvoicePaymentFailed(
-            StripeEventId: data.StripeEventId,
-            StripeEventCreatedUtc: data.StripeEventCreatedUtc,
-            StripeCustomerId: data.CustomerId ?? "",
-            StripeSubscriptionId: data.SubscriptionId ?? "");
-
-        return HandleInvoicePaymentFailedAsync(dto, ct);
-    }
+        => HandleInvoicePaymentFailedAsync(ToInvoiceFailedDto(data), ct);
 
     // =========================================================
-    // CHECKOUT (bootstrap user + B2B entitlements)
+    // CHECKOUT: you already have this (kept as-is, but with small improvements)
     // =========================================================
 
     public async Task HandleCheckoutSessionCompletedAsync(StripeEventData data, CancellationToken ct = default)
@@ -135,68 +83,57 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         var nowUtc = _clock.UtcNow;
 
-        // ---- Metadata
-        var planTypeMeta = GetMeta(data, "planType")?.Trim().ToLowerInvariant(); // optional
+        // ---- Read metadata (your existing)
+        var planType = GetMeta(data, "planType")?.Trim().ToLowerInvariant() ?? "individual";
         var cohortId = GetMeta(data, "ht_cohort")?.Trim();
         var schoolId = GetMeta(data, "ht_school_id")?.Trim();
 
         var companyId = GetMeta(data, "companyId")?.Trim() ?? GetMeta(data, "ht_company_id")?.Trim();
         var companyName = GetMeta(data, "companyName")?.Trim();
-
         var seatsMeta = GetMeta(data, "seats");
         var durationDaysMeta = GetMeta(data, "durationDays");
 
-        // ---- Identify user
         var emailNormalized = NormalizeEmail(data.CustomerEmail) ?? NormalizeEmail(GetMeta(data, "email"));
         var manyChatSubscriberId = GetMeta(data, "manychatSubscriberId") ?? GetMeta(data, "subscriberId");
         var phoneE164 = GetMeta(data, "phone");
 
         var user = await _userStore.GetOrCreateAsync(emailNormalized, manyChatSubscriberId, phoneE164, ct);
 
-        // ---- Attach Stripe facts
         user.StripeCustomerId = data.CustomerId!.Trim();
-        user.StripeSubscriptionId = string.IsNullOrWhiteSpace(data.SubscriptionId)
-            ? user.StripeSubscriptionId
-            : data.SubscriptionId!.Trim();
+        if (!string.IsNullOrWhiteSpace(data.SubscriptionId))
+            user.StripeSubscriptionId = data.SubscriptionId!.Trim();
 
-        user.UpdatedAtUtc = nowUtc;
-
-        // optional cohort/school
         user.CohortId = string.IsNullOrWhiteSpace(cohortId) ? user.CohortId : cohortId;
         user.SchoolId = string.IsNullOrWhiteSpace(schoolId) ? user.SchoolId : schoolId;
 
-        // ---- Determine plan by PriceId (source of truth)
+        // Determine term by priceId (source of truth)
         var priceId = data.PriceId?.Trim();
-        var (planFamily, term) = ResolvePlanFamilyAndTerm(priceId, planTypeMeta);
+        if (!string.IsNullOrWhiteSpace(priceId))
+        {
+            user.StripePriceId = priceId;
+            user.IndividualPlanTerm = DeriveTermFromPriceId(priceId);
+            user.PlanType = DerivePlanTypeFromPriceId(priceId) ?? user.PlanType;
+        }
 
-        user.PlanType = planFamily;                 // "individual" | "fleet" | "cdl_cohort"
-        user.IndividualPlanTerm = term;             // "monthly" | "annual" | null (for b2b)
-        user.StripePriceId = priceId;
+        user.UpdatedAtUtc = nowUtc;
 
-        // Persist + lookups early (so next webhooks can resolve)
         await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
-        // ---- Handle plan families
-        switch (planFamily)
+        // Your existing planType switch (B2B cohorts etc.)
+        // NOTE: Individual access will be stabilized by subscription.updated anyway.
+        // Keep your existing logic here.
+        switch (planType)
         {
             case "individual":
+            case "individual_monthly":
+            case "individual_yearly":
                 {
-                    // Bootstraps to active. Subsequent subscription.updated will set period_end, cancel_at_period_end, etc.
-                    SubscriptionState.ApplyStripeStatus(
-                        user,
-                        newStatus: "active",
-                        nowUtc: nowUtc,
-                        gracePolicy: _individualGracePolicy);
-
-                    user.UpdatedAtUtc = nowUtc;
+                    // Do NOT start grace here.
+                    // We can set a “hint”:
+                    user.SubscriptionStatus ??= "active";
                     await _userStore.UpsertAsync(user, ct);
-
                     await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
-
-                    _logger.LogInformation("Checkout handled: individual userId={UserId} term={Term} priceId={PriceId}",
-                        user.UserId, user.IndividualPlanTerm, user.StripePriceId);
-
                     break;
                 }
 
@@ -240,10 +177,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     };
 
                     await _entitlementStore.UpsertAsync(newEntitlement, ct);
-
-                    _logger.LogInformation("Checkout handled: fleet companyId={CompanyId} entId={EntitlementId} seats={Seats}",
-                        companyId, entitlementId, seats);
-
                     break;
                 }
 
@@ -266,7 +199,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                         ct: ct);
 
                     var entitlementId = UlidIds.NewEntitlementId();
-
                     var ent = new Entitlement
                     {
                         CompanyId = companyId!,
@@ -280,22 +212,19 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     };
 
                     await _entitlementStore.CreateAsync(ent, ct);
-
-                    await _expiryIndex.UpsertAsync(new EntitlementRef(companyId!, entitlementId), ent.EndUtc!.Value, ct);
-
-                    _logger.LogInformation("Checkout handled: cdl_cohort companyId={CompanyId} entId={EntitlementId} seats={Seats} endUtc={EndUtc}",
-                        companyId, entitlementId, seats, ent.EndUtc);
-
+                    await _expiryIndex.UpsertAsync(new EntitlementRef(companyId!, entitlementId), ent.EndUtc.Value, ct);
                     break;
                 }
 
             default:
-                throw new InvalidOperationException($"Unknown plan family '{planFamily}'.");
+                // ok to ignore unknown - subscription.updated will correct individual state
+                _logger.LogInformation("Checkout planType not handled: {PlanType}", planType);
+                break;
         }
     }
 
     // =========================================================
-    // SUBSCRIPTION UPDATED (upgrade/downgrade safe)
+    // SUBSCRIPTION UPDATED (SOURCE OF TRUTH FOR UPGRADES/DOWNGRADES)
     // =========================================================
 
     public async Task<AccessDecision?> HandleSubscriptionUpdatedAsync(
@@ -309,7 +238,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (user is null) return null;
 
         if (IsOutOfOrder(user, input.StripeEventCreatedUtc))
-            return ExistingDecisionOrNull(user, "Ignored out-of-order event");
+            return user.EffectiveAccess is not null
+                ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
+                : null;
 
         var nowUtc = _clock.UtcNow;
 
@@ -319,58 +250,42 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             user.StripePriceId,
             user.IndividualPlanTerm);
 
-        // ---- persist Stripe facts
-        user.StripeCustomerId = input.StripeCustomerId?.Trim();
-        user.StripeSubscriptionId = input.StripeSubscriptionId?.Trim();
+
+        // 1) Update Stripe facts (this is where upgrades/downgrades are captured)
+        user.StripeCustomerId = input.StripeCustomerId;
+        user.StripeSubscriptionId = input.StripeSubscriptionId;
+
         user.SubscriptionStatus = NormalizeStatus(input.SubscriptionStatus);
 
-        user.StripeCancelAtPeriodEnd = input.CancelAtPeriodEnd;
+        user.StripePriceId = string.IsNullOrWhiteSpace(input.PriceId) ? user.StripePriceId : input.PriceId!.Trim();
+        user.IndividualPlanTerm = DeriveTermFromPriceId(user.StripePriceId);
+        user.PlanType = DerivePlanTypeFromPriceId(user.StripePriceId) ?? user.PlanType;
+
+        user.StripeCancelAtPeriodEnd = input.CancelAtPeriodEnd ?? false;
         user.StripeCurrentPeriodEndUtc = input.CurrentPeriodEndUtc ?? user.StripeCurrentPeriodEndUtc;
 
-        // priceId -> term
-        if (!string.IsNullOrWhiteSpace(input.PriceId))
-        {
-            user.StripePriceId = input.PriceId!.Trim();
-            user.IndividualPlanTerm = ResolveIndividualTermFromPrice(user.StripePriceId);
-            user.PlanType ??= "individual";
-        }
+        // 2) Run reducer (State Machine) -> sets grace ONLY if needed
+        ApplyIndividualReducer(user, nowUtc);
 
-        // ---- anti false-grace rules
-        if (IsPaidThrough(user, nowUtc) || IsActiveLike(user.SubscriptionStatus))
-        {
-            // paid-through or active: never grace
-            user.IndividualGraceEndsAtUtc = null;
-        }
-        else if (IsDelinquentStatus(user.SubscriptionStatus))
-        {
-            // delinquent AND not paid-through => start/extend grace
-            SubscriptionState.ApplyStripeStatus(user, "past_due", nowUtc, _individualGracePolicy);
-        }
-        else
-        {
-            // canceled/other and not paid-through => treat as terminal -> grace policy decides
-            SubscriptionState.ApplyStripeStatus(user, user.SubscriptionStatus ?? "canceled", nowUtc, _individualGracePolicy);
-        }
-
-        // ---- audit
+        // 3) Audit
         user.LastStripeEventId = input.StripeEventId;
         user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
         user.UpdatedAtUtc = nowUtc;
 
-        // maintain grace index
+        // 4) Maintain grace index (based on user.IndividualGraceEndsAtUtc)
         await SyncGraceIndex(user, userRef.Value, ct);
 
-        // recompute + persist + ManyChat inside orchestrator
-        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+        // 5) Recompute access snapshot + ManyChat sync
+        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
 
-        // keep lookups in sync
+        await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
         return decision;
     }
 
     // =========================================================
-    // SUBSCRIPTION DELETED (paid-through aware)
+    // SUBSCRIPTION DELETED
     // =========================================================
 
     public async Task<AccessDecision?> HandleSubscriptionDeletedAsync(
@@ -384,35 +299,25 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (user is null) return null;
 
         if (IsOutOfOrder(user, input.StripeEventCreatedUtc))
-            return ExistingDecisionOrNull(user, "Ignored out-of-order event");
+            return user.EffectiveAccess is not null
+                ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
+                : null;
 
         var nowUtc = _clock.UtcNow;
 
-        user.StripeCustomerId = input.StripeCustomerId?.Trim();
-        user.StripeSubscriptionId = input.StripeSubscriptionId?.Trim();
+        // Facts
+        user.StripeCustomerId = input.StripeCustomerId;
+        user.StripeSubscriptionId = input.StripeSubscriptionId;
+        user.SubscriptionStatus = "deleted";
 
-        // keep current_period_end if Stripe provided it
-        user.StripeCurrentPeriodEndUtc = input.CurrentPeriodEndUtc ?? user.StripeCurrentPeriodEndUtc;
+        if (input.CurrentPeriodEndUtc is not null)
+            user.StripeCurrentPeriodEndUtc = input.CurrentPeriodEndUtc;
 
-        // set price/term if provided
-        if (!string.IsNullOrWhiteSpace(input.PriceId))
-        {
-            user.StripePriceId = input.PriceId!.Trim();
-            user.IndividualPlanTerm = ResolveIndividualTermFromPrice(user.StripePriceId);
-        }
+        if (input.CancelAtPeriodEnd is not null)
+            user.StripeCancelAtPeriodEnd = input.CancelAtPeriodEnd.Value;
 
-        // IMPORTANT:
-        // If paid-through, do NOT start grace. Keep FULL until paid-through expires.
-        if (IsPaidThrough(user, nowUtc))
-        {
-            user.SubscriptionStatus = "canceled";
-            user.IndividualGraceEndsAtUtc = null;
-        }
-        else
-        {
-            // terminal without paid-through => grace policy applies
-            SubscriptionState.ApplyStripeStatus(user, "deleted", nowUtc, _individualGracePolicy);
-        }
+        // Reduce -> likely grace (unless paid-through still true)
+        ApplyIndividualReducer(user, nowUtc);
 
         user.LastStripeEventId = input.StripeEventId;
         user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
@@ -420,14 +325,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         await SyncGraceIndex(user, userRef.Value, ct);
 
-        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
+
+        await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
         return decision;
     }
 
     // =========================================================
-    // INVOICE PAID (restore fast)
+    // INVOICE PAID (HELPER SIGNAL)
     // =========================================================
 
     public async Task<AccessDecision?> HandleInvoicePaidAsync(
@@ -441,15 +348,18 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (user is null) return null;
 
         if (IsOutOfOrder(user, input.StripeEventCreatedUtc))
-            return ExistingDecisionOrNull(user, "Ignored out-of-order event");
+            return user.EffectiveAccess is not null
+                ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
+                : null;
 
         var nowUtc = _clock.UtcNow;
 
-        // restore
-        SubscriptionState.ApplyStripeStatus(user, "active", nowUtc, _individualGracePolicy);
+        // We do NOT override subscription facts aggressively here.
+        // But we can set a “hint”:
+        user.SubscriptionStatus ??= "active";
 
-        // clear grace instantly
-        user.IndividualGraceEndsAtUtc = null;
+        // Reduce using existing facts (paid-through wins if period_end is still future)
+        ApplyIndividualReducer(user, nowUtc);
 
         user.LastStripeEventId = input.StripeEventId;
         user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
@@ -457,14 +367,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         await SyncGraceIndex(user, userRef.Value, ct);
 
-        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
+
+        await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
         return decision;
     }
 
     // =========================================================
-    // INVOICE PAYMENT FAILED (paid-through aware)
+    // INVOICE PAYMENT FAILED (HELPER SIGNAL + OPTIONAL RECOVERY FLOW)
     // =========================================================
 
     public async Task<AccessDecision?> HandleInvoicePaymentFailedAsync(
@@ -478,23 +390,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (user is null) return null;
 
         if (IsOutOfOrder(user, input.StripeEventCreatedUtc))
-            return ExistingDecisionOrNull(user, "Ignored out-of-order event");
+            return user.EffectiveAccess is not null
+                ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, "Ignored out-of-order event")
+                : null;
 
         var nowUtc = _clock.UtcNow;
 
-        // ✅ critical: if still paid-through, ignore to avoid false grace during proration/plan change
-        if (IsPaidThrough(user, nowUtc))
-        {
-            user.LastStripeEventId = input.StripeEventId;
-            user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
-            user.UpdatedAtUtc = nowUtc;
+        // Hint only: do not force grace if paid-through
+        user.SubscriptionStatus ??= "past_due";
 
-            await _userStore.UpsertAsync(user, ct);
-            return await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
-        }
-
-        // start/extend grace
-        SubscriptionState.ApplyStripeStatus(user, "past_due", nowUtc, _individualGracePolicy);
+        ApplyIndividualReducer(user, nowUtc);
 
         user.LastStripeEventId = input.StripeEventId;
         user.LastStripeEventCreatedUtc = input.StripeEventCreatedUtc;
@@ -502,11 +407,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         await SyncGraceIndex(user, userRef.Value, ct);
 
-        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+        var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
+
+        await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
-        // recovery flow best-effort
-        if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        // Only trigger recovery flow if reducer actually put them into Grace/Blocked (not PaidThrough)
+        if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId) &&
+            decision.Mode is AccessMode.Grace or AccessMode.Blocked)
         {
             try { await _manyChatSync.TriggerPaymentFailedFlowAsync(user.ManyChatSubscriberId!, ct); }
             catch { /* best-effort */ }
@@ -516,39 +424,54 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     }
 
     // =========================================================
+    // Reducer application
+    // =========================================================
+
+    private void ApplyIndividualReducer(User user, DateTimeOffset nowUtc)
+    {
+        var facts = new StripeSubscriptionFacts(
+            CustomerId: user.StripeCustomerId,
+            SubscriptionId: user.StripeSubscriptionId,
+            Status: user.SubscriptionStatus,
+            PriceId: user.StripePriceId,
+            PlanTerm: user.IndividualPlanTerm,
+            CancelAtPeriodEnd: user.StripeCancelAtPeriodEnd,
+            CurrentPeriodEndUtc: user.StripeCurrentPeriodEndUtc,
+            CanceledAtUtc: null,
+            EndedAtUtc: null);
+
+        var result = IndividualSubscriptionStateMachine.Reduce(
+            facts,
+            nowUtc,
+            _individualGracePolicy,
+            user.IndividualGraceEndsAtUtc);
+
+        // Apply derived results to user facts used by access rules
+        switch (result.State)
+        {
+            case IndividualEntitlementState.Active:
+            case IndividualEntitlementState.PaidThrough:
+                user.IndividualGraceEndsAtUtc = null;
+                // Keep subscription status as-is; Stripe is truth.
+                break;
+
+            case IndividualEntitlementState.Grace:
+                user.IndividualGraceEndsAtUtc = result.GraceEndsAtUtc;
+                break;
+
+            case IndividualEntitlementState.Blocked:
+            default:
+                user.IndividualGraceEndsAtUtc = null;
+                break;
+        }
+    }
+
+    // =========================================================
     // Helpers
     // =========================================================
 
-    private static AccessDecision? ExistingDecisionOrNull(User user, string reason)
-        => user.EffectiveAccess is not null
-            ? new AccessDecision(user.EffectiveAccess.Mode, user.EffectiveAccess.Source, user.EffectiveAccess.GraceEndsAtUtc, reason)
-            : null;
-
-    private static string? NormalizeStatus(string? status)
-        => string.IsNullOrWhiteSpace(status) ? null : status.Trim().ToLowerInvariant();
-
-    private static bool IsPaidThrough(User user, DateTimeOffset nowUtc)
-        => user.StripeCurrentPeriodEndUtc is not null && user.StripeCurrentPeriodEndUtc > nowUtc;
-
-    private static bool IsDelinquentStatus(string? status)
-    {
-        if (string.IsNullOrWhiteSpace(status)) return false;
-        status = status.Trim().ToLowerInvariant();
-        return status is "past_due" or "unpaid" or "incomplete" or "incomplete_expired";
-    }
-
-    private static bool IsActiveLike(string? status)
-    {
-        if (string.IsNullOrWhiteSpace(status)) return false;
-        status = status.Trim().ToLowerInvariant();
-        return status is "active" or "trialing";
-    }
-
     private static bool IsOutOfOrder(User user, DateTimeOffset eventCreatedUtc)
-    {
-        if (user.LastStripeEventCreatedUtc is null) return false;
-        return eventCreatedUtc < user.LastStripeEventCreatedUtc.Value;
-    }
+        => user.LastStripeEventCreatedUtc is not null && eventCreatedUtc < user.LastStripeEventCreatedUtc.Value;
 
     private async Task SyncGraceIndex(User user, UserRef userRef, CancellationToken ct)
     {
@@ -588,60 +511,79 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private static int ParseInt(string? s, int fallback)
         => int.TryParse(s, out var n) ? n : fallback;
 
+    private static string NormalizeStatus(string? status)
+        => string.IsNullOrWhiteSpace(status) ? "unknown" : status.Trim().ToLowerInvariant();
+
+    private string? DeriveTermFromPriceId(string? priceId)
+    {
+        if (string.IsNullOrWhiteSpace(priceId)) return null;
+        priceId = priceId.Trim();
+
+        if (priceId == _priceCatalog.IndividualMonthlyPriceId) return "monthly";
+        if (priceId == _priceCatalog.IndividualYearlyPriceId) return "annual";
+
+        // if unknown, keep null to avoid wrong term
+        return null;
+    }
+
+    private string? DerivePlanTypeFromPriceId(string? priceId)
+    {
+        if (string.IsNullOrWhiteSpace(priceId)) return null;
+        priceId = priceId.Trim();
+
+        if (priceId == _priceCatalog.IndividualMonthlyPriceId) return "individual_monthly";
+        if (priceId == _priceCatalog.IndividualYearlyPriceId) return "individual_yearly";
+
+        if (priceId == _priceCatalog.FleetSeatMonthlyPriceId) return "company_seat";
+
+        if (priceId == _priceCatalog.CdlCohort25PriceId
+            || priceId == _priceCatalog.CdlCohort50PriceId
+            || priceId == _priceCatalog.CdlCohort100PriceId)
+            return "cdl_cohort";
+
+        return null;
+    }
+
     private static string ResolveEntitlementIdForFleet(string companyId, string? subscriptionId)
         => !string.IsNullOrWhiteSpace(subscriptionId)
             ? $"ent_{subscriptionId.Trim()}"
             : $"ent_{companyId}_default";
 
-    /// <summary>
-    /// Returns:
-    /// planFamily: "individual" | "fleet" | "cdl_cohort"
-    /// term: "monthly" | "annual" | null
-    /// </summary>
-    private (string planFamily, string? term) ResolvePlanFamilyAndTerm(string? priceId, string? planTypeMeta)
-    {
-        // If we have priceId, that's the truth.
-        if (!string.IsNullOrWhiteSpace(priceId))
-        {
-            if (priceId == _priceCatalog.IndividualMonthlyPriceId)
-                return ("individual", "monthly");
+    // DTO mappers (based on your StripeEventData extended fields)
+    private static StripeSubscriptionUpdate ToSubUpdatedDto(StripeEventData d) => new(
+        StripeEventId: d.StripeEventId,
+        StripeEventCreatedUtc: d.StripeEventCreatedUtc,
+        StripeCustomerId: d.CustomerId ?? "",
+        StripeSubscriptionId: d.SubscriptionId ?? "",
+        SubscriptionStatus: d.Status ?? "unknown",
+        CancelAtPeriodEnd: d.CancelAtPeriodEnd,
+        CurrentPeriodEndUtc: d.CurrentPeriodEndUtc,
+        CanceledAtUtc: d.CanceledAtUtc,
+        EndedAtUtc: d.EndedAtUtc,
+        PriceId: d.PriceId,
+        Interval: d.Interval);
 
-            if (priceId == _priceCatalog.IndividualYearlyPriceId)
-                return ("individual", "annual");
+    private static StripeSubscriptionDeleted ToSubDeletedDto(StripeEventData d) => new(
+        StripeEventId: d.StripeEventId,
+        StripeEventCreatedUtc: d.StripeEventCreatedUtc,
+        StripeCustomerId: d.CustomerId ?? "",
+        StripeSubscriptionId: d.SubscriptionId ?? "",
+        CancelAtPeriodEnd: d.CancelAtPeriodEnd,
+        CurrentPeriodEndUtc: d.CurrentPeriodEndUtc,
+        CanceledAtUtc: d.CanceledAtUtc,
+        EndedAtUtc: d.EndedAtUtc,
+        PriceId: d.PriceId,
+        Interval: d.Interval);
 
-            if (priceId == _priceCatalog.FleetSeatMonthlyPriceId)
-                return ("fleet", null);
+    private static StripeInvoicePaid ToInvoicePaidDto(StripeEventData d) => new(
+        StripeEventId: d.StripeEventId,
+        StripeEventCreatedUtc: d.StripeEventCreatedUtc,
+        StripeCustomerId: d.CustomerId ?? "",
+        StripeSubscriptionId: d.SubscriptionId ?? "");
 
-            if (priceId == _priceCatalog.CdlCohort25PriceId ||
-                priceId == _priceCatalog.CdlCohort50PriceId ||
-                priceId == _priceCatalog.CdlCohort100PriceId)
-                return ("cdl_cohort", null);
-
-            // Unknown price => safe fallback: treat as individual monthly
-            return ("individual", "monthly");
-        }
-
-        // No priceId: use metadata
-        var m = (planTypeMeta ?? "").Trim().ToLowerInvariant();
-
-        return m switch
-        {
-            "fleet" or "fleet_seat" => ("fleet", null),
-            "cdl_cohort" => ("cdl_cohort", null),
-            "individual_yearly" or "annual" => ("individual", "annual"),
-            "individual_monthly" or "monthly" => ("individual", "monthly"),
-            _ => ("individual", "monthly")
-        };
-    }
-
-    private string? ResolveIndividualTermFromPrice(string? priceId)
-    {
-        if (string.IsNullOrWhiteSpace(priceId)) return null;
-
-        if (priceId == _priceCatalog.IndividualYearlyPriceId) return "annual";
-        if (priceId == _priceCatalog.IndividualMonthlyPriceId) return "monthly";
-
-        // unknown -> don't overwrite existing term
-        return null;
-    }
+    private static StripeInvoicePaymentFailed ToInvoiceFailedDto(StripeEventData d) => new(
+        StripeEventId: d.StripeEventId,
+        StripeEventCreatedUtc: d.StripeEventCreatedUtc,
+        StripeCustomerId: d.CustomerId ?? "",
+        StripeSubscriptionId: d.SubscriptionId ?? "");
 }

@@ -7,7 +7,8 @@ public sealed record StripeSubscriptionUpdate(
     string StripeSubscriptionId,
     string SubscriptionStatus,
     string? PriceId,
-    bool CancelAtPeriodEnd,
+    string? Interval,
+    bool? CancelAtPeriodEnd,
     DateTimeOffset? CurrentPeriodEndUtc,
     DateTimeOffset? CanceledAtUtc,
     DateTimeOffset? EndedAtUtc);

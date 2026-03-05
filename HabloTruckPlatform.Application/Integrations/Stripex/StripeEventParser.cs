@@ -242,30 +242,29 @@ public sealed record StripeParsedEvent(string EventType, StripeEventData? Data);
 
 public sealed class StripeEventData
 {
-    // Injected by webhook (or parser)
+    // Injected by parser
     public string StripeEventId { get; set; } = default!;
     public DateTimeOffset StripeEventCreatedUtc { get; set; }
 
     // Core identifiers
     public string? CustomerId { get; set; }
     public string? SubscriptionId { get; set; }
-    
 
-    // Status (subscription.updated/deleted, etc.)
+    // Status (subscription.updated/deleted etc)
     public string? Status { get; set; }
 
+    // Plan facts
+    public string? PriceId { get; set; }   // primary price id (best-effort)
+    public string? Interval { get; set; }  // "month" | "year" (best-effort)
 
-    // Subscription timing / cancellation facts (PRO)
-    public string? PriceId { get; set; }
+    // Cancellation/period facts (critical for upgrade/downgrade correctness)
     public bool? CancelAtPeriodEnd { get; set; }
     public DateTimeOffset? CurrentPeriodEndUtc { get; set; }
     public DateTimeOffset? CanceledAtUtc { get; set; }
     public DateTimeOffset? EndedAtUtc { get; set; }
 
-
-    // Optional fields (checkout/session)
+    // Checkout extras
     public string? CustomerEmail { get; set; }
     public int Quantity { get; set; }
-    public string? Interval { get; set; } // "month" / "year" (best-effort)
     public Dictionary<string, string>? Metadata { get; set; }
 }
