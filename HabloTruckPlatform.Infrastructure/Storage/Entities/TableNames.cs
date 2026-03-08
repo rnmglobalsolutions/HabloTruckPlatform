@@ -15,4 +15,5 @@ public static class TableNames
     public const string InviteCodes = "HT_InviteCodes";
     public const string InviteCompanyIndex = "HT_InviteCompanyIndex";
     public const string FailedActions = "HT_FailedActions";
+    public const string StripeEventAudit = "HT_StripeEventAudit";
 }

@@ -1,23 +1,17 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Logging;
-
-namespace HabloTruckPlatform.Functions;
+using Microsoft.Azure.Functions.Worker.Http;
+using System.Net;
 
 public class HealthFunction
 {
-    private readonly ILogger<HealthFunction> _logger;
-
-    public HealthFunction(ILogger<HealthFunction> logger)
+    [Function("Health")]
+    public HttpResponseData Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")] HttpRequestData req)
     {
-        _logger = logger;
-    }
+        var response = req.CreateResponse(HttpStatusCode.OK);
 
-    [Function("HealthFunction")]
-    public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req)
-    {
-        _logger.LogInformation("C# HTTP trigger function processed a request.");
-        return new OkObjectResult("Welcome to Azure Functions!");
+        response.WriteString("OK");
+
+        return response;
     }
 }

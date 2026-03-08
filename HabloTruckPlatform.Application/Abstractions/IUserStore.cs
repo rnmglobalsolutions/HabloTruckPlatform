@@ -24,4 +24,6 @@ public interface IUserStore
     /// Should be idempotent.
     /// </summary>
     Task UpsertLookupsAsync(User user, CancellationToken ct = default);
+    Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(
+        int take = 500, CancellationToken ct = default);
 }

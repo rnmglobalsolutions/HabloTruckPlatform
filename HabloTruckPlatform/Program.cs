@@ -8,6 +8,7 @@ using HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Factory;
 using HabloTruckPlatform.Infrastructure.Storage.Stores;
+using HabloTruckPlatform.Infrastructure.Stripe;
 using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -58,15 +59,18 @@ var host = new HostBuilder()
         services.AddSingleton<IEntitlementExpiryIndexStore, TableEntitlementExpiryIndexStore>();
         services.AddSingleton<IInviteCodeStore, TableInviteCodeStore>();
         services.AddSingleton<IFailedActionStore, TableFailedActionStore>();
+        services.AddSingleton<IStripeEventAuditStore, TableStripeEventAuditStore>();
+        services.AddSingleton<IStripeAdminClient, StripeAdminClient>();
+        services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();
 
         // ---- UseCases / Handlers (Application layer)
         services.AddSingleton<AccessOrchestrator>();
-        services.AddSingleton<CheckoutSessionHandler>();
         services.AddSingleton<GraceSweeperService>();
         services.AddSingleton<CompanyJoinHandler>();
         services.AddSingleton<EntitlementRecountService>();
         services.AddSingleton<FailedActionRetryService>();
         services.AddSingleton<EntitlementExpirySweeperService>();
+        services.AddSingleton<StripeReconciliationService>();
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();

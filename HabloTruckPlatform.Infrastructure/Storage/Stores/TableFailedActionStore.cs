@@ -232,7 +232,7 @@ public sealed class TableFailedActionStore : IFailedActionStore
         await EnqueueAsync(e.ActionType, e.PayloadJson, nextRetryUtc, ct);
     }
 
-    private static string Pk(DateTimeOffset utc) => $"HT#FA#{utc:yyyyMMddHH}";
+    private static string Pk(DateTimeOffset utc) => $"{TablePrefixes.FailedAction}#{utc:yyyyMMddHH}";
 
     private static string Trunc(string s, int max)
         => string.IsNullOrEmpty(s) ? s : (s.Length <= max ? s : s[..max]);

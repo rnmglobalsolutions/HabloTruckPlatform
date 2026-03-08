@@ -5,7 +5,7 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Mappers;
 
 public static class EntitlementMapper
 {
-    public static string Pk(string companyId) => $"HT#ENT#{companyId}";
+    public static string Pk(string companyId) => $"{TablePrefixes.Entitlement}#{companyId}";
 
     public static EntitlementEntity ToEntity(Entitlement e)
         => new()

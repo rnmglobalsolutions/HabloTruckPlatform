@@ -284,4 +284,31 @@ public sealed class TableUserStore : IUserStore
         if (string.IsNullOrWhiteSpace(email)) return null;
         return email.Trim().ToLowerInvariant();
     }
+
+    public async Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(
+        int take = 500, CancellationToken ct = default)
+    {
+        var results = new List<User>(take);
+
+        for (var bucket = 0; bucket < 256 && results.Count < take; bucket++)
+        {
+            var pk = $"{TablePrefixes.User}#{bucket:D3}";
+
+            await foreach (var entity in UsersTable.QueryAsync<UserEntity>(
+                e => e.PartitionKey == pk,
+                cancellationToken: ct))
+            {
+                if (!string.IsNullOrWhiteSpace(entity.StripeCustomerId)
+                    || !string.IsNullOrWhiteSpace(entity.StripeSubscriptionId))
+                {
+                    results.Add(UserMapper.FromEntity(entity));
+
+                    if (results.Count >= take)
+                        break;
+                }
+            }
+        }
+
+        return results;
+    }
 }

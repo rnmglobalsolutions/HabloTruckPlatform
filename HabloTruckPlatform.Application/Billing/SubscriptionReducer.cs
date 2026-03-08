@@ -1,6 +1,8 @@
 ﻿using HabloTruckPlatform.Domain.Access;
 
-public static class IndividualSubscriptionStateMachine
+namespace HabloTruckPlatform.Application.Billing;
+
+public static class SubscriptionReducer
 {
     public static IndividualEntitlementResult Reduce(
         StripeSubscriptionFacts f,
@@ -58,6 +60,31 @@ public static class IndividualSubscriptionStateMachine
         if (existingGraceEndsAtUtc is not null && existingGraceEndsAtUtc > nowUtc)
             return existingGraceEndsAtUtc.Value;
 
-        return nowUtc.AddHours(gracePolicy.Duration.Hours);
+        return nowUtc.Add(gracePolicy.Duration);
     }
+}
+
+public sealed record IndividualEntitlementResult(
+    IndividualEntitlementState State,
+    DateTimeOffset? GraceEndsAtUtc,
+    string Reason);
+
+public sealed record StripeSubscriptionFacts(
+    string? CustomerId,
+    string? SubscriptionId,
+    string? Status,
+    string? PriceId,
+    string? PlanTerm, // "monthly" | "annual" | null (derived in App layer)
+    bool CancelAtPeriodEnd,
+    DateTimeOffset? CurrentPeriodEndUtc,
+    DateTimeOffset? CanceledAtUtc,
+    DateTimeOffset? EndedAtUtc);
+
+public enum IndividualEntitlementState
+{
+    None = 0,
+    Active = 1,       // active/trialing, not ended
+    PaidThrough = 2,  // current_period_end in the future
+    Grace = 3,
+    Blocked = 4
 }

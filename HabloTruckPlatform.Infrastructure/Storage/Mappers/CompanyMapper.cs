@@ -5,7 +5,7 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Mappers;
 
 public static class CompanyMapper
 {
-    public const string Pk = "HT#C";
+    public const string Pk = $"{TablePrefixes.Company}";
 
     public static CompanyEntity ToEntity(Company c)
         => new()

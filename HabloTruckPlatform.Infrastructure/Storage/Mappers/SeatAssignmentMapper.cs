@@ -5,7 +5,7 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Mappers;
 
 public static class SeatAssignmentMapper
 {
-    public static string Pk(string companyId) => $"HT#SEAT#{companyId}";
+    public static string Pk(string companyId) => $"{TablePrefixes.SeatAssignment}#{companyId}";
 
     public static SeatAssignmentEntity ToEntity(SeatAssignment s)
         => new()
