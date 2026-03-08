@@ -71,6 +71,7 @@ var host = new HostBuilder()
         services.AddSingleton<FailedActionRetryService>();
         services.AddSingleton<EntitlementExpirySweeperService>();
         services.AddSingleton<StripeReconciliationService>();
+        services.AddSingleton<StripeCheckoutHandler>();
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
