@@ -38,8 +38,8 @@ jobs:
         id: fa
         with:
           app-name: 'HabloTruckPlatform-development'
-          slot-name: 'development'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3C73A59C14BF4AA887A420E35D2B0889 }}
+
 
