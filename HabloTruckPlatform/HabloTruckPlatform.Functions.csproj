@@ -22,15 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="HabloTruckPlatform.Application">
-      <HintPath>..\HabloTruckPlatform.Application\bin\Debug\net10.0\HabloTruckPlatform.Application.dll</HintPath>
-    </Reference>
-    <Reference Include="HabloTruckPlatform.Domain">
-      <HintPath>..\HabloTruckPlatform.Domain\bin\Debug\net10.0\HabloTruckPlatform.Domain.dll</HintPath>
-    </Reference>
-    <Reference Include="HabloTruckPlatform.Infrastructure">
-      <HintPath>..\HabloTruckPlatform.Infrastructure\bin\Debug\net10.0\HabloTruckPlatform.Infrastructure.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\HabloTruckPlatform.Application\HabloTruckPlatform.Application.csproj" />
+    <ProjectReference Include="..\HabloTruckPlatform.Domain\HabloTruckPlatform.Domain.csproj" />
+    <ProjectReference Include="..\HabloTruckPlatform.Infrastructure\HabloTruckPlatform.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
