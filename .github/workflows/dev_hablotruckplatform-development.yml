@@ -8,7 +8,7 @@ on:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions/HabloTruckPlatform.Functions.csproj'
+  FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions.csproj'
   OUTPUT_PATH: './published'
 
 jobs:
@@ -39,6 +39,7 @@ jobs:
           app-name: 'HabloTruckPlatform-development'
           package: '${{ env.OUTPUT_PATH }}'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3C73A59C14BF4AA887A420E35D2B0889 }}
+
 
 
 
