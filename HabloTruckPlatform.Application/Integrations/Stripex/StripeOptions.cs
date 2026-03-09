@@ -4,11 +4,11 @@ public sealed class StripeOptions
 {
     public required string WebhookSecret { get; init; }
     // Individual
-    public string IndividualMonthlyPriceId { get; set; } = "";
-    public string IndividualYearlyPriceId { get; set; } = "";
+    public string? IndividualMonthlyPriceId { get; set; }
+    public string? IndividualYearlyPriceId { get; set; }
 
     // Fleet seat (per-seat monthly)
-    public string FleetSeatMonthlyPriceId { get; set; } = "";
+    public string? FleetSeatMonthlyPriceId { get; set; }
 
     // CDL cohort one-time (optional if you use one-time prices)
     public string? CdlCohort25PriceId { get; set; }
