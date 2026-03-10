@@ -292,7 +292,7 @@ public sealed class TableUserStore : IUserStore
 
         for (var bucket = 0; bucket < 256 && results.Count < take; bucket++)
         {
-            var pk = $"{TablePrefixes.User}#{bucket:D3}";
+            var pk = $"{TablePrefixes.User}_{bucket:D3}";
 
             await foreach (var entity in UsersTable.QueryAsync<UserEntity>(
                 e => e.PartitionKey == pk,

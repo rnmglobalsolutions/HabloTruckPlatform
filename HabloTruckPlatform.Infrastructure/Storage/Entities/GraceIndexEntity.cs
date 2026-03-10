@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#GRACE#yyyyMMddHH
+// PK = HT_GRACE_yyyyMMddHH
 // RK = {ticks:D19}_{userId}
 public sealed class GraceIndexEntity : ITableEntity
 {

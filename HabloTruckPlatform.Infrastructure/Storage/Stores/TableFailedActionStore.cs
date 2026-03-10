@@ -13,7 +13,7 @@ public sealed class TableFailedActionStore : IFailedActionStore
     #region Payload Minimo para Manychat
     /*
      * {
-     *   "userPk": "HT#U#003",
+     *   "userPk": "HT_U_003",
      *   "userId": "01HRF...",
      *   "reason": "sync_access"
      * }
@@ -232,7 +232,7 @@ public sealed class TableFailedActionStore : IFailedActionStore
         await EnqueueAsync(e.ActionType, e.PayloadJson, nextRetryUtc, ct);
     }
 
-    private static string Pk(DateTimeOffset utc) => $"{TablePrefixes.FailedAction}#{utc:yyyyMMddHH}";
+    private static string Pk(DateTimeOffset utc) => $"{TablePrefixes.FailedAction}_{utc:yyyyMMddHH}";
 
     private static string Trunc(string s, int max)
         => string.IsNullOrEmpty(s) ? s : (s.Length <= max ? s : s[..max]);

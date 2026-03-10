@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#ENT#{CompanyId}
+// PK = HT_ENT_{CompanyId}
 // RK = EntitlementId
 public sealed class EntitlementEntity : ITableEntity
 {

@@ -4,7 +4,7 @@ namespace HabloTruckPlatform.Infrastructure.Telemetry;
 
 public static class LogContext
 {
-    public static IDisposable BeginUserScope(
+    public static IDisposable? BeginUserScope(
         ILogger logger,
         string? userId = null,
         string? companyId = null,

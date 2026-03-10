@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = Buckets.ManyChatLookupPk(subscriberId) (e.g., HT#MC#13)
+// PK = Buckets.ManyChatLookupPk(subscriberId) (e.g., HT_MC_13)
 // RK = subscriberId
 public sealed class UserManyChatLookupEntity : ITableEntity
 {

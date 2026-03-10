@@ -13,7 +13,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
     private readonly ITableClientFactory _factory;
     private readonly ITableRepository _repo;
 
-    private static string CompanyPk(string companyId) => $"HT#INVC#{companyId}";
+    private static string CompanyPk(string companyId) => $"{TablePrefixes.InviteCompany}_{companyId}";
 
     public TableInviteCodeStore(ITableClientFactory factory, ITableRepository repo)
     {
@@ -219,7 +219,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
     private static string Pk(string codeNormalized)
     {
         var prefix = codeNormalized.Length >= 2 ? codeNormalized[..2] : "xx";
-        return $"HT#INV#{prefix}";
+        return $"{TablePrefixes.InviteCode}_{prefix}";
     }
 
     private static string? Normalize(string? code)

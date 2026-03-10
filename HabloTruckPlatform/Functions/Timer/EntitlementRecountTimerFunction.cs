@@ -30,7 +30,7 @@ public sealed class EntitlementRecountTimerFunction
         var nowUtc = DateTimeOffset.UtcNow;
 
         // Today's expiry partition (yyyyMMdd)
-        var pk = $"HT#EE#{nowUtc:yyyyMMdd}";
+        var pk = $"{TablePrefixes.EntitlementExpiry}_{nowUtc:yyyyMMdd}";
 
         // Pull up to N expiring items, recount them (cheap)
         var items = await _expiryIndex.QueryExpiringAsync(pk, nowUtc, take: 500);

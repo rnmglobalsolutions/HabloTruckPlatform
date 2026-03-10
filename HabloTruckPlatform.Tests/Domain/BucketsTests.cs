@@ -24,9 +24,9 @@ public class BucketsTests
 
         var pk = Buckets.UserBucketPk(userId);
 
-        Assert.StartsWith("HT#U#", pk);
-        Assert.Equal(8, pk.Length); // "HT#U#000" => 8
-        Assert.Matches(@"^HT#U#\d{3}$", pk);
+        Assert.StartsWith("HT_U_", pk);
+        Assert.Equal(8, pk.Length); // "HT_U_000" => 8
+        Assert.Matches(@"^HT_U_\d{3}$", pk);
     }
 
     [Fact]
@@ -36,8 +36,8 @@ public class BucketsTests
 
         var pk = Buckets.ManyChatLookupPk(subscriberId);
 
-        Assert.StartsWith("HT#MC#", pk);
-        Assert.Matches(@"^HT#MC#\d{2}$", pk);
+        Assert.StartsWith("HT_MC_", pk);
+        Assert.Matches(@"^HT_MC_\d{2}$", pk);
     }
 
     [Fact]
@@ -47,14 +47,14 @@ public class BucketsTests
 
         var pk = Buckets.StripeCustomerLookupPk(customerId);
 
-        Assert.StartsWith("HT#SC#", pk);
-        Assert.Matches(@"^HT#SC#\d{2}$", pk);
+        Assert.StartsWith("HT_SC_", pk);
+        Assert.Matches(@"^HT_SC_\d{2}$", pk);
     }
 
     [Theory]
-    [InlineData("juan.perez@gmail.com", "HT#EMAIL#ju")]
-    [InlineData("a@b.com", "HT#EMAIL#a@")] // first two chars
-    [InlineData("x", "HT#EMAIL#xx")]       // fallback
+    [InlineData("juan.perez@gmail.com", "HT_EMAIL_ju")]
+    [InlineData("a@b.com", "HT_EMAIL_a@")] // first two chars
+    [InlineData("x", "HT_EMAIL_xx")]       // fallback
     public void EmailLookupPk_ShouldUseFirstTwoCharsOrFallback(string emailNormalized, string expectedPk)
     {
         var pk = Buckets.EmailLookupPk(emailNormalized);

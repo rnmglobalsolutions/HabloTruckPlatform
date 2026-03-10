@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#INVC#{CompanyId}
+// PK = HT_INVC_{CompanyId}
 // RK = {CreatedAtTicks:D19}_{Code}
 public sealed class InviteCompanyIndexEntity : ITableEntity
 {

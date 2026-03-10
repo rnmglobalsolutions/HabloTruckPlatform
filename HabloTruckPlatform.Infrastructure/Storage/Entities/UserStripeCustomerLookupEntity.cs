@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = Buckets.StripeCustomerLookupPk(customerId) (e.g., HT#SC#41)
+// PK = Buckets.StripeCustomerLookupPk(customerId) (e.g., HT_SC_41)
 // RK = customerId
 public sealed class UserStripeCustomerLookupEntity : ITableEntity
 {

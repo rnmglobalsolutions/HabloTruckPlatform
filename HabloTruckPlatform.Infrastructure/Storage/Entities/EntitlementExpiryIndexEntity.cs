@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#EE#yyyyMMdd (based on EndUtc date)
+// PK = HT_EE_yyyyMMdd (based on EndUtc date)
 // RK = {EndTicks:D19}_{CompanyId}_{EntitlementId}
 public sealed class EntitlementExpiryIndexEntity : ITableEntity
 {

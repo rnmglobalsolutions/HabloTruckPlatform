@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#FA#yyyyMMddHH   (bucket por hora para retry barato)
+// PK = HT_FA_yyyyMMddHH   (bucket por hora para retry barato)
 // RK = {NextRetryTicks:D19}_{Ulid}  (ordena por due time)
 public sealed class FailedActionEntity : ITableEntity
 {

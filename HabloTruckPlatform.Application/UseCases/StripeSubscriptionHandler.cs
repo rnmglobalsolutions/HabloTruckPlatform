@@ -434,7 +434,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (user.IndividualGraceEndsAtUtc is not null && user.IndividualGraceEndsAtUtc > nowUtc)
         {
-            var pk = $"{TablePrefixes.Grace}#{user.IndividualGraceEndsAtUtc.Value:yyyyMMddHH}";
+            var pk = $"{TablePrefixes.Grace}_{user.IndividualGraceEndsAtUtc.Value:yyyyMMddHH}";
             var rk = $"{user.IndividualGraceEndsAtUtc.Value.Ticks:D19}_{user.UserId}";
 
             user.CurrentGracePk = pk;

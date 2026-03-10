@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = HT#INV#{prefix} (prefix = first 2 chars of code, normalized)
+// PK = HT_INV_{prefix} (prefix = first 2 chars of code, normalized)
 // RK = code
 public sealed class InviteCodeEntity : ITableEntity
 {

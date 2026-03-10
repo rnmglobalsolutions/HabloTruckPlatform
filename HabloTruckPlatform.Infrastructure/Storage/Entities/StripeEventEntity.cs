@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = "HT#STRIPE#EVENT"
+// PK = "HT_STRIPE_EVENT"
 // RK = stripeEventId
 public sealed class StripeEventEntity : ITableEntity
 {

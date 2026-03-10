@@ -58,7 +58,7 @@ public sealed class TableGraceIndexStore : IGraceIndexStore
             ct.ThrowIfCancellationRequested();
 
             var hour = nowUtc.AddHours(-i);
-            var pk = $"{TablePrefixes.Grace}#{hour:yyyyMMddHH}";
+            var pk = $"{TablePrefixes.Grace}_{hour:yyyyMMddHH}";
 
             // Query by PK and UserId
             var filter = TableClient.CreateQueryFilter($"PartitionKey eq {pk} and UserId eq {userRef.UserId}");
@@ -119,7 +119,7 @@ public sealed class TableGraceIndexStore : IGraceIndexStore
     }
 
     private static string GracePk(DateTimeOffset graceEndsAtUtc)
-        => $"{TablePrefixes.Grace}#{graceEndsAtUtc:yyyyMMddHH}";
+        => $"{TablePrefixes.Grace}_{graceEndsAtUtc:yyyyMMddHH}";
 
     private static string GraceRk(DateTimeOffset graceEndsAtUtc, string userId)
         => $"{graceEndsAtUtc.Ticks:D19}_{userId}";

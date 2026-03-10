@@ -93,22 +93,22 @@ public sealed class StripeCheckoutHandler
 
         switch (pt) {
             case "individual_monthly": 
-                priceId = _stripeOptions.IndividualMonthlyPriceId;
+                priceId = _stripeOptions.IndividualMonthlyPriceId ?? string.Empty;
                 break;
             case "individual_yearly":
-                priceId = _stripeOptions.IndividualYearlyPriceId;
+                priceId = _stripeOptions.IndividualYearlyPriceId ?? string.Empty;
                 break;
             case "fleet_monthly":
-                priceId = _stripeOptions.FleetSeatMonthlyPriceId;
+                priceId = _stripeOptions.FleetSeatMonthlyPriceId ?? string.Empty;
                 break;
             case "cdl_cohort_25":
-                priceId = _stripeOptions.CdlCohort25PriceId ?? "";
+                priceId = _stripeOptions.CdlCohort25PriceId ?? string.Empty;
                 break;
             case "cdl_cohort_50":
-                priceId = _stripeOptions.CdlCohort50PriceId ?? "";
+                priceId = _stripeOptions.CdlCohort50PriceId ?? string.Empty;
                 break;
             case "cdl_cohort_100":
-                priceId = _stripeOptions.CdlCohort100PriceId ?? "";
+                priceId = _stripeOptions.CdlCohort100PriceId ?? string.Empty;
                 break;
         }
 

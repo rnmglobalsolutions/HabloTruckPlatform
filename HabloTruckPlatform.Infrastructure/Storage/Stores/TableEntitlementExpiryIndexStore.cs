@@ -20,7 +20,7 @@ public sealed class TableEntitlementExpiryIndexStore : IEntitlementExpiryIndexSt
 
     public async Task UpsertAsync(EntitlementRef entitlementRef, DateTimeOffset endUtc, CancellationToken ct = default)
     {
-        var pk = $"HT#EE#{endUtc:yyyyMMdd}";
+        var pk = $"{TablePrefixes.EntitlementExpiry}_{endUtc:yyyyMMdd}";
         var rk = $"{endUtc.Ticks:D19}_{entitlementRef.CompanyId}_{entitlementRef.EntitlementId}";
 
         var entity = new EntitlementExpiryIndexEntity

@@ -10,7 +10,7 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Stores;
 public sealed class TableStripeEventStore : IStripeEventStore
 {
     // One PK is fine: Stripe event IDs are globally unique, and you do single-row inserts.
-    private const string Pk = "HT#STRIPE#EVT";
+    private const string Pk = $"{TablePrefixes.Stripe}_EVT";
 
     private readonly ITableClientFactory _factory;
     private readonly ITableRepository _repo;

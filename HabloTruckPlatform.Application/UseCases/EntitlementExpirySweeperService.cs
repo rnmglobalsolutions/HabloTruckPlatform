@@ -114,5 +114,5 @@ public sealed class EntitlementExpirySweeperService
     }
 
     private static string ExpiryPk(DateTimeOffset utc)
-        => $"HT#EE#{utc:yyyyMMdd}";
+        => $"{TablePrefixes.EntitlementExpiry}_{utc:yyyyMMdd}";
 }

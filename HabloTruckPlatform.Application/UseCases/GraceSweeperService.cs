@@ -91,7 +91,7 @@ public sealed class GraceSweeperService
         for (var i = 0; i <= lookbackHours; i++)
         {
             var hour = nowUtc.AddHours(-i);
-            yield return $"{TablePrefixes.Grace}#{hour:yyyyMMddHH}";
+            yield return $"{TablePrefixes.Grace}_{hour:yyyyMMddHH}";
         }
     }
 }

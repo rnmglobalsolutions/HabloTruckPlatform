@@ -19,7 +19,7 @@ public sealed class TableStripeEventAuditStore : IStripeEventAuditStore
 
     public async Task AppendAsync(StripeEventAuditItem item, CancellationToken ct = default)
     {
-        var pk = $"{TablePrefixes.StripeEventAudit}#{item.EventCreatedUtc:yyyyMMdd}";
+        var pk = $"{TablePrefixes.StripeEventAudit}_{item.EventCreatedUtc:yyyyMMdd}";
         var rk = $"{item.EventCreatedUtc.Ticks:D19}_{item.StripeEventId}_{Guid.NewGuid():N}";
 
         var entity = new StripeEventAuditEntity
@@ -69,7 +69,7 @@ public sealed class TableStripeEventAuditStore : IStripeEventAuditStore
         int take = 100,
         CancellationToken ct = default)
     {
-        var pk = $"{TablePrefixes.StripeEventAudit}#{dayUtc:yyyyMMdd}";
+        var pk = $"{TablePrefixes.StripeEventAudit}_{dayUtc:yyyyMMdd}";
         var results = new List<StripeEventAuditItem>();
 
         await foreach (var row in _table.QueryAsync<StripeEventAuditEntity>(

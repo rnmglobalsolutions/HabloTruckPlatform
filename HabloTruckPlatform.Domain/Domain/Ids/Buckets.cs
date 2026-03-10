@@ -23,19 +23,19 @@ public static class Buckets
     public static string UserBucketPk(string userId)
     {
         var bucket = StableHashMod(userId, UserBucketCount);
-        return $"{TablePrefixes.User}#{bucket:D3}";
+        return $"{TablePrefixes.User}_{bucket:D3}";
     }
 
     public static string ManyChatLookupPk(string subscriberId)
     {
         var bucket = StableHashMod(subscriberId, LookupBucketCount);
-        return $"{TablePrefixes.ManyChat}#{bucket:D2}";
+        return $"{TablePrefixes.ManyChat}_{bucket:D2}";
     }
 
     public static string StripeCustomerLookupPk(string customerId)
     {
         var bucket = StableHashMod(customerId, LookupBucketCount);
-        return $"{TablePrefixes.StripeCustomer}#{bucket:D2}";
+        return $"{TablePrefixes.StripeCustomer}_{bucket:D2}";
     }
 
     public static string EmailLookupPk(string email)
@@ -51,19 +51,19 @@ public static class Buckets
             ? normalized[..2]
             : normalized.Length == 1 ? normalized : "xx";
 
-        return $"{TablePrefixes.Email}#{prefix}";
+        return $"{TablePrefixes.Email}_{prefix}";
     }
 
     public static string TimeIndexPk(DateTimeOffset utc, string format)
     {
-        return $"{TablePrefixes.Grace}#{utc:yyyyMMddHH}";
+        return $"{TablePrefixes.Grace}_{utc:yyyyMMddHH}";
     }
 
     public static string EntitlementExpiryPk(DateTimeOffset utcDate)
     {
         // Bucket por día (sweeper diario)
-        // formato: HT#EE#yyyyMMdd
-        return $"{TablePrefixes.EntitlementExpiry}#{utcDate:yyyyMMdd}";
+        // formato: HT_EE_yyyyMMdd
+        return $"{TablePrefixes.EntitlementExpiry}_{utcDate:yyyyMMdd}";
     }
 
     public static string TimeIndexRk(long ticks, string id)

@@ -3,7 +3,7 @@ using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
-// PK = Buckets.EmailLookupPk(emailNormalized) (e.g., HT#EMAIL#ju)
+// PK = Buckets.EmailLookupPk(emailNormalized) (e.g., HT_EMAIL_ju)
 // RK = emailNormalized
 public sealed class UserEmailLookupEntity : ITableEntity
 {
