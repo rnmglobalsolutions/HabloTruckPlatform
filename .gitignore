@@ -60,7 +60,8 @@ nunit-*.xml
 HT_App_Settings.json
 
 # nuget
-.nuget
+.nuget/
 
 # dotnet
-.dotnet
+.dotnet/
+

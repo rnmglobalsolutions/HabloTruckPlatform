@@ -1,4 +1,4 @@
-ï»¿using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Domain.Access;
 
 namespace HabloTruckPlatform.Application.Billing;
 
@@ -10,7 +10,7 @@ public static class SubscriptionReducer
         GracePolicy gracePolicy,
         DateTimeOffset? existingGraceEndsAtUtc)
     {
-        // â€œPaid-throughâ€ rules everything: prevents proration/retry/upgrade false grace
+        // “Paid-through” rules everything: prevents proration/retry/upgrade false grace
         var paidThrough = f.CurrentPeriodEndUtc is not null && f.CurrentPeriodEndUtc > nowUtc;
 
         var status = (f.Status ?? "").Trim().ToLowerInvariant();
@@ -20,9 +20,14 @@ public static class SubscriptionReducer
         // Ended = Stripe says it ended and time has passed
         var ended = f.EndedAtUtc is not null && f.EndedAtUtc <= nowUtc;
 
-        // Cancel-at-period-end: until period end, user is still paid-through (handled above)
-        // After period end, Stripe usually flips status to canceled/ended.
-        // If status hasnâ€™t flipped yet, we still rely on paidThrough and ended.
+        var cancelScheduledPaidThrough = f.CancelAtPeriodEnd && paidThrough && !ended;
+
+        // 0) Cancel scheduled at period end -> still paid through. No grace should be opened.
+        if (cancelScheduledPaidThrough)
+            return new IndividualEntitlementResult(
+                IndividualEntitlementState.PaidThrough,
+                null,
+                "cancel_scheduled_paid_through");
 
         // 1) If paid through and not ended -> allow (no grace)
         if (paidThrough && !ended)
@@ -32,6 +37,10 @@ public static class SubscriptionReducer
         if (activeLike && !ended)
             return new IndividualEntitlementResult(IndividualEntitlementState.Active, null, "active_like");
 
+        // 2.5) Final deleted event should be terminal blocked.
+        if (status == "deleted")
+            return new IndividualEntitlementResult(IndividualEntitlementState.Blocked, null, "deleted_blocked");
+
         // 3) Delinquent and not paid-through -> grace
         if (delinquent && !paidThrough && !ended)
             return new IndividualEntitlementResult(
@@ -39,8 +48,8 @@ public static class SubscriptionReducer
                 ExtendOrStartGrace(nowUtc, gracePolicy, existingGraceEndsAtUtc),
                 "delinquent_grace");
 
-        // 4) Canceled/deleted/ended -> grace (then block after grace expires via sweeper / recompute)
-        if (status is "canceled" or "deleted" || ended)
+        // 4) Canceled/ended -> grace (then block after grace expires via sweeper / recompute)
+        if (status == "canceled" || ended)
             return new IndividualEntitlementResult(
                 IndividualEntitlementState.Grace,
                 ExtendOrStartGrace(nowUtc, gracePolicy, existingGraceEndsAtUtc),
@@ -55,8 +64,8 @@ public static class SubscriptionReducer
         GracePolicy gracePolicy,
         DateTimeOffset? existingGraceEndsAtUtc)
     {
-        // IMPORTANT: donâ€™t â€œrestart graceâ€ on every retry event
-        // Keep existing grace if itâ€™s still in the future.
+        // IMPORTANT: don’t “restart grace” on every retry event
+        // Keep existing grace if it’s still in the future.
         if (existingGraceEndsAtUtc is not null && existingGraceEndsAtUtc > nowUtc)
             return existingGraceEndsAtUtc.Value;
 
