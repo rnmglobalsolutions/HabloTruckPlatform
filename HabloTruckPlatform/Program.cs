@@ -81,6 +81,7 @@ var host = new HostBuilder()
         {
             var opt = sp.GetRequiredService<IOptions<StripeOptions>>().Value;
             opt.Validate();
+            Stripe.StripeConfiguration.ApiKey = opt.StripeSecretKey;
             return opt;
         });
 

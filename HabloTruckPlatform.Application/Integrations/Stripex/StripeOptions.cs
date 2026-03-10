@@ -2,7 +2,8 @@
 
 public sealed class StripeOptions
 {
-    public required string WebhookSecret { get; init; }
+    public string? WebhookSecret { get; set; }
+    public string? StripeSecretKey { get; set; }
     // Individual
     public string? IndividualMonthlyPriceId { get; set; }
     public string? IndividualYearlyPriceId { get; set; }
@@ -20,11 +21,15 @@ public sealed class StripeOptions
 
     public void Validate()
     {
+        if (string.IsNullOrWhiteSpace(WebhookSecret))
+            throw new InvalidOperationException("Stripe:WebhookSecret missing.");
+        if (string.IsNullOrWhiteSpace(StripeSecretKey))
+            throw new InvalidOperationException("Stripe:StripeSecretKey missing.");
         if (string.IsNullOrWhiteSpace(IndividualMonthlyPriceId))
-            throw new InvalidOperationException("StripePriceCatalog:IndividualMonthlyPriceId missing.");
+            throw new InvalidOperationException("Stripe:IndividualMonthlyPriceId missing.");
         if (string.IsNullOrWhiteSpace(IndividualYearlyPriceId))
-            throw new InvalidOperationException("StripePriceCatalog:IndividualYearlyPriceId missing.");
+            throw new InvalidOperationException("Stripe:IndividualYearlyPriceId missing.");
         if (string.IsNullOrWhiteSpace(FleetSeatMonthlyPriceId))
-            throw new InvalidOperationException("StripePriceCatalog:FleetSeatMonthlyPriceId missing.");
+            throw new InvalidOperationException("Stripe:FleetSeatMonthlyPriceId missing.");
     }
 }

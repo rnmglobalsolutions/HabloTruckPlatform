@@ -10,14 +10,22 @@ namespace HabloTruckPlatform.Application.Integrations.Stripex
 
         public StripeSignatureValidator(StripeOptions options, ILogger<StripeSignatureValidator> logger)
         {
-            _webhookSecret = options.WebhookSecret;
             _logger = logger;
+            _webhookSecret = options.WebhookSecret ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(_webhookSecret))
+            {
+                _logger.LogError("Stripe WebhookSecret is not configured. Check the app settings.");
+                throw new InvalidOperationException("Stripe WebhookSecret is not configured.");
+            }
         }
 
         public Event Validate(string json, string? stripeSignatureHeader)
         {
             if (string.IsNullOrWhiteSpace(stripeSignatureHeader))
+            {
+                _logger.LogWarning("Missing Stripe-Signature header in webhook request");
                 throw new InvalidOperationException("Missing Stripe-Signature header");
+            }
 
             try
             {

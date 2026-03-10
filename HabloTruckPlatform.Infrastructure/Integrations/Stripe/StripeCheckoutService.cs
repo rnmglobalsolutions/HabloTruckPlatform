@@ -1,5 +1,6 @@
 ﻿using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
+using Stripe;
 using Stripe.Checkout;
 
 namespace HabloTruckPlatform.Infrastructure.Stripe;
@@ -11,6 +12,8 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
         CancellationToken ct = default)
     {
         var metadata = BuildMetadata(request);
+
+        // StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"];
 
         var options = new SessionCreateOptions
         {
