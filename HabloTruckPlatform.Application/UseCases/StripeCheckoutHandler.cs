@@ -110,6 +110,9 @@ public sealed class StripeCheckoutHandler
             case "cdl_cohort_100":
                 priceId = _stripeOptions.CdlCohort100PriceId ?? string.Empty;
                 break;
+            case "testing":
+                priceId = _stripeOptions.TestingPriceId ?? string.Empty;
+                break;
         }
 
         return priceId;

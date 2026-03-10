@@ -8,7 +8,7 @@ public sealed class StripeCheckoutSessionRequest
     public string SuccessUrl { get; set; } = "";
     public string CancelUrl { get; set; } = "";
 
-    // individual | fleet | cdl_cohort
+    // individual | fleet | cdl_cohort | testing
     public string? PlanType { get; set; }
 
     // identity / lead data

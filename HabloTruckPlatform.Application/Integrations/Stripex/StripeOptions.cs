@@ -15,6 +15,9 @@ public sealed class StripeOptions
     public string? CdlCohort50PriceId { get; set; }
     public string? CdlCohort100PriceId { get; set; }
 
+    // Testing
+    public string? TestingPriceId { get; set; }
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(IndividualMonthlyPriceId))
