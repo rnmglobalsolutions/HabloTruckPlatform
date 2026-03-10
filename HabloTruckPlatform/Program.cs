@@ -61,6 +61,7 @@ var host = new HostBuilder()
         services.AddSingleton<IFailedActionStore, TableFailedActionStore>();
         services.AddSingleton<IStripeEventAuditStore, TableStripeEventAuditStore>();
         services.AddSingleton<IStripeAdminClient, StripeAdminClient>();
+        services.AddSingleton<IStripeSubscriptionGateway, StripeSubscriptionGateway>();
         services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();
 
         // ---- UseCases / Handlers (Application layer)
@@ -72,6 +73,7 @@ var host = new HostBuilder()
         services.AddSingleton<EntitlementExpirySweeperService>();
         services.AddSingleton<StripeReconciliationService>();
         services.AddSingleton<StripeCheckoutHandler>();
+        services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
@@ -106,3 +108,5 @@ using (var scope = host.Services.CreateScope())
 }
 
 await host.RunAsync();
+
+

@@ -1,4 +1,4 @@
-﻿using Azure.Data.Tables;
+using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Infrastructure.Storage.Entities;
@@ -35,6 +35,27 @@ public sealed class TableCompanyStore : ICompanyStore
             ct);
 
         return entity is null ? null : CompanyMapper.FromEntity(entity);
+    }
+
+    public async Task<Company?> GetByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(stripeCustomerId))
+            return null;
+
+        var customerId = stripeCustomerId.Trim();
+
+        var filter = TableClient.CreateQueryFilter(
+            $"PartitionKey eq {CompanyMapper.Pk} and StripeCustomerId eq {customerId}");
+
+        await foreach (var entity in CompaniesTable.QueryAsync<CompanyEntity>(
+                           filter: filter,
+                           maxPerPage: 1,
+                           cancellationToken: ct))
+        {
+            return CompanyMapper.FromEntity(entity);
+        }
+
+        return null;
     }
 
     public async Task UpsertAsync(Company company, CancellationToken ct = default)

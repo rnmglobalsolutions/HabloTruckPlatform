@@ -1,4 +1,4 @@
-﻿using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Billing;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
@@ -309,6 +309,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         // 1) Apply signal facts to user shadow cache
         ApplySignalFacts(user, signal, nowUtc);
 
+        // Keep fleet/company entitlement projection in sync with subscription lifecycle.
+        await ProjectCompanyEntitlementFromSignalAsync(user, signal, nowUtc, ct);
+
         // 2) Build facts for reducer
         var facts = new StripeSubscriptionFacts(
             CustomerId: user.StripeCustomerId,
@@ -422,6 +425,121 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 user.IndividualGraceEndsAtUtc = null;
                 break;
         }
+    }
+
+    private async Task ProjectCompanyEntitlementFromSignalAsync(
+        User user,
+        StripeSignal signal,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        if (signal.Kind is not (StripeSignalKind.SubscriptionUpdated or StripeSignalKind.SubscriptionDeleted))
+            return;
+
+        var plan = DerivePlanTypeFromPriceId(signal.PriceId) ?? user.PlanType;
+
+        var isFleet = string.Equals(plan, "company_seat", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(plan, "fleet", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(plan, "fleet_seat", StringComparison.OrdinalIgnoreCase);
+
+        if (!isFleet)
+            return;
+
+        var companyId = NullIfBlank(user.CompanyId);
+
+        if (companyId is null && !string.IsNullOrWhiteSpace(user.StripeCustomerId))
+        {
+            var company = await _companyStore.GetByStripeCustomerIdAsync(user.StripeCustomerId!, ct);
+            companyId = company?.CompanyId;
+        }
+
+        if (companyId is null || string.IsNullOrWhiteSpace(signal.StripeSubscriptionId))
+            return;
+
+        var entitlementId = ResolveEntitlementIdForFleet(companyId, signal.StripeSubscriptionId);
+
+        var entitlement = await _entitlementStore.GetAsync(companyId, entitlementId, ct);
+        if (entitlement is null)
+            return;
+
+        var previousEndUtc = entitlement.EndUtc;
+
+        if (signal.Kind == StripeSignalKind.SubscriptionUpdated)
+        {
+            if (signal.CancelAtPeriodEnd == true && signal.CurrentPeriodEndUtc is not null)
+            {
+                var projected = new Entitlement
+                {
+                    EntitlementId = entitlement.EntitlementId,
+                    CompanyId = entitlement.CompanyId,
+                    SeatsUsed = entitlement.SeatsUsed,
+                    SeatsTotal = entitlement.SeatsTotal,
+                    StartUtc = entitlement.StartUtc,
+                    Status = "active",
+                    UpdatedAtUtc = nowUtc,
+                    EndUtc = signal.CurrentPeriodEndUtc
+                };
+
+                await _entitlementStore.UpsertAsync(projected, ct);
+                await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), signal.CurrentPeriodEndUtc.Value, ct);
+                return;
+            }
+
+            if (signal.CancelAtPeriodEnd == false)
+            {
+                var projected = new Entitlement
+                {
+                    EntitlementId = entitlement.EntitlementId,
+                    CompanyId = entitlement.CompanyId,
+                    SeatsUsed = entitlement.SeatsUsed,
+                    SeatsTotal = entitlement.SeatsTotal,
+                    StartUtc = entitlement.StartUtc,
+                    Status = "active",
+                    UpdatedAtUtc = nowUtc,
+                    EndUtc = null
+                };
+
+                await _entitlementStore.UpsertAsync(projected, ct);
+                await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+            }
+
+            return;
+        }
+
+        var endedUtc = signal.EndedAtUtc ?? signal.CurrentPeriodEndUtc ?? nowUtc;
+
+        var expired = new Entitlement
+        {
+            EntitlementId = entitlement.EntitlementId,
+            CompanyId = entitlement.CompanyId,
+            SeatsUsed = entitlement.SeatsUsed,
+            SeatsTotal = entitlement.SeatsTotal,
+            StartUtc = entitlement.StartUtc,
+            Status = "expired",
+            UpdatedAtUtc = nowUtc,
+            EndUtc = endedUtc
+        };
+
+        await _entitlementStore.UpsertAsync(expired, ct);
+        await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+
+        if (endedUtc > nowUtc)
+            await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), endedUtc, ct);
+    }
+
+    private async Task DeleteExpiryIndexIfPresent(
+        string companyId,
+        string entitlementId,
+        DateTimeOffset? endUtc,
+        CancellationToken ct)
+    {
+        if (endUtc is null)
+            return;
+
+        var pk = $"{TablePrefixes.EntitlementExpiry}_{endUtc.Value:yyyyMMdd}";
+        var rk = $"{endUtc.Value.Ticks:D19}_{companyId}_{entitlementId}";
+
+        await _expiryIndex.DeleteAsync(pk, rk, ct);
     }
 
     // =========================================================
@@ -666,3 +784,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
+
+
+
+
+

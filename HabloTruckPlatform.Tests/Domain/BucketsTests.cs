@@ -1,4 +1,4 @@
-﻿using HabloTruckPlatform.Domain.Ids;
+using HabloTruckPlatform.Domain.Ids;
 using Xunit;
 
 namespace HabloTruckPlatform.Domain.Tests.Ids;
@@ -54,7 +54,7 @@ public class BucketsTests
     [Theory]
     [InlineData("juan.perez@gmail.com", "HT_EMAIL_ju")]
     [InlineData("a@b.com", "HT_EMAIL_a@")] // first two chars
-    [InlineData("x", "HT_EMAIL_xx")]       // fallback
+    [InlineData("x", "HT_EMAIL_x")]        // single-char prefix
     public void EmailLookupPk_ShouldUseFirstTwoCharsOrFallback(string emailNormalized, string expectedPk)
     {
         var pk = Buckets.EmailLookupPk(emailNormalized);

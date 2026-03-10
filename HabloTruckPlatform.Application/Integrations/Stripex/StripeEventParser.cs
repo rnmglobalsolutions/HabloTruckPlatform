@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 using Stripe;
 
 namespace HabloTruckPlatform.Application.Integrations.Stripex;
@@ -107,7 +107,7 @@ public sealed class StripeEventParser
 
         var cancelAtPeriodEnd = raw?["cancel_at_period_end"]?.Value<bool?>();
 
-        var currentPeriodEndUtc = ToDateTimeOffsetUtc(raw?["current_period_end"]);
+        var currentPeriodEndUtc = EffectiveCurrentPeriodEndUtc(sub, raw);
         var canceledAtUtc = ToDateTimeOffsetUtc(raw?["canceled_at"]);
         var endedAtUtc = ToDateTimeOffsetUtc(raw?["ended_at"]);
 
@@ -140,7 +140,7 @@ public sealed class StripeEventParser
 
         var cancelAtPeriodEnd = raw?["cancel_at_period_end"]?.Value<bool?>();
 
-        var currentPeriodEndUtc = ToDateTimeOffsetUtc(raw?["current_period_end"]);
+        var currentPeriodEndUtc = EffectiveCurrentPeriodEndUtc(sub, raw);
         var canceledAtUtc = ToDateTimeOffsetUtc(raw?["canceled_at"]);
         var endedAtUtc = ToDateTimeOffsetUtc(raw?["ended_at"]);
 
@@ -173,6 +173,42 @@ public sealed class StripeEventParser
         data.StripeEventCreatedUtc = new DateTimeOffset(e.Created, TimeSpan.Zero);
         return data;
     }
+
+    private static DateTimeOffset? EffectiveCurrentPeriodEndUtc(Subscription sub, JObject? raw)
+    {
+        DateTimeOffset? max = null;
+
+        if (sub.Items?.Data is not null)
+        {
+            foreach (var item in sub.Items.Data)
+            {
+                var current = ToDateTimeOffsetUtc(item.CurrentPeriodEnd);
+                if (current is null)
+                    continue;
+
+                if (max is null || current > max)
+                    max = current;
+            }
+        }
+
+        // Fallback for payload variants where item period end is not expanded.
+        return max ?? ToDateTimeOffsetUtc(raw?["current_period_end"]);
+    }
+
+    private static DateTimeOffset? ToDateTimeOffsetUtc(DateTime? value)
+    {
+        if (value is null || value.Value == default)
+            return null;
+
+        var dt = value.Value;
+        if (dt.Kind == DateTimeKind.Unspecified)
+            dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+        return new DateTimeOffset(dt).ToUniversalTime();
+    }
+
+    private static DateTimeOffset? ToDateTimeOffsetUtc(DateTime value)
+        => value == default ? null : ToDateTimeOffsetUtc((DateTime?)value);
 
     private static DateTimeOffset? ToDateTimeOffsetUtc(JToken? token)
     {
@@ -268,3 +304,4 @@ public sealed class StripeEventData
     public int Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }
+

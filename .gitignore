@@ -58,3 +58,5 @@ nunit-*.xml
 
 # HT App Settings Config
 HT_App_Settings.json
+.nuget/
+.dotnet/
