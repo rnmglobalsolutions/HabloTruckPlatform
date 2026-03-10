@@ -436,13 +436,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (signal.Kind is not (StripeSignalKind.SubscriptionUpdated or StripeSignalKind.SubscriptionDeleted))
             return;
 
-        var plan = DerivePlanTypeFromPriceId(signal.PriceId) ?? user.PlanType;
-
-        var isFleet = string.Equals(plan, "company_seat", StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(plan, "fleet", StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(plan, "fleet_seat", StringComparison.OrdinalIgnoreCase);
-
-        if (!isFleet)
+        if (string.IsNullOrWhiteSpace(signal.StripeSubscriptionId))
             return;
 
         var companyId = NullIfBlank(user.CompanyId);
@@ -453,12 +447,20 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             companyId = company?.CompanyId;
         }
 
-        if (companyId is null || string.IsNullOrWhiteSpace(signal.StripeSubscriptionId))
+        if (companyId is null)
             return;
 
         var entitlementId = ResolveEntitlementIdForFleet(companyId, signal.StripeSubscriptionId);
-
         var entitlement = await _entitlementStore.GetAsync(companyId, entitlementId, ct);
+
+        var plan = DerivePlanTypeFromPriceId(signal.PriceId) ?? user.PlanType;
+        var isFleetPlan = string.Equals(plan, "company_seat", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(plan, "fleet", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(plan, "fleet_seat", StringComparison.OrdinalIgnoreCase);
+
+        if (!isFleetPlan && entitlement is null)
+            return;
+
         if (entitlement is null)
             return;
 
@@ -468,6 +470,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         {
             if (signal.CancelAtPeriodEnd == true && signal.CurrentPeriodEndUtc is not null)
             {
+                var projectedEndUtc = signal.CurrentPeriodEndUtc.Value;
+
                 var projected = new Entitlement
                 {
                     EntitlementId = entitlement.EntitlementId,
@@ -477,11 +481,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     StartUtc = entitlement.StartUtc,
                     Status = "active",
                     UpdatedAtUtc = nowUtc,
-                    EndUtc = signal.CurrentPeriodEndUtc
+                    EndUtc = projectedEndUtc
                 };
 
                 await _entitlementStore.UpsertAsync(projected, ct);
-                await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), signal.CurrentPeriodEndUtc.Value, ct);
+                await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+                await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), projectedEndUtc, ct);
                 return;
             }
 
@@ -508,6 +513,26 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         var endedUtc = signal.EndedAtUtc ?? signal.CurrentPeriodEndUtc ?? nowUtc;
 
+        if (endedUtc > nowUtc)
+        {
+            var paidThrough = new Entitlement
+            {
+                EntitlementId = entitlement.EntitlementId,
+                CompanyId = entitlement.CompanyId,
+                SeatsUsed = entitlement.SeatsUsed,
+                SeatsTotal = entitlement.SeatsTotal,
+                StartUtc = entitlement.StartUtc,
+                Status = "active",
+                UpdatedAtUtc = nowUtc,
+                EndUtc = endedUtc
+            };
+
+            await _entitlementStore.UpsertAsync(paidThrough, ct);
+            await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+            await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), endedUtc, ct);
+            return;
+        }
+
         var expired = new Entitlement
         {
             EntitlementId = entitlement.EntitlementId,
@@ -522,9 +547,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         await _entitlementStore.UpsertAsync(expired, ct);
         await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
-
-        if (endedUtc > nowUtc)
-            await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), endedUtc, ct);
     }
 
     private async Task DeleteExpiryIndexIfPresent(
@@ -784,8 +806,4 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
-
-
-
-
 

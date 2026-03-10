@@ -16,6 +16,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var userStore = new InMemoryUserStore();
         var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
         var gateway = new FakeStripeSubscriptionGateway
         {
             Current = new StripeSubscriptionSnapshot(
@@ -41,6 +42,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var sut = new CancelSubscriptionAtPeriodEndUseCase(
             userStore,
             companyStore,
+            entitlementStore,
             gateway,
             new FixedClock(now));
 
@@ -66,6 +68,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var userStore = new InMemoryUserStore();
         var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
 
         var gateway = new FakeStripeSubscriptionGateway
         {
@@ -102,6 +105,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var sut = new CancelSubscriptionAtPeriodEndUseCase(
             userStore,
             companyStore,
+            entitlementStore,
             gateway,
             new FixedClock(now));
 
@@ -130,6 +134,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var userStore = new InMemoryUserStore();
         var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
         var gateway = new FakeStripeSubscriptionGateway();
 
         userStore.Users[("HT_U_003", "U3")] = new User
@@ -148,6 +153,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var sut = new CancelSubscriptionAtPeriodEndUseCase(
             userStore,
             companyStore,
+            entitlementStore,
             gateway,
             new FixedClock(now));
 
@@ -174,6 +180,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var userStore = new InMemoryUserStore();
         var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
 
         var gateway = new FakeStripeSubscriptionGateway
         {
@@ -214,9 +221,22 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
             StripeCustomerId = "cus_company_2"
         };
 
+        entitlementStore.UpsertLocal(new Entitlement
+        {
+            CompanyId = "C2",
+            EntitlementId = "ent_sub_company_2",
+            SeatsTotal = 20,
+            SeatsUsed = 3,
+            Status = "active",
+            StartUtc = now.AddDays(-20),
+            EndUtc = null,
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
         var sut = new CancelSubscriptionAtPeriodEndUseCase(
             userStore,
             companyStore,
+            entitlementStore,
             gateway,
             new FixedClock(now));
 
@@ -236,6 +256,67 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         Assert.Equal("sub_company_2", result.SubscriptionId);
         Assert.True(result.CancelAtPeriodEnd);
         Assert.Equal(1, gateway.ScheduleCalls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_ReturnCompanyEntitlementNotFound_When_CompanySubscriptionDoesNotMatchEntitlementPath()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var userStore = new InMemoryUserStore();
+        var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
+
+        var gateway = new FakeStripeSubscriptionGateway
+        {
+            Current = new StripeSubscriptionSnapshot(
+                SubscriptionId: "sub_company_3",
+                CustomerId: "cus_company_3",
+                Status: "active",
+                PriceId: "price_fleet_monthly",
+                Interval: "month",
+                CancelAtPeriodEnd: false,
+                CurrentPeriodEndUtc: now.AddDays(30),
+                CanceledAtUtc: null,
+                EndedAtUtc: null)
+        };
+
+        userStore.Users[("HT_U_005", "U5")] = new User
+        {
+            UserId = "U5",
+            CompanyId = "C3",
+            EmailNormalized = "admin@fleet3.com",
+            StripeCustomerId = "cus_company_3"
+        };
+
+        companyStore.Companies["C3"] = new Company
+        {
+            CompanyId = "C3",
+            AdminEmailNormalized = "admin@fleet3.com",
+            StripeCustomerId = "cus_company_3"
+        };
+
+        var sut = new CancelSubscriptionAtPeriodEndUseCase(
+            userStore,
+            companyStore,
+            entitlementStore,
+            gateway,
+            new FixedClock(now));
+
+        // Act
+        var result = await sut.ExecuteAsync(new CancelSubscriptionAtPeriodEndRequest
+        {
+            Scope = "company",
+            ActorUserPk = "HT_U_005",
+            ActorUserId = "U5",
+            CompanyId = "C3",
+            SubscriptionId = "sub_company_3"
+        });
+
+        // Assert
+        Assert.False(result.Result);
+        Assert.Equal("company_entitlement_not_found", result.Error);
+        Assert.Equal(0, gateway.ScheduleCalls);
     }
 
     private sealed class FixedClock : IClock
@@ -308,6 +389,42 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         }
     }
 
+    private sealed class InMemoryEntitlementStore : IEntitlementStore
+    {
+        private readonly Dictionary<(string CompanyId, string EntitlementId), Entitlement> _items = new();
+
+        public void UpsertLocal(Entitlement entitlement)
+            => _items[(entitlement.CompanyId, entitlement.EntitlementId)] = entitlement;
+
+        public Task<Entitlement?> GetAsync(string companyId, string entitlementId, CancellationToken ct = default)
+        {
+            _items.TryGetValue((companyId, entitlementId), out var entitlement);
+            return Task.FromResult(entitlement);
+        }
+
+        public Task CreateAsync(Entitlement entitlement, CancellationToken ct = default)
+        {
+            _items[(entitlement.CompanyId, entitlement.EntitlementId)] = entitlement;
+            return Task.CompletedTask;
+        }
+
+        public Task UpsertAsync(Entitlement entitlement, CancellationToken ct = default)
+        {
+            _items[(entitlement.CompanyId, entitlement.EntitlementId)] = entitlement;
+            return Task.CompletedTask;
+        }
+
+        public async Task SetStatusAsync(string companyId, string entitlementId, string status, CancellationToken ct = default)
+        {
+            var entitlement = await GetAsync(companyId, entitlementId, ct);
+            if (entitlement is null)
+                return;
+
+            entitlement.Status = status;
+            _items[(companyId, entitlementId)] = entitlement;
+        }
+    }
+
     private sealed class FakeStripeSubscriptionGateway : IStripeSubscriptionGateway
     {
         public StripeSubscriptionSnapshot? Current { get; set; }
@@ -324,5 +441,4 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
         }
     }
 }
-
 
