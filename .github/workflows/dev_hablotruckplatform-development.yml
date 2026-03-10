@@ -39,7 +39,4 @@ jobs:
           app-name: 'HabloTruckPlatform-development'
           package: '${{ env.OUTPUT_PATH }}'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3C73A59C14BF4AA887A420E35D2B0889 }}
-
-
-
-
+          sku: 'flexconsumption'
