@@ -10,13 +10,3 @@
     }
   }
 }
-
-//// PRODUCTION
-//"logging": {
-//  "applicationInsights": {
-//    "samplingSettings": {
-//      "isEnabled": true,
-//      "maxTelemetryItemsPerSecond": 5
-//    }
-//  }
-//}
