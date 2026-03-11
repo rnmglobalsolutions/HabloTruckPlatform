@@ -55,9 +55,13 @@ public sealed class SubscriptionReminderService
 
             due++;
 
+            // Idempotency is enforced at the reminder-window level (for example 7d/3d/1d),
+            // so journey flips (auto-renew <-> cancel-scheduled) cannot double-send
+            // for the same subscription and billing period.
+            var windowKey = BuildReminderWindowKey(dispatch);
             var firstTime = await _reminders.TryMarkSentAsync(
                 dispatch.SubscriptionId,
-                dispatch.ReminderType,
+                windowKey,
                 dispatch.PeriodEndUtc,
                 nowUtc,
                 ct);
@@ -86,6 +90,12 @@ public sealed class SubscriptionReminderService
             scanned,
             due,
             sent);
+    }
+
+    private static string BuildReminderWindowKey(SubscriptionReminderDispatch dispatch)
+    {
+        var days = Math.Max(0, dispatch.DaysUntilPeriodEnd);
+        return $"window_{days}d";
     }
 
     private async Task<SubscriptionReminderDispatch?> BuildDispatchAsync(
@@ -193,4 +203,7 @@ public sealed class SubscriptionReminderService
         return markerUtc.Value >= activeWindow ? "active" : "at_risk";
     }
 }
+
+
+
 

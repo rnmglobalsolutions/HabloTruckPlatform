@@ -1,3 +1,4 @@
+using HabloTruckPlatform.Application.Models;
 using Azure.Data.Tables;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
@@ -35,6 +36,23 @@ public sealed class TableStoreBehaviorTests
     }
 
     [Fact]
+    public async Task TableSubscriptionReminderStore_Should_ReturnFalse_WhenReminderWindowAlreadyMarkedSent()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository { NextTryInsertResult = false };
+        var sut = new TableSubscriptionReminderStore(factory, repo);
+
+        var result = await sut.TryMarkSentAsync(
+            "sub_dup",
+            "window_7d",
+            new DateTimeOffset(2026, 4, 15, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 4, 14, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.False(result);
+        Assert.Single(repo.TryInserts);
+    }
+
+    [Fact]
     public async Task TableStripeEventStore_Should_UseStripePartitionAndTrimmedRowKey()
     {
         var factory = new FakeTableClientFactory();
@@ -50,6 +68,22 @@ public sealed class TableStoreBehaviorTests
         Assert.Equal($"{TablePrefixes.Stripe}_EVT", entity.PartitionKey);
         Assert.Equal("evt_123", entity.RowKey);
         Assert.Equal("invoice.paid", entity.EventType);
+    }
+
+    [Fact]
+    public async Task TableStripeEventStore_Should_ReturnFalse_When_EventAlreadyProcessed()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository { NextTryInsertResult = false };
+        var sut = new TableStripeEventStore(factory, repo);
+
+        var firstTime = await sut.TryMarkProcessedAsync(
+            "evt_dup",
+            "invoice.paid",
+            new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.False(firstTime);
+        Assert.Single(repo.TryInserts);
     }
 
     [Fact]
@@ -72,6 +106,37 @@ public sealed class TableStoreBehaviorTests
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.CreateAsync(entitlement));
+    }
+
+    [Fact]
+    public async Task TableEntitlementStore_SetStatusAsync_Should_UpsertUpdatedStatus_WhenEntitlementExists()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository
+        {
+            GetOrNullResult = new EntitlementEntity
+            {
+                PartitionKey = EntitlementMapper.Pk("C_SET"),
+                RowKey = "E_SET",
+                CompanyId = "C_SET",
+                EntitlementId = "E_SET",
+                SeatsTotal = 5,
+                SeatsUsed = 1,
+                Status = "active",
+                StartUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                EndUtc = null
+            }
+        };
+
+        var sut = new TableEntitlementStore(factory, repo);
+
+        await sut.SetStatusAsync("C_SET", "E_SET", "expired");
+
+        var upsert = Assert.Single(repo.Upserts);
+        var entity = Assert.IsType<EntitlementEntity>(upsert.Entity);
+        Assert.Equal("expired", entity.Status);
+        Assert.Equal(EntitlementMapper.Pk("C_SET"), entity.PartitionKey);
+        Assert.Equal("E_SET", entity.RowKey);
     }
 
     [Fact]
@@ -102,6 +167,87 @@ public sealed class TableStoreBehaviorTests
         Assert.Equal(25, entitlement.SeatsTotal);
         Assert.Equal(4, entitlement.SeatsUsed);
         Assert.Equal("active", entitlement.Status);
+    }
+
+    [Fact]
+    public async Task TableGraceIndexStore_UpsertAsync_Should_CreateHourBucketAndSortableRowKey()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository();
+        var sut = new TableGraceIndexStore(factory, repo);
+
+        var graceEndsAtUtc = new DateTimeOffset(2026, 3, 11, 15, 0, 0, TimeSpan.Zero);
+        await sut.UpsertAsync(new UserRef("HT_U_123", "U_GRACE"), graceEndsAtUtc);
+
+        var upsert = Assert.Single(repo.Upserts);
+        Assert.Equal(TableNames.GraceIndex, upsert.TableName);
+
+        var entity = Assert.IsType<GraceIndexEntity>(upsert.Entity);
+        Assert.Equal("HT_GRACE_2026031115", entity.PartitionKey);
+        Assert.Equal($"{graceEndsAtUtc.Ticks:D19}_U_GRACE", entity.RowKey);
+        Assert.Equal("HT_U_123", entity.UserPk);
+        Assert.Equal("U_GRACE", entity.UserId);
+        Assert.Equal(graceEndsAtUtc, entity.GraceEndsAtUtc);
+    }
+
+    [Fact]
+    public async Task TableSeatAssignmentStore_UpsertAsync_Should_UseCompanyPartitionAndUserRowKey()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository();
+        var sut = new TableSeatAssignmentStore(factory, repo);
+
+        var seat = new SeatAssignment
+        {
+            CompanyId = "C_SEAT",
+            UserId = "U_SEAT",
+            EntitlementId = "E_SEAT",
+            Status = "active",
+            AssignedAtUtc = new DateTimeOffset(2026, 3, 10, 0, 0, 0, TimeSpan.Zero)
+        };
+
+        await sut.UpsertAsync(seat);
+
+        var upsert = Assert.Single(repo.Upserts);
+        Assert.Equal(TableNames.Seats, upsert.TableName);
+
+        var entity = Assert.IsType<SeatAssignmentEntity>(upsert.Entity);
+        Assert.Equal(SeatAssignmentMapper.Pk("C_SEAT"), entity.PartitionKey);
+        Assert.Equal("U_SEAT", entity.RowKey);
+        Assert.Equal("E_SEAT", entity.EntitlementId);
+        Assert.Equal("active", entity.Status);
+    }
+
+    [Fact]
+    public async Task TableSeatAssignmentStore_RevokeAsync_Should_PersistRevokedStatus()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository
+        {
+            GetOrNullResult = new SeatAssignmentEntity
+            {
+                PartitionKey = SeatAssignmentMapper.Pk("C_REVOKE"),
+                RowKey = "U_REVOKE",
+                CompanyId = "C_REVOKE",
+                UserId = "U_REVOKE",
+                EntitlementId = "E_REVOKE",
+                Status = "active",
+                AssignedAtUtc = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+                UpdatedAtUtc = new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero)
+            }
+        };
+
+        var sut = new TableSeatAssignmentStore(factory, repo);
+
+        await sut.RevokeAsync("C_REVOKE", "U_REVOKE");
+
+        var upsert = Assert.Single(repo.Upserts);
+        Assert.Equal(TableNames.Seats, upsert.TableName);
+
+        var entity = Assert.IsType<SeatAssignmentEntity>(upsert.Entity);
+        Assert.Equal(SeatAssignmentMapper.Pk("C_REVOKE"), entity.PartitionKey);
+        Assert.Equal("U_REVOKE", entity.RowKey);
+        Assert.Equal("revoked", entity.Status);
     }
 
     [Fact]
@@ -182,3 +328,5 @@ public sealed class TableStoreBehaviorTests
     private sealed record TableInsertCall(string TableName, object Entity);
     private sealed record TableUpsertCall(string TableName, object Entity);
 }
+
+

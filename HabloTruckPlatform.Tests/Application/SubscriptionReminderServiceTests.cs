@@ -40,7 +40,7 @@ public sealed class SubscriptionReminderServiceTests
         userStore.Users.Add(user);
 
         var reminders = new InMemoryReminderStore();
-        reminders.PreMark("sub_dup", "renewal_reminder_7d", now.AddDays(7));
+        reminders.PreMark("sub_dup", "window_7d", now.AddDays(7));
 
         var manyChat = new RecordingManyChatSync();
         var sut = BuildService(userStore, new InMemoryCompanyStore(), reminders, manyChat, now);
@@ -48,6 +48,28 @@ public sealed class SubscriptionReminderServiceTests
         await sut.RunDailyAsync(take: 100);
 
         Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_ProcessMixedDueAndAlreadySentWindows_WithoutDuplicating()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_due_new", "sub_due_new", "active", "monthly", false, now.AddDays(7), "sid_due_new"));
+        userStore.Users.Add(NewUser("U_due_sent", "sub_due_sent", "active", "monthly", false, now.AddDays(7), "sid_due_sent"));
+
+        var reminders = new InMemoryReminderStore();
+        reminders.PreMark("sub_due_sent", "window_7d", now.AddDays(7));
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), reminders, manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Single(manyChat.Dispatches);
+        Assert.Equal("U_due_new", manyChat.Dispatches[0].UserId);
+        Assert.Equal("renewal_reminder_7d", manyChat.Dispatches[0].ReminderType);
     }
 
     [Fact]
@@ -170,6 +192,39 @@ public sealed class SubscriptionReminderServiceTests
     }
 
     [Fact]
+    public async Task RunDailyAsync_Should_SuppressRenewal_ForPaymentFailedAndDeletedStatuses()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_failed_status", "sub_failed_status", "payment_failed", "monthly", false, now.AddDays(1), "sid_failed_status"));
+        userStore.Users.Add(NewUser("U_deleted_status", "sub_deleted_status", "deleted", "monthly", false, now.AddDays(1), "sid_deleted_status"));
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_SuppressReminder_WhenPeriodEndIsPast()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_past_due", "sub_past_due", "active", "monthly", false, now.AddDays(-1), "sid_past_due"));
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
     public async Task RunDailyAsync_Should_NotSendDuplicate_WhenRunTwice()
     {
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
@@ -185,6 +240,50 @@ public sealed class SubscriptionReminderServiceTests
         await sut.RunDailyAsync(take: 100);
 
         Assert.Single(manyChat.Dispatches);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_NotDualSend_WhenJourneyFlipsToCancelScheduled_InSameReminderWindow()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        var user = NewUser("U_flip", "sub_flip", "active", "monthly", false, now.AddDays(1), "sid_flip");
+        userStore.Users.Add(user);
+
+        var reminderStore = new InMemoryReminderStore();
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), reminderStore, manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        user.StripeCancelAtPeriodEnd = true;
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Single(manyChat.Dispatches);
+        Assert.Equal("renewal_reminder_1d", manyChat.Dispatches[0].ReminderType);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_NotDualSend_WhenJourneyFlipsToAutoRenew_InSameReminderWindow()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        var user = NewUser("U_flip_back", "sub_flip_back", "active", "monthly", true, now.AddDays(1), "sid_flip_back");
+        userStore.Users.Add(user);
+
+        var reminderStore = new InMemoryReminderStore();
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), reminderStore, manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        user.StripeCancelAtPeriodEnd = false;
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Single(manyChat.Dispatches);
+        Assert.Equal("save_before_churn_1d", manyChat.Dispatches[0].ReminderType);
     }
 
     [Fact]
@@ -348,6 +447,29 @@ public sealed class SubscriptionReminderServiceTests
 
         Assert.Empty(manyChat.Dispatches);
     }
+    [Fact]
+    public async Task RunDailyAsync_Should_RemainIdempotent_AfterPartialFailureAndRerun()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_fail_once", "sub_fail_once", "active", "monthly", false, now.AddDays(7), "sid_fail_once"));
+        userStore.Users.Add(NewUser("U_success_once", "sub_success_once", "active", "monthly", false, now.AddDays(7), "sid_success_once"));
+
+        var reminderStore = new InMemoryReminderStore();
+        var manyChat = new RecordingManyChatSync();
+        manyChat.FailSubscriberIds.Add("sid_fail_once");
+
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), reminderStore, manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Single(manyChat.Dispatches);
+        Assert.Equal("U_success_once", manyChat.Dispatches[0].UserId);
+        Assert.Equal("renewal_reminder_7d", manyChat.Dispatches[0].ReminderType);
+    }
+
     [Fact]
     public async Task RunDailyAsync_Should_ContinueProcessing_WhenOneReminderDispatchThrows()
     {
@@ -554,6 +676,8 @@ public sealed class SubscriptionReminderServiceTests
         }
     }
 }
+
+
 
 
 

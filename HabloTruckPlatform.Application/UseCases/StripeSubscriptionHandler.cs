@@ -293,6 +293,17 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         var user = await _userStore.GetAsync(userRef.Value.UserPk, userRef.Value.UserId, ct);
         if (user is null) return null;
 
+        if (IsDuplicateByEventId(user, signal.StripeEventId))
+        {
+            return user.EffectiveAccess is not null
+                ? new AccessDecision(
+                    user.EffectiveAccess.Mode,
+                    user.EffectiveAccess.Source,
+                    user.EffectiveAccess.GraceEndsAtUtc,
+                    "Ignored duplicate Stripe event")
+                : null;
+        }
+
         if (IsOutOfOrder(user, signal.StripeEventCreatedUtc))
         {
             return user.EffectiveAccess is not null
@@ -601,6 +612,13 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     // HELPERS
     // =========================================================
 
+    private static bool IsDuplicateByEventId(User user, string? stripeEventId)
+        => !string.IsNullOrWhiteSpace(stripeEventId)
+           && !string.IsNullOrWhiteSpace(user.LastStripeEventId)
+           && string.Equals(
+                stripeEventId.Trim(),
+                user.LastStripeEventId.Trim(),
+                StringComparison.OrdinalIgnoreCase);
     private static bool IsOutOfOrder(User user, DateTimeOffset eventCreatedUtc)
         => user.LastStripeEventCreatedUtc is not null && eventCreatedUtc < user.LastStripeEventCreatedUtc.Value;
 
@@ -807,6 +825,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
+
+
 
 
 

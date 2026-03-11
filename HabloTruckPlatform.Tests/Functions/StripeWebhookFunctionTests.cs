@@ -55,6 +55,38 @@ public sealed class StripeWebhookFunctionTests
     }
 
     [Fact]
+    public async Task Run_Should_ReturnOkAndAuditFailedParse_WhenPayloadShapeIsInvalidForEventType()
+    {
+        var fixture = BuildFixture(eventStoreResult: true);
+        var json = BuildMalformedInvoiceEventJson("evt_malformed_payload");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(fixture.Handler.Calls);
+
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("failed_parse", audit.Outcome);
+        Assert.Equal("invoice.paid", audit.EventType);
+        Assert.NotNull(audit.Error);
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnBadRequest_When_JsonBodyIsMalformedEvenWithSignatureHeader()
+    {
+        var fixture = BuildFixture(eventStoreResult: true);
+        const string json = "{ not_valid_json }";
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fixture.Handler.Calls);
+        Assert.Empty(fixture.AuditStore.Items);
+    }
+
+    [Fact]
     public async Task Run_Should_IgnoreDuplicate_When_EventAlreadyProcessed()
     {
         var fixture = BuildFixture(eventStoreResult: false);
@@ -221,6 +253,61 @@ public sealed class StripeWebhookFunctionTests
 
         var audit = Assert.Single(fixture.AuditStore.Items);
         Assert.Equal("ignored_no_customer", audit.Outcome);
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnOkAndAuditIgnoredNoCustomer_ForUnhandledEventType()
+    {
+        var fixture = BuildFixture(eventStoreResult: true);
+        var json = BuildUnhandledCustomerCreatedEventJson("evt_unhandled");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(fixture.Handler.Calls);
+
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("ignored_no_customer", audit.Outcome);
+        Assert.Equal("customer.created", audit.EventType);
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnOk_When_AuditAppendFails()
+    {
+        const string webhookSecret = "whsec_test_webhook";
+
+        var options = new StripeOptions
+        {
+            WebhookSecret = webhookSecret,
+            StripeSecretKey = "sk_test"
+        };
+
+        var signatureValidator = new StripeSignatureValidator(options, NullLogger<StripeSignatureValidator>.Instance);
+        var parser = new StripeEventParser();
+        var eventStore = new StubStripeEventStore(result: true);
+        var auditStore = new ThrowingStripeEventAuditStore();
+        var handler = new RecordingStripeSubscriptionHandler();
+        var userResolver = new StaticUserResolver();
+        var metrics = new Metrics(new TelemetryClient(new TelemetryConfiguration()));
+
+        var function = new StripeWebhookFunction(
+            signatureValidator,
+            parser,
+            eventStore,
+            auditStore,
+            handler,
+            userResolver,
+            metrics,
+            NullLogger<StripeWebhookFunction>.Instance);
+
+        var json = BuildInvoicePaidEventJson("evt_audit_throw", "cus_audit_throw", "sub_audit_throw");
+        var req = NewSignedRequest(json, webhookSecret);
+
+        var response = await function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("invoice_paid", handler.Calls);
     }
 
     [Fact]
@@ -500,6 +587,54 @@ public sealed class StripeWebhookFunctionTests
 }
 """;
 
+    private static string BuildUnhandledCustomerCreatedEventJson(string eventId)
+        => """
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "customer.created",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_unhandled",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "cus_unhandled",
+      "object": "customer",
+      "email": "unknown@hablotruck.com"
+    }
+  }
+}
+""";
+
+    private static string BuildMalformedInvoiceEventJson(string eventId)
+        => $$"""
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "invoice.paid",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_malformed_payload",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "cus_not_invoice",
+      "object": "customer",
+      "email": "oops@hablotruck.com"
+    }
+  }
+}
+""";
+
     private static string BuildInvoicePaidWithoutCustomerEventJson(string eventId, string subscriptionId)
         => $$"""
 {
@@ -554,6 +689,21 @@ public sealed class StripeWebhookFunctionTests
             return Task.FromResult(firstTime);
         }
     }
+    private sealed class ThrowingStripeEventAuditStore : IStripeEventAuditStore
+    {
+        public Task EnsureTableAsync(CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task AppendAsync(StripeEventAuditItem item, CancellationToken ct = default)
+            => throw new InvalidOperationException("simulated_audit_failure");
+
+        public Task<IReadOnlyList<StripeEventAuditItem>> GetByEventIdAsync(string stripeEventId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<StripeEventAuditItem>>(Array.Empty<StripeEventAuditItem>());
+
+        public Task<IReadOnlyList<StripeEventAuditItem>> QueryRecentAsync(DateTimeOffset dayUtc, int take = 100, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<StripeEventAuditItem>>(Array.Empty<StripeEventAuditItem>());
+    }
+
     private sealed class RecordingStripeEventAuditStore : IStripeEventAuditStore
     {
         public List<StripeEventAuditItem> Items { get; } = new();
@@ -687,6 +837,7 @@ public sealed class StripeWebhookFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
+
 
 
 

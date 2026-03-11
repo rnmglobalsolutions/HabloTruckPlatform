@@ -65,3 +65,6 @@ HT_App_Settings.json
 # dotnet
 .dotnet/
 
+# postman calls
+postman/
+

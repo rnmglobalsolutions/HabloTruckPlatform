@@ -258,6 +258,49 @@ public sealed class SubscriptionLifecycleEndToEndTests
         Assert.Equal(AccessMode.Full, after.EffectiveAccess!.Mode);
         Assert.Equal(userCountBefore, fixture.UserStore.Count);
     }
+
+    [Fact]
+    public async Task EndToEnd_DuplicateRenewalInvoicePaid_Should_NotMutateStateTwice()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = await SeedActiveIndividualSubscriptionAsync(fixture, "cus_dup_paid_1", "sub_dup_paid_1", "driver-dup-paid@hablotruck.com", "sid_dup_paid_1");
+        var before = fixture.UserStore.Get(user.UserId)!;
+        var previousPeriodEnd = Assert.IsType<DateTimeOffset>(before.StripeCurrentPeriodEndUtc);
+
+        var firstCreated = now.AddDays(29);
+        var renewedPeriodEnd = previousPeriodEnd.AddDays(30);
+
+        fixture.Clock.UtcNow = firstCreated;
+        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
+            StripeEventId: "evt_dup_paid_guard",
+            StripeEventCreatedUtc: firstCreated,
+            StripeCustomerId: "cus_dup_paid_1",
+            StripeSubscriptionId: "sub_dup_paid_1",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month",
+            CurrentPeriodEndUtc: renewedPeriodEnd));
+
+        fixture.Clock.UtcNow = firstCreated.AddHours(1);
+        var duplicate = await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
+            StripeEventId: "evt_dup_paid_guard",
+            StripeEventCreatedUtc: firstCreated.AddMinutes(1),
+            StripeCustomerId: "cus_dup_paid_1",
+            StripeSubscriptionId: "sub_dup_paid_1",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month",
+            CurrentPeriodEndUtc: renewedPeriodEnd.AddDays(30)));
+
+        Assert.NotNull(duplicate);
+        Assert.Contains("duplicate", duplicate!.Reason, StringComparison.OrdinalIgnoreCase);
+
+        var after = fixture.UserStore.Get(user.UserId)!;
+        Assert.Equal(renewedPeriodEnd, after.StripeCurrentPeriodEndUtc);
+        Assert.Equal(firstCreated, after.LastStripeEventCreatedUtc);
+        Assert.Equal(AccessMode.Full, after.EffectiveAccess!.Mode);
+    }
+
     [Fact]
     public async Task EndToEnd_RenewalReminderFlow_Should_DispatchDueReminder()
     {
@@ -456,10 +499,23 @@ public sealed class SubscriptionLifecycleEndToEndTests
         var snapshot = await RunStressEventStreamAsync(fixture, "LONGA", start);
 
         Assert.Equal("deleted", snapshot.SubscriptionStatus);
+        Assert.Equal("monthly", snapshot.PlanTerm);
+        Assert.Equal("individual_monthly", snapshot.PlanType);
+        Assert.Equal(start.AddDays(90), snapshot.CurrentPeriodEndUtc);
+        Assert.Equal(start.AddDays(90).AddHours(1), snapshot.LastStripeEventCreatedUtc);
+        Assert.Equal(AccessMode.Full, snapshot.PreDeleteAccessMode);
         Assert.Equal(AccessMode.Blocked, snapshot.AccessMode);
         Assert.Null(snapshot.GraceEndsAtUtc);
-        Assert.False(snapshot.CancelAtPeriodEnd);
-        Assert.True(snapshot.LastStripeEventCreatedUtc >= start.AddHours(14));
+        Assert.True(snapshot.CancelAtPeriodEnd);
+
+        Assert.Equal(2, snapshot.DuplicateIgnoredCount);
+        Assert.Equal(2, snapshot.OutOfOrderIgnoredCount);
+
+        Assert.Equal(2, snapshot.ReminderCount);
+        Assert.Equal("renewal_reminder_7d|save_before_churn_1d", snapshot.ReminderTypesSignature);
+        Assert.True(snapshot.HasAutoRenew7dReminder);
+        Assert.True(snapshot.HasSaveBeforeChurn1dReminder);
+        Assert.False(snapshot.HasAutoRenewOneDayReminder);
     }
 
     [Fact]
@@ -474,16 +530,35 @@ public sealed class SubscriptionLifecycleEndToEndTests
         var first = await RunStressEventStreamAsync(replayFixture, "REPL", start);
         var second = await RunStressEventStreamAsync(replayFixture, "REPL", start);
 
-        Assert.Equal(baseline, first);
-        Assert.Equal(first, second);
+        AssertStableProjectionEqual(baseline, first);
+        AssertStableProjectionEqual(first, second);
+        Assert.Equal(first.ReminderTypesSignature, second.ReminderTypesSignature);
+        Assert.Equal(first.ReminderCount, second.ReminderCount);
+    }
+
+    private static void AssertStableProjectionEqual(StreamSnapshot expected, StreamSnapshot actual)
+    {
+        Assert.Equal(expected.SubscriptionStatus, actual.SubscriptionStatus);
+        Assert.Equal(expected.CancelAtPeriodEnd, actual.CancelAtPeriodEnd);
+        Assert.Equal(expected.CurrentPeriodEndUtc, actual.CurrentPeriodEndUtc);
+        Assert.Equal(expected.LastStripeEventCreatedUtc, actual.LastStripeEventCreatedUtc);
+        Assert.Equal(expected.GraceEndsAtUtc, actual.GraceEndsAtUtc);
+        Assert.Equal(expected.AccessMode, actual.AccessMode);
+        Assert.Equal(expected.PlanTerm, actual.PlanTerm);
+        Assert.Equal(expected.PlanType, actual.PlanType);
     }
 
     private static async Task<StreamSnapshot> RunStressEventStreamAsync(Fixture fixture, string suffix, DateTimeOffset start)
     {
         fixture.Clock.UtcNow = start;
+
         var customerId = $"cus_stream_{suffix}";
         var subscriptionId = $"sub_stream_{suffix}";
         var subscriberId = $"sid_stream_{suffix}";
+
+        var periodEnd1 = start.AddDays(30);
+        var periodEnd2 = start.AddDays(60);
+        var periodEnd3 = start.AddDays(90);
 
         await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
         {
@@ -503,7 +578,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
 
         fixture.Clock.UtcNow = start.AddMinutes(1);
         await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
-            StripeEventId: $"evt_stream_updated_1_{suffix}",
+            StripeEventId: $"evt_stream_sub_updated_active_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
@@ -511,59 +586,63 @@ public sealed class SubscriptionLifecycleEndToEndTests
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
             CancelAtPeriodEnd: false,
-            CurrentPeriodEndUtc: start.AddDays(30),
+            CurrentPeriodEndUtc: periodEnd1,
             CanceledAtUtc: null,
             EndedAtUtc: null));
 
-        fixture.Clock.UtcNow = start.AddHours(1);
+        fixture.Clock.UtcNow = start.AddDays(30);
         await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
-            StripeEventId: $"evt_stream_paid_1_{suffix}",
+            StripeEventId: $"evt_stream_invoice_paid_renewal_1_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
-            CurrentPeriodEndUtc: start.AddDays(60)));
+            CurrentPeriodEndUtc: periodEnd2));
 
-        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
-            StripeEventId: $"evt_stream_paid_1_{suffix}",
+        var duplicatePaid = await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
+            StripeEventId: $"evt_stream_invoice_paid_renewal_1_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
-            CurrentPeriodEndUtc: start.AddDays(60)));
+            CurrentPeriodEndUtc: periodEnd2.AddDays(30)));
 
-        fixture.Clock.UtcNow = start.AddHours(2);
+        fixture.Clock.UtcNow = start.AddDays(60);
         await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
-            StripeEventId: $"evt_stream_fail_1_{suffix}",
+            StripeEventId: $"evt_stream_invoice_failed_1_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month"));
 
-        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
-            StripeEventId: $"evt_stream_fail_1_{suffix}",
+        var duplicateFailed = await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: $"evt_stream_invoice_failed_1_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month"));
 
-        fixture.Clock.UtcNow = start.AddHours(3);
+        fixture.Clock.UtcNow = start.AddDays(61);
         await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
-            StripeEventId: $"evt_stream_paid_2_{suffix}",
+            StripeEventId: $"evt_stream_invoice_paid_recovery_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
-            CurrentPeriodEndUtc: start.AddDays(90)));
+            CurrentPeriodEndUtc: periodEnd3));
 
-        fixture.Clock.UtcNow = start.AddHours(4);
+        fixture.Clock.UtcNow = periodEnd3.AddDays(-7);
+        await fixture.ReminderService.RunDailyAsync(500);
+        await fixture.ReminderService.RunDailyAsync(500);
+
+        fixture.Clock.UtcNow = periodEnd3.AddDays(-1);
         await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
-            StripeEventId: $"evt_stream_cancel_schedule_1_{suffix}",
+            StripeEventId: $"evt_stream_sub_updated_cancel_scheduled_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
@@ -571,102 +650,80 @@ public sealed class SubscriptionLifecycleEndToEndTests
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
             CancelAtPeriodEnd: true,
-            CurrentPeriodEndUtc: start.AddDays(90),
+            CurrentPeriodEndUtc: periodEnd3,
             CanceledAtUtc: fixture.Clock.UtcNow,
             EndedAtUtc: null));
 
-        fixture.Clock.UtcNow = start.AddHours(5);
-        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
-            StripeEventId: $"evt_stream_old_update_{suffix}",
-            StripeEventCreatedUtc: start.AddHours(2),
+        await fixture.ReminderService.RunDailyAsync(500);
+        await fixture.ReminderService.RunDailyAsync(500);
+
+        fixture.Clock.UtcNow = periodEnd3.AddDays(-1).AddHours(2);
+        var staleUpdated = await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: $"evt_stream_sub_updated_stale_{suffix}",
+            StripeEventCreatedUtc: periodEnd2.AddDays(-2),
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             SubscriptionStatus: "past_due",
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
             CancelAtPeriodEnd: false,
-            CurrentPeriodEndUtc: start.AddDays(10),
+            CurrentPeriodEndUtc: periodEnd2,
             CanceledAtUtc: null,
             EndedAtUtc: null));
 
-        fixture.Clock.UtcNow = start.AddHours(6);
-        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
-            StripeEventId: $"evt_stream_paid_3_{suffix}",
-            StripeEventCreatedUtc: fixture.Clock.UtcNow,
-            StripeCustomerId: customerId,
-            StripeSubscriptionId: subscriptionId,
-            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
-            Interval: "month",
-            CurrentPeriodEndUtc: start.AddDays(120)));
+        var preDeleteUser = fixture.UserStore.GetByStripeCustomer(customerId)!;
+        var preDeleteAccessMode = preDeleteUser.EffectiveAccess?.Mode ?? AccessMode.Blocked;
 
-        fixture.Clock.UtcNow = start.AddHours(7);
-        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
-            StripeEventId: $"evt_stream_cancel_off_{suffix}",
+        fixture.Clock.UtcNow = periodEnd3.AddHours(1);
+        await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
+            StripeEventId: $"evt_stream_sub_deleted_{suffix}",
             StripeEventCreatedUtc: fixture.Clock.UtcNow,
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
-            SubscriptionStatus: "active",
-            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
-            Interval: "month",
-            CancelAtPeriodEnd: false,
-            CurrentPeriodEndUtc: start.AddDays(120),
-            CanceledAtUtc: null,
-            EndedAtUtc: null));
-
-        fixture.Clock.UtcNow = start.AddHours(8);
-        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
-            StripeEventId: $"evt_stream_fail_2_{suffix}",
-            StripeEventCreatedUtc: fixture.Clock.UtcNow,
-            StripeCustomerId: customerId,
-            StripeSubscriptionId: subscriptionId,
-            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
-            Interval: "month"));
-
-        fixture.Clock.UtcNow = start.AddHours(9);
-        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
-            StripeEventId: $"evt_stream_paid_4_{suffix}",
-            StripeEventCreatedUtc: fixture.Clock.UtcNow,
-            StripeCustomerId: customerId,
-            StripeSubscriptionId: subscriptionId,
-            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
-            Interval: "month",
-            CurrentPeriodEndUtc: start.AddDays(150)));
-
-        fixture.Clock.UtcNow = start.AddHours(10);
-        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
-            StripeEventId: $"evt_stream_cancel_schedule_2_{suffix}",
-            StripeEventCreatedUtc: fixture.Clock.UtcNow,
-            StripeCustomerId: customerId,
-            StripeSubscriptionId: subscriptionId,
-            SubscriptionStatus: "active",
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month",
             CancelAtPeriodEnd: true,
-            CurrentPeriodEndUtc: start.AddDays(150),
-            CanceledAtUtc: fixture.Clock.UtcNow,
-            EndedAtUtc: null));
+            CurrentPeriodEndUtc: periodEnd3,
+            CanceledAtUtc: periodEnd3,
+            EndedAtUtc: periodEnd3));
 
-        fixture.Clock.UtcNow = start.AddHours(11);
-        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
-            StripeEventId: $"evt_stream_fail_old_{suffix}",
-            StripeEventCreatedUtc: start.AddHours(8).AddMinutes(-1),
+        fixture.Clock.UtcNow = periodEnd3.AddHours(2);
+        var staleFailed = await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: $"evt_stream_invoice_failed_stale_{suffix}",
+            StripeEventCreatedUtc: periodEnd3.AddHours(-2),
             StripeCustomerId: customerId,
             StripeSubscriptionId: subscriptionId,
             PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
             Interval: "month"));
 
-        fixture.Clock.UtcNow = start.AddHours(14);
-        await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
-            StripeEventId: $"evt_stream_deleted_{suffix}",
-            StripeEventCreatedUtc: fixture.Clock.UtcNow,
-            StripeCustomerId: customerId,
-            StripeSubscriptionId: subscriptionId,
-            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
-            Interval: "month",
-            CancelAtPeriodEnd: false,
-            CurrentPeriodEndUtc: start.AddHours(13),
-            CanceledAtUtc: start.AddHours(13),
-            EndedAtUtc: fixture.Clock.UtcNow));
+        static bool HasReason(AccessDecision? decision, string reason)
+            => decision is not null && decision.Reason.Contains(reason, StringComparison.OrdinalIgnoreCase);
+
+        var duplicateIgnoredCount = 0;
+        if (HasReason(duplicatePaid, "duplicate")) duplicateIgnoredCount++;
+        if (HasReason(duplicateFailed, "duplicate")) duplicateIgnoredCount++;
+
+        var outOfOrderIgnoredCount = 0;
+        if (HasReason(staleUpdated, "out-of-order")) outOfOrderIgnoredCount++;
+        if (HasReason(staleFailed, "out-of-order")) outOfOrderIgnoredCount++;
+
+        var reminders = fixture.ManyChat.Reminders.ToList();
+        var reminderTypesSignature = string.Join("|", reminders.Select(r => r.ReminderType));
+
+        var hasAutoRenew7d = reminders.Any(r =>
+            string.Equals(r.ReminderType, "renewal_reminder_7d", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(r.Journey, "auto_renew", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(r.ReminderTone, "RenewalTransparencyValue", StringComparison.OrdinalIgnoreCase));
+
+        var hasSaveBeforeChurn1d = reminders.Any(r =>
+            string.Equals(r.ReminderType, "save_before_churn_1d", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(r.Journey, "save_before_churn", StringComparison.OrdinalIgnoreCase)
+            && !r.UsePositiveContinuityFraming
+            && string.Equals(r.ReminderTone, "EndingSoonReactivation", StringComparison.OrdinalIgnoreCase));
+
+        var hasAutoRenewOneDayReminder = reminders.Any(r =>
+            string.Equals(r.ReminderType, "renewal_reminder_1d", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(r.ReminderType, "annual_renewal_reminder_1d", StringComparison.OrdinalIgnoreCase));
 
         var user = fixture.UserStore.GetByStripeCustomer(customerId)!;
         return new StreamSnapshot(
@@ -675,7 +732,17 @@ public sealed class SubscriptionLifecycleEndToEndTests
             CurrentPeriodEndUtc: user.StripeCurrentPeriodEndUtc,
             LastStripeEventCreatedUtc: user.LastStripeEventCreatedUtc ?? DateTimeOffset.MinValue,
             GraceEndsAtUtc: user.IndividualGraceEndsAtUtc,
-            AccessMode: user.EffectiveAccess?.Mode ?? AccessMode.Blocked);
+            AccessMode: user.EffectiveAccess?.Mode ?? AccessMode.Blocked,
+            PreDeleteAccessMode: preDeleteAccessMode,
+            PlanTerm: user.IndividualPlanTerm ?? string.Empty,
+            PlanType: user.PlanType ?? string.Empty,
+            DuplicateIgnoredCount: duplicateIgnoredCount,
+            OutOfOrderIgnoredCount: outOfOrderIgnoredCount,
+            ReminderCount: reminders.Count,
+            ReminderTypesSignature: reminderTypesSignature,
+            HasAutoRenew7dReminder: hasAutoRenew7d,
+            HasSaveBeforeChurn1dReminder: hasSaveBeforeChurn1d,
+            HasAutoRenewOneDayReminder: hasAutoRenewOneDayReminder);
     }
 
     private static async Task<User> SeedActiveIndividualSubscriptionAsync(
@@ -783,7 +850,17 @@ public sealed class SubscriptionLifecycleEndToEndTests
         DateTimeOffset? CurrentPeriodEndUtc,
         DateTimeOffset LastStripeEventCreatedUtc,
         DateTimeOffset? GraceEndsAtUtc,
-        AccessMode AccessMode);
+        AccessMode AccessMode,
+        AccessMode PreDeleteAccessMode,
+        string PlanTerm,
+        string PlanType,
+        int DuplicateIgnoredCount,
+        int OutOfOrderIgnoredCount,
+        int ReminderCount,
+        string ReminderTypesSignature,
+        bool HasAutoRenew7dReminder,
+        bool HasSaveBeforeChurn1dReminder,
+        bool HasAutoRenewOneDayReminder);
 
     private sealed record Fixture(
         MutableClock Clock,
@@ -1035,6 +1112,10 @@ public sealed class SubscriptionLifecycleEndToEndTests
             => Task.CompletedTask;
     }
 }
+
+
+
+
 
 
 

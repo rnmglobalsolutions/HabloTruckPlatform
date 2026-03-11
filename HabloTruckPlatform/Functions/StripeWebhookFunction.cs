@@ -108,7 +108,37 @@ public sealed class StripeWebhookFunction
             return req.CreateResponse(HttpStatusCode.OK);
         }
 
-        var parsed = _parser.Parse(stripeEvent);
+        StripeParsedEvent parsed;
+        try
+        {
+            parsed = _parser.Parse(stripeEvent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse Stripe event payload. eventId={EventId} eventType={EventType}", stripeEvent.Id, stripeEvent.Type);
+
+            await AppendAuditSafeAsync(new StripeEventAuditItem(
+                StripeEventId: stripeEvent.Id,
+                EventType: stripeEvent.Type,
+                CustomerId: null,
+                SubscriptionId: null,
+                PriceId: null,
+                Status: null,
+                EventCreatedUtc: createdUtc,
+                ProcessedUtc: DateTimeOffset.UtcNow,
+                Outcome: "failed_parse",
+                Reason: "Exception while parsing Stripe event payload",
+                UserPk: null,
+                UserId: null,
+                CurrentPeriodEndUtc: null,
+                CancelAtPeriodEnd: null,
+                AccessMode: null,
+                AccessSource: null,
+                Error: ex.Message
+            ), ct);
+
+            return req.CreateResponse(HttpStatusCode.OK);
+        }
 
         if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
         {

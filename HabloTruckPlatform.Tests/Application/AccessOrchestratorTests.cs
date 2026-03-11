@@ -114,6 +114,61 @@ public sealed class AccessOrchestratorTests
     }
 
     [Fact]
+    public async Task RecomputeForUserAsync_Should_RecomputeFromFullToGrace_When_CompanyEntitlementEndDateMovesPastNow()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = NewUser("U_company_transition", subscriptionStatus: null, manyChatSubscriberId: "sid_company_transition");
+        user.CompanyId = "C_TRANSITION";
+        fixture.UserStore.Add(user);
+
+        fixture.SeatStore.Seat = new SeatAssignment
+        {
+            CompanyId = "C_TRANSITION",
+            UserId = user.UserId,
+            EntitlementId = "E_TRANSITION",
+            Status = "active",
+            AssignedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        fixture.EntitlementStore.Entitlement = new Entitlement
+        {
+            CompanyId = "C_TRANSITION",
+            EntitlementId = "E_TRANSITION",
+            SeatsTotal = 10,
+            SeatsUsed = 1,
+            Status = "active",
+            StartUtc = now.AddDays(-10),
+            EndUtc = now.AddDays(5),
+            UpdatedAtUtc = now
+        };
+
+        var first = await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+
+        Assert.Equal(AccessMode.Full, first.Mode);
+        Assert.Equal(AccessSource.Company, first.Source);
+
+        fixture.EntitlementStore.Entitlement = new Entitlement
+        {
+            CompanyId = "C_TRANSITION",
+            EntitlementId = "E_TRANSITION",
+            SeatsTotal = 10,
+            SeatsUsed = 1,
+            Status = "active",
+            StartUtc = now.AddDays(-10),
+            EndUtc = now.AddMinutes(-1),
+            UpdatedAtUtc = now.AddMinutes(1)
+        };
+
+        var second = await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+
+        Assert.Equal(AccessMode.Grace, second.Mode);
+        Assert.Equal(AccessSource.Company, second.Source);
+    }
+
+    [Fact]
     public async Task RecomputeForUserAsync_Should_Deny_When_CompanyEntitlementExpiredBeyondGrace()
     {
         var now = Utc(2026, 3, 10, 12);
@@ -332,4 +387,8 @@ public sealed class AccessOrchestratorTests
             => Task.CompletedTask;
     }
 }
+
+
+
+
 

@@ -242,8 +242,9 @@ public sealed class StripeEventParser
 
     private static (string? priceId, string? interval) TryGetInvoicePrice(JObject? raw)
     {
-        // invoice.lines.data[0].price.id and recurring.interval
-        var arr = raw?["items"]?["data"] as JArray;
+        // invoice.items.data[0] or invoice.lines.data[0].price.id and recurring.interval
+        var arr = raw?["items"]?["data"] as JArray
+                  ?? raw?["lines"]?["data"] as JArray;
         var line = arr?.FirstOrDefault() as JObject;
 
         var priceId = line?["price"]?["id"]?.ToString();
@@ -335,5 +336,6 @@ public sealed class StripeEventData
     public int Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }
+
 
 
