@@ -1,8 +1,9 @@
-﻿using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using Microsoft.Extensions.Logging;
 using Stripe.Checkout;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -26,46 +27,75 @@ public sealed class StripeCheckoutHandler
         StripeCheckoutSessionRequest request,
         CancellationToken ct = default)
     {
+        var opWatch = Stopwatch.StartNew();
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} PlanType={PlanType} Quantity={Quantity}",
+            "entry",
+            "stripe_checkout_create_session",
+            request?.PlanType,
+            request?.Quantity);
+
         if (request is null)
-            return Fail("invalid_request");
+            return Fail("invalid_request", opWatch, null, null);
 
         if (string.IsNullOrWhiteSpace(request.PlanType))
-            return Fail("plant_type_required");
+            return Fail("plant_type_required", opWatch, request.PlanType, request.PriceId);
 
         if (request.Quantity <= 0)
-            return Fail("quantity_must_be_greater_than_zero");
+            return Fail("quantity_must_be_greater_than_zero", opWatch, request.PlanType, request.PriceId);
 
         if (string.IsNullOrWhiteSpace(request.SuccessUrl))
-            return Fail("success_url_required");
+            return Fail("success_url_required", opWatch, request.PlanType, request.PriceId);
 
         if (string.IsNullOrWhiteSpace(request.CancelUrl))
-            return Fail("cancel_url_required");
-
-        // var normalizedPlanType = NormalizePlanType(request.PlanType);
-
-        // Optional stricter validation against known catalog
-        
-        // if (!IsKnownPriceId(request.PriceId))
-        // {
-        //     _logger.LogWarning("Unknown Stripe price id requested: {PriceId}", request.PriceId);
-        // }
-
-        // request.PlanType = normalizedPlanType;
+            return Fail("cancel_url_required", opWatch, request.PlanType, request.PriceId);
 
         request.PriceId = GetPriceIdForPlanType(request.PlanType);
 
+        if (string.IsNullOrWhiteSpace(request.PriceId))
+            return Fail("price_id_not_configured_for_plan", opWatch, request.PlanType, request.PriceId);
+
+        var dependencyWatch = Stopwatch.StartNew();
+
         try
         {
-            return await _stripeCheckoutService.CreateCheckoutSessionAsync(request, ct);
+            var result = await _stripeCheckoutService.CreateCheckoutSessionAsync(request, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "dependency",
+                "stripe",
+                "checkout_session_create",
+                "Stripe API",
+                dependencyWatch.ElapsedMilliseconds,
+                result.Result);
+
+            _logger.LogInformation(
+                "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} PlanType={PlanType} PriceId={PriceId} DurationMs={DurationMs}",
+                "outcome",
+                result.Result ? "completed" : "dependency_failed",
+                result.Result ? "checkout_session_created" : result.Error,
+                request.PlanType,
+                request.PriceId,
+                opWatch.ElapsedMilliseconds);
+
+            return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                "CreateStripeCheckoutSessionUseCase failed. PriceId={PriceId}, PlanType={PlanType}",
+            _logger.LogError(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} PlanType={PlanType} PriceId={PriceId} DurationMs={DurationMs}",
+                "exception",
+                "dependency_failed",
+                "stripe",
+                "checkout_session_create",
+                request.PlanType,
                 request.PriceId,
-                request.PlanType);
+                dependencyWatch.ElapsedMilliseconds);
 
-            return Fail("stripe_checkout_session_create_failed");
+            return Fail("stripe_checkout_session_create_failed", opWatch, request.PlanType, request.PriceId);
         }
     }
 
@@ -91,8 +121,9 @@ public sealed class StripeCheckoutHandler
         string priceId = string.Empty;
         var pt = (planType ?? "").Trim().ToLowerInvariant();
 
-        switch (pt) {
-            case "individual_monthly": 
+        switch (pt)
+        {
+            case "individual_monthly":
                 priceId = _stripeOptions.IndividualMonthlyPriceId ?? string.Empty;
                 break;
             case "individual_yearly":
@@ -135,11 +166,24 @@ public sealed class StripeCheckoutHandler
         return "individual";
     }
 
-    private static StripeCheckoutSessionResult Fail(string error) => new()
+    private StripeCheckoutSessionResult Fail(string error, Stopwatch opWatch, string? planType, string? priceId)
     {
-        Result = false,
-        Url = "",
-        SessionId = null,
-        Error = error
-    };
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} PlanType={PlanType} PriceId={PriceId} DurationMs={DurationMs}",
+            "outcome",
+            "validation_failed",
+            error,
+            planType,
+            priceId,
+            opWatch.ElapsedMilliseconds);
+
+        return new StripeCheckoutSessionResult
+        {
+            Result = false,
+            Url = "",
+            SessionId = null,
+            Error = error
+        };
+    }
 }
+

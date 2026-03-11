@@ -2,6 +2,9 @@ using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -15,41 +18,69 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
     private readonly IEntitlementStore _entitlements;
     private readonly IStripeSubscriptionGateway _stripeSubscriptions;
     private readonly IClock _clock;
+    private readonly ILogger<CancelSubscriptionAtPeriodEndUseCase> _logger;
 
     public CancelSubscriptionAtPeriodEndUseCase(
         IUserStore users,
         ICompanyStore companies,
         IEntitlementStore entitlements,
         IStripeSubscriptionGateway stripeSubscriptions,
-        IClock clock)
+        IClock clock,
+        ILogger<CancelSubscriptionAtPeriodEndUseCase>? logger = null)
     {
         _users = users;
         _companies = companies;
         _entitlements = entitlements;
         _stripeSubscriptions = stripeSubscriptions;
         _clock = clock;
+        _logger = logger ?? NullLogger<CancelSubscriptionAtPeriodEndUseCase>.Instance;
     }
 
     public async Task<CancelSubscriptionAtPeriodEndResult> ExecuteAsync(
         CancelSubscriptionAtPeriodEndRequest request,
         CancellationToken ct = default)
     {
+        var opWatch = Stopwatch.StartNew();
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName}",
+            "entry",
+            "cancel_subscription_at_period_end");
+
         if (request is null)
-            return Fail("invalid_request");
+            return FailLogged("invalid_request", opWatch, null, null, null, null);
 
         var scope = NormalizeScope(request.Scope);
         if (scope is null)
-            return Fail("invalid_scope");
+            return FailLogged("invalid_scope", opWatch, request.Scope, null, null, null);
 
         var actorPk = NullIfBlank(request.ActorUserPk);
         var actorId = NullIfBlank(request.ActorUserId);
 
-        if (actorPk is null || actorId is null)
-            return Fail("actor_required", scope);
+        using var logScope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "cancel_subscription_at_period_end",
+            ["CompanyId"] = request.CompanyId,
+            ["UserId"] = actorId,
+            ["SubscriptionId"] = request.SubscriptionId
+        });
 
+        if (actorPk is null || actorId is null)
+            return FailLogged("actor_required", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
+
+        var actorWatch = Stopwatch.StartNew();
         var actor = await _users.GetAsync(actorPk, actorId, ct);
+
+        _logger.LogDebug(
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+            "persistence",
+            "user.get",
+            "Users",
+            actorWatch.ElapsedMilliseconds,
+            actor is not null);
+
         if (actor is null)
-            return Fail("actor_not_found", scope);
+            return FailLogged("actor_not_found", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
 
         var subscriptionId = NullIfBlank(request.SubscriptionId);
         Company? company = null;
@@ -63,18 +94,28 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
                 && !string.IsNullOrWhiteSpace(actor.StripeSubscriptionId)
                 && !string.Equals(actor.StripeSubscriptionId, request.SubscriptionId.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                return Fail("forbidden", scope, request.SubscriptionId.Trim());
+                return FailLogged("forbidden", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
             }
         }
         else
         {
             var companyId = NullIfBlank(request.CompanyId);
             if (companyId is null)
-                return Fail("company_id_required", scope);
+                return FailLogged("company_id_required", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
 
+            var companyWatch = Stopwatch.StartNew();
             company = await _companies.GetAsync(companyId, ct);
+
+            _logger.LogDebug(
+                "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+                "persistence",
+                "company.get",
+                "Companies",
+                companyWatch.ElapsedMilliseconds,
+                company is not null);
+
             if (company is null)
-                return Fail("company_not_found", scope);
+                return FailLogged("company_not_found", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
 
             var actorInCompany = !string.IsNullOrWhiteSpace(actor.CompanyId)
                                  && string.Equals(actor.CompanyId, company.CompanyId, StringComparison.OrdinalIgnoreCase);
@@ -84,34 +125,56 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
                                       && string.Equals(actor.EmailNormalized, company.AdminEmailNormalized, StringComparison.OrdinalIgnoreCase);
 
             if (!actorInCompany && !actorIsCompanyAdmin)
-                return Fail("forbidden", scope);
+                return FailLogged("forbidden", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
 
             subscriptionId ??= TryGetSubscriptionIdFromEntitlementId(actor.SeatEntitlementId);
         }
 
         if (subscriptionId is null)
-            return Fail("subscription_id_required", scope);
+            return FailLogged("subscription_id_required", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
 
         if (scope == ScopeCompany && company is not null)
         {
             var entitlementId = ResolveEntitlementIdForFleetSubscription(subscriptionId);
+            var entitlementWatch = Stopwatch.StartNew();
             var entitlement = await _entitlements.GetAsync(company.CompanyId, entitlementId, ct);
+
+            _logger.LogDebug(
+                "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+                "persistence",
+                "entitlement.get",
+                "Entitlements",
+                entitlementWatch.ElapsedMilliseconds,
+                entitlement is not null);
+
             if (entitlement is null)
-                return Fail("company_entitlement_not_found", scope, subscriptionId);
+                return FailLogged("company_entitlement_not_found", opWatch, scope, actorId, company.CompanyId, subscriptionId);
         }
 
         var nowUtc = _clock.UtcNow;
 
+        var stripeReadWatch = Stopwatch.StartNew();
         var current = await _stripeSubscriptions.GetSubscriptionAsync(subscriptionId, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+            "dependency",
+            "stripe",
+            "get_subscription",
+            "Stripe API",
+            stripeReadWatch.ElapsedMilliseconds,
+            true,
+            current is not null);
+
         if (current is null)
-            return Fail("subscription_not_found", scope, subscriptionId);
+            return FailLogged("subscription_not_found", opWatch, scope, actorId, request.CompanyId, subscriptionId);
 
         // Authorization hardening: customer ownership must align with local context when available.
         if (scope == ScopeIndividual
             && !string.IsNullOrWhiteSpace(actor.StripeCustomerId)
             && !string.Equals(actor.StripeCustomerId, current.CustomerId, StringComparison.OrdinalIgnoreCase))
         {
-            return Fail("forbidden", scope, subscriptionId);
+            return FailLogged("forbidden", opWatch, scope, actorId, request.CompanyId, subscriptionId);
         }
 
         if (scope == ScopeCompany
@@ -119,27 +182,46 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
             && !string.IsNullOrWhiteSpace(company.StripeCustomerId)
             && !string.Equals(company.StripeCustomerId, current.CustomerId, StringComparison.OrdinalIgnoreCase))
         {
-            return Fail("forbidden", scope, subscriptionId);
+            return FailLogged("forbidden", opWatch, scope, actorId, company.CompanyId, subscriptionId);
         }
 
         if (current.CancelAtPeriodEnd)
-            return Success(scope, current, nowUtc, alreadyScheduled: true);
+            return SuccessLogged(scope, current, nowUtc, alreadyScheduled: true, opWatch);
 
         StripeSubscriptionSnapshot? updated;
         try
         {
+            var stripeWriteWatch = Stopwatch.StartNew();
             updated = await _stripeSubscriptions.ScheduleCancelAtPeriodEndAsync(
                 subscriptionId,
                 BuildIdempotencyKey(subscriptionId),
                 ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+                "dependency",
+                "stripe",
+                "schedule_cancel_at_period_end",
+                "Stripe API",
+                stripeWriteWatch.ElapsedMilliseconds,
+                true,
+                updated is not null);
         }
-        catch
+        catch (Exception ex)
         {
-            return Fail("stripe_update_failed", scope, subscriptionId);
+            _logger.LogError(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation}",
+                "exception",
+                "dependency_failed",
+                "stripe",
+                "schedule_cancel_at_period_end");
+
+            return FailLogged("stripe_update_failed", opWatch, scope, actorId, request.CompanyId, subscriptionId);
         }
 
         if (updated is null)
-            return Fail("stripe_update_failed", scope, subscriptionId);
+            return FailLogged("stripe_update_failed", opWatch, scope, actorId, request.CompanyId, subscriptionId);
 
         // Optional local hint only (webhook/reducer remain source of truth).
         if (!string.IsNullOrWhiteSpace(actor.StripeSubscriptionId)
@@ -150,18 +232,39 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
                 actor.StripeCurrentPeriodEndUtc = updated.CurrentPeriodEndUtc;
 
             actor.UpdatedAtUtc = nowUtc;
+
+            var userWriteWatch = Stopwatch.StartNew();
             await _users.UpsertAsync(actor, ct);
+
+            _logger.LogDebug(
+                "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "persistence",
+                "user.upsert",
+                "Users",
+                userWriteWatch.ElapsedMilliseconds,
+                true);
         }
 
-        return Success(scope, updated, nowUtc, alreadyScheduled: false);
+        return SuccessLogged(scope, updated, nowUtc, alreadyScheduled: false, opWatch);
     }
 
-    private static CancelSubscriptionAtPeriodEndResult Success(
+    private CancelSubscriptionAtPeriodEndResult SuccessLogged(
         string scope,
         StripeSubscriptionSnapshot snapshot,
         DateTimeOffset requestedAtUtc,
-        bool alreadyScheduled)
+        bool alreadyScheduled,
+        Stopwatch opWatch)
     {
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} Scope={Scope} SubscriptionId={SubscriptionId} AlreadyScheduled={AlreadyScheduled} DurationMs={DurationMs}",
+            "outcome",
+            alreadyScheduled ? "no_action_needed" : "completed",
+            alreadyScheduled ? "already_scheduled" : "cancel_scheduled",
+            scope,
+            snapshot.SubscriptionId,
+            alreadyScheduled,
+            opWatch.ElapsedMilliseconds);
+
         return new CancelSubscriptionAtPeriodEndResult
         {
             Result = true,
@@ -177,15 +280,29 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         };
     }
 
-    private static CancelSubscriptionAtPeriodEndResult Fail(
+    private CancelSubscriptionAtPeriodEndResult FailLogged(
         string error,
-        string scope = ScopeIndividual,
-        string? subscriptionId = null)
+        Stopwatch opWatch,
+        string? scope,
+        string? actorUserId,
+        string? companyId,
+        string? subscriptionId)
     {
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} Scope={Scope} UserId={UserId} CompanyId={CompanyId} SubscriptionId={SubscriptionId} DurationMs={DurationMs}",
+            "outcome",
+            error == "forbidden" ? "denied" : "validation_failed",
+            error,
+            scope,
+            actorUserId,
+            companyId,
+            subscriptionId,
+            opWatch.ElapsedMilliseconds);
+
         return new CancelSubscriptionAtPeriodEndResult
         {
             Result = false,
-            Scope = scope,
+            Scope = scope ?? ScopeIndividual,
             SubscriptionId = subscriptionId,
             CancelAtPeriodEnd = false,
             AlreadyScheduled = false,

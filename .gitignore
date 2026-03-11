@@ -67,3 +67,6 @@ HT_App_Settings.json
 
 # postman calls
 postman/
+
+# KQL Queries
+HabloTruck - KQL.txt

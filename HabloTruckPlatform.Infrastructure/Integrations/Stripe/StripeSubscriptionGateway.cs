@@ -1,16 +1,21 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Stripe;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Infrastructure.Stripe;
 
 public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
 {
     private readonly SubscriptionService _subscriptions;
+    private readonly ILogger<StripeSubscriptionGateway> _logger;
 
-    public StripeSubscriptionGateway()
+    public StripeSubscriptionGateway(ILogger<StripeSubscriptionGateway>? logger = null)
     {
         _subscriptions = new SubscriptionService();
+        _logger = logger ?? NullLogger<StripeSubscriptionGateway>.Instance;
     }
 
     public async Task<StripeSubscriptionSnapshot?> GetSubscriptionAsync(
@@ -20,7 +25,22 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
         if (string.IsNullOrWhiteSpace(subscriptionId))
             return null;
 
-        var sub = await _subscriptions.GetAsync(subscriptionId.Trim(), cancellationToken: ct);
+        var normalized = subscriptionId.Trim();
+        var watch = Stopwatch.StartNew();
+
+        var sub = await _subscriptions.GetAsync(normalized, cancellationToken: ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId}",
+            "dependency",
+            "stripe",
+            "get_subscription",
+            "Stripe API",
+            watch.ElapsedMilliseconds,
+            true,
+            sub is not null,
+            normalized);
+
         if (sub is null)
             return null;
 
@@ -45,7 +65,22 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
             IdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim()
         };
 
-        var sub = await _subscriptions.UpdateAsync(subscriptionId.Trim(), options, requestOptions, ct);
+        var normalized = subscriptionId.Trim();
+        var watch = Stopwatch.StartNew();
+
+        var sub = await _subscriptions.UpdateAsync(normalized, options, requestOptions, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId}",
+            "dependency",
+            "stripe",
+            "update_subscription_cancel_at_period_end",
+            "Stripe API",
+            watch.ElapsedMilliseconds,
+            true,
+            sub is not null,
+            normalized);
+
         if (sub is null)
             return null;
 
@@ -102,3 +137,4 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
     internal static DateTimeOffset? ToDateTimeOffsetUtc(DateTime value)
         => value == default ? null : ToDateTimeOffsetUtc((DateTime?)value);
 }
+

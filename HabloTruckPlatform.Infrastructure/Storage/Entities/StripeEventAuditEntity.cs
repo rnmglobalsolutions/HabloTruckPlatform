@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.Data.Tables;
 
 namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
@@ -23,7 +23,7 @@ public sealed class StripeEventAuditEntity : ITableEntity
     public DateTimeOffset ProcessedUtc { get; set; }
 
     public string Outcome { get; set; } = default!;
-    // applied | ignored_duplicate | ignored_out_of_order | failed | replayed
+    // Current vocabulary: applied | skipped_duplicate | skipped_out_of_order | skipped_no_customer | skipped_unhandled | failed | replayed. Historical rows may still contain ignored_* aliases.
 
     public string? Reason { get; set; }
 
@@ -38,3 +38,4 @@ public sealed class StripeEventAuditEntity : ITableEntity
 
     public string? Error { get; set; }
 }
+
