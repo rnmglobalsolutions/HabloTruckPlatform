@@ -5,7 +5,10 @@ using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
@@ -13,13 +16,15 @@ public sealed class ManyChatSyncClient : IManyChatSync
 {
     private readonly HttpClient _http;
     private readonly ManyChatOptions _opt;
+    private readonly ILogger<ManyChatSyncClient> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    public ManyChatSyncClient(HttpClient http, IOptions<ManyChatOptions> opt)
+    public ManyChatSyncClient(HttpClient http, IOptions<ManyChatOptions> opt, ILogger<ManyChatSyncClient>? logger = null)
     {
         _http = http;
         _opt = opt.Value;
+        _logger = logger ?? NullLogger<ManyChatSyncClient>.Instance;
 
         if (string.IsNullOrWhiteSpace(_opt.ApiKey))
             throw new InvalidOperationException("ManyChat ApiKey is missing.");
@@ -33,16 +38,40 @@ public sealed class ManyChatSyncClient : IManyChatSync
         User user, AccessDecision decision, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "manychat_sync_user_access",
+                "no_action_needed",
+                "missing_subscriber_id");
             return;
+        }
 
         var sid = user.ManyChatSubscriberId!.Trim();
 
-        // 1) Clear access tags
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "manychat_sync_user_access",
+            ["UserId"] = user.UserId,
+            ["CompanyId"] = user.CompanyId,
+            ["SeatAssignmentId"] = user.UserId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} SubscriberIdSuffix={SubscriberIdSuffix} Mode={Mode} Source={Source}",
+            "entry",
+            "manychat_sync_user_access",
+            MaskSubscriberId(sid),
+            decision.Mode,
+            decision.Source);
+
+        // 1) Clear access tags.
         await RemoveTagByName(sid, _opt.TagAccessFull, ct);
         await RemoveTagByName(sid, _opt.TagAccessGrace, ct);
         await RemoveTagByName(sid, _opt.TagAccessBlocked, ct);
 
-        // 2) Set correct access tag
+        // 2) Set correct access tag.
         var accessTag = decision.Mode switch
         {
             AccessMode.Full => _opt.TagAccessFull,
@@ -52,14 +81,14 @@ public sealed class ManyChatSyncClient : IManyChatSync
         };
         await AddTagByName(sid, accessTag, ct);
 
-        // 3) Clear/Set source tags (Individual/Company)
+        // 3) Clear/Set source tags (Individual/Company).
         await RemoveTagByName(sid, _opt.TagSourceIndividual, ct);
         await RemoveTagByName(sid, _opt.TagSourceCompany, ct);
 
         if ((decision.Source & AccessSource.Individual) != 0) await AddTagByName(sid, _opt.TagSourceIndividual, ct);
         if ((decision.Source & AccessSource.Company) != 0) await AddTagByName(sid, _opt.TagSourceCompany, ct);
 
-        // 4) Custom fields
+        // 4) Custom fields.
         await SetCustomFieldByName(sid, _opt.FieldAccessMode, decision.Mode.ToString(), ct);
 
         var graceValue = decision.GraceEndsAtUtc is null
@@ -69,12 +98,26 @@ public sealed class ManyChatSyncClient : IManyChatSync
         await SetCustomFieldByName(sid, _opt.FieldGraceEndsAtUtc, graceValue, ct);
 
         await SetCustomFieldByName(sid, _opt.FieldCompanyId, user.CompanyId ?? "", ct);
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
+            "outcome",
+            "completed",
+            "manychat_access_synced");
     }
 
     public async Task TriggerPaymentFailedFlowAsync(string subscriberId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_opt.PaymentFailedFlowNs))
-            return; // not configured
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "manychat_trigger_payment_failed",
+                "no_action_needed",
+                "payment_failed_flow_not_configured");
+            return;
+        }
 
         var sid = subscriberId.Trim();
 
@@ -91,7 +134,7 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
     public async Task NotifyCompanyPackPurchasedAsync(string companyId, int seatsTotal, CancellationToken ct = default)
     {
-        // Optional hook: If you later want to message an admin subscriber, you’d need admin subscriberId.
+        // Optional hook: If you later want to message an admin subscriber, you would need admin subscriberId.
         // For now, no-op by design.
         await Task.CompletedTask;
     }
@@ -110,7 +153,16 @@ public sealed class ManyChatSyncClient : IManyChatSync
             : _opt.RenewalReminderFlowNs;
 
         if (string.IsNullOrWhiteSpace(flowNs))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} Journey={Journey}",
+                "decision",
+                "manychat_send_subscription_reminder",
+                "no_action_needed",
+                "reminder_flow_not_configured",
+                journey);
             return; // reminder flow not configured
+        }
 
         var payload = new
         {
@@ -167,14 +219,32 @@ public sealed class ManyChatSyncClient : IManyChatSync
         var json = JsonSerializer.Serialize(payload, JsonOpts);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+        var watch = Stopwatch.StartNew();
         using var res = await _http.PostAsync(path, content, ct);
 
-        if (!res.IsSuccessStatusCode)
-        {
-            var body = await res.Content.ReadAsStringAsync(ct);
-            throw new HttpRequestException($"ManyChat call failed: {(int)res.StatusCode} {res.ReasonPhrase}. Body: {body}");
-        }
+        var success = res.IsSuccessStatusCode;
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} StatusCode={StatusCode}",
+            "dependency",
+            "manychat",
+            "http_post",
+            path,
+            watch.ElapsedMilliseconds,
+            success,
+            (int)res.StatusCode);
+
+        if (!success)
+            throw new HttpRequestException($"ManyChat call failed: {(int)res.StatusCode} {res.ReasonPhrase}.");
+    }
+
+    private static string MaskSubscriberId(string subscriberId)
+    {
+        if (string.IsNullOrWhiteSpace(subscriberId))
+            return "";
+
+        var trimmed = subscriberId.Trim();
+        return trimmed.Length <= 4 ? trimmed : trimmed[^4..];
     }
 }
-
 

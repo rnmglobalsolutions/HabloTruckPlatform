@@ -14,10 +14,34 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Linq;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
+    .ConfigureLogging((ctx, logging) =>
+    {
+        logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
+
+        // Production baseline: keep app logs at Information, suppress framework noise.
+        logging.SetMinimumLevel(LogLevel.Information);
+        logging.AddFilter("Microsoft", LogLevel.Warning);
+        logging.AddFilter("System", LogLevel.Warning);
+        logging.AddFilter("Azure", LogLevel.Warning);
+
+        // Remove AI provider default Warning filter so Information logs can flow per category rules.
+        logging.Services.Configure<LoggerFilterOptions>(options =>
+        {
+            var defaultAiRule = options.Rules.FirstOrDefault(rule =>
+                rule.ProviderName == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
+
+            if (defaultAiRule is not null)
+            {
+                options.Rules.Remove(defaultAiRule);
+            }
+        });
+    })
     .ConfigureAppConfiguration(config =>
     {
         config.AddJsonFile("local.settings.json", optional: true, reloadOnChange: true)
@@ -79,6 +103,7 @@ var host = new HostBuilder()
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
+
         // Stripe configuration
         services.Configure<StripeOptions>(ctx.Configuration.GetSection("Stripe"));
         services.AddSingleton(sp =>

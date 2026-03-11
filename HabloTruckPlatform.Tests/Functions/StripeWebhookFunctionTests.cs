@@ -99,7 +99,7 @@ public sealed class StripeWebhookFunctionTests
         Assert.Empty(fixture.Handler.Calls);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
-        Assert.Equal("ignored_duplicate", audit.Outcome);
+        Assert.Equal("skipped_duplicate", audit.Outcome);
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public sealed class StripeWebhookFunctionTests
         var audits = fixture.AuditStore.Items.Where(x => x.StripeEventId == "evt_dup_flow").ToList();
         Assert.Equal(2, audits.Count);
         Assert.Single(audits, x => x.Outcome == "applied");
-        Assert.Single(audits, x => x.Outcome == "ignored_duplicate");
+        Assert.Single(audits, x => x.Outcome == "skipped_duplicate");
     }
     [Fact]
-    public async Task Run_Should_RecordIgnoredOutOfOrderOutcome_When_HandlerReturnsOutOfOrderReason()
+    public async Task Run_Should_RecordSkippedOutOfOrderOutcome_When_HandlerReturnsOutOfOrderReason()
     {
         var fixture = BuildFixture(eventStoreResult: true);
         fixture.Handler.SubscriptionUpdatedDecision = new AccessDecision(
@@ -148,7 +148,7 @@ public sealed class StripeWebhookFunctionTests
         Assert.Contains("sub_updated", fixture.Handler.Calls);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
-        Assert.Equal("ignored_out_of_order", audit.Outcome);
+        Assert.Equal("skipped_out_of_order", audit.Outcome);
     }
     [Fact]
     public async Task Run_Should_RecordAppliedOutcomeAndAccessFields_When_HandlerReturnsDecision()
@@ -240,7 +240,7 @@ public sealed class StripeWebhookFunctionTests
     }
 
     [Fact]
-    public async Task Run_Should_ReturnOkAndAuditIgnoredNoCustomer_WhenParsedEventHasNoCustomer()
+    public async Task Run_Should_ReturnOkAndAuditSkippedNoCustomer_WhenParsedEventHasNoCustomer()
     {
         var fixture = BuildFixture(eventStoreResult: true);
         var json = BuildInvoicePaidWithoutCustomerEventJson("evt_no_customer", "sub_no_customer");
@@ -252,11 +252,11 @@ public sealed class StripeWebhookFunctionTests
         Assert.Empty(fixture.Handler.Calls);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
-        Assert.Equal("ignored_no_customer", audit.Outcome);
+        Assert.Equal("skipped_no_customer", audit.Outcome);
     }
 
     [Fact]
-    public async Task Run_Should_ReturnOkAndAuditIgnoredNoCustomer_ForUnhandledEventType()
+    public async Task Run_Should_ReturnOkAndAuditSkippedNoCustomer_ForUnhandledEventType()
     {
         var fixture = BuildFixture(eventStoreResult: true);
         var json = BuildUnhandledCustomerCreatedEventJson("evt_unhandled");
@@ -268,7 +268,7 @@ public sealed class StripeWebhookFunctionTests
         Assert.Empty(fixture.Handler.Calls);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
-        Assert.Equal("ignored_no_customer", audit.Outcome);
+        Assert.Equal("skipped_no_customer", audit.Outcome);
         Assert.Equal("customer.created", audit.EventType);
     }
 
@@ -837,9 +837,4 @@ public sealed class StripeWebhookFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
-
-
-
-
-
 

@@ -4,11 +4,14 @@ using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
 public sealed class SubscriptionReminderService
 {
+    private const string OperationName = "subscription_reminder_daily";
+
     private readonly IUserStore _users;
     private readonly ICompanyStore _companies;
     private readonly ISubscriptionReminderStore _reminders;
@@ -37,17 +40,44 @@ public sealed class SubscriptionReminderService
         if (take <= 0)
             throw new ArgumentOutOfRangeException(nameof(take));
 
+        var opWatch = Stopwatch.StartNew();
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} Take={Take}",
+            "entry",
+            OperationName,
+            take);
+
+        var queryWatch = Stopwatch.StartNew();
         var nowUtc = _clock.UtcNow;
         var users = await _users.QueryUsersWithStripeAsync(take, ct);
+
+        _logger.LogDebug(
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount}",
+            "persistence",
+            "users.query_with_stripe",
+            "Users",
+            queryWatch.ElapsedMilliseconds,
+            users.Count);
 
         var scanned = 0;
         var due = 0;
         var sent = 0;
+        var skippedDuplicate = 0;
 
         foreach (var user in users)
         {
             ct.ThrowIfCancellationRequested();
             scanned++;
+
+            using var userScope = _logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["OperationName"] = OperationName,
+                ["UserId"] = user.UserId,
+                ["CompanyId"] = user.CompanyId,
+                ["StripeCustomerId"] = user.StripeCustomerId,
+                ["SubscriptionId"] = user.StripeSubscriptionId
+            });
 
             var dispatch = await BuildDispatchAsync(user, nowUtc, ct);
             if (dispatch is null)
@@ -59,6 +89,14 @@ public sealed class SubscriptionReminderService
             // so journey flips (auto-renew <-> cancel-scheduled) cannot double-send
             // for the same subscription and billing period.
             var windowKey = BuildReminderWindowKey(dispatch);
+            var reminderId = $"{dispatch.SubscriptionId}:{windowKey}:{dispatch.PeriodEndUtc:yyyyMMdd}";
+
+            using var reminderScope = _logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["ReminderId"] = reminderId
+            });
+
+            var idempotencyWatch = Stopwatch.StartNew();
             var firstTime = await _reminders.TryMarkSentAsync(
                 dispatch.SubscriptionId,
                 windowKey,
@@ -66,30 +104,68 @@ public sealed class SubscriptionReminderService
                 nowUtc,
                 ct);
 
-            if (!firstTime)
-                continue;
+            _logger.LogDebug(
+                "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Success={Success} FirstTime={FirstTime}",
+                "persistence",
+                "subscription_reminder.try_mark_sent",
+                "SubscriptionReminders",
+                idempotencyWatch.ElapsedMilliseconds,
+                true,
+                firstTime);
 
+            if (!firstTime)
+            {
+                skippedDuplicate++;
+
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType}",
+                    "decision",
+                    "reminder_dispatch",
+                    "skipped_duplicate",
+                    "reminder_window_already_sent",
+                    dispatch.ReminderType);
+                continue;
+            }
+
+            var dependencyWatch = Stopwatch.StartNew();
             try
             {
                 await _manyChat.SendSubscriptionReminderAsync(dispatch, ct);
                 sent++;
+
+                _logger.LogInformation(
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType} Journey={Journey} DurationMs={DurationMs}",
+                    "outcome",
+                    "reminder_sent",
+                    "manychat_flow_triggered",
+                    dispatch.ReminderType,
+                    dispatch.Journey,
+                    dependencyWatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "Subscription reminder dispatch failed. userId={UserId} subscriptionId={SubscriptionId} reminderType={ReminderType}",
-                    user.UserId,
-                    dispatch.SubscriptionId,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} ReminderType={ReminderType}",
+                    "exception",
+                    "dependency_failed",
+                    "manychat",
+                    "send_subscription_reminder",
+                    "ManyChat API",
+                    dependencyWatch.ElapsedMilliseconds,
                     dispatch.ReminderType);
             }
         }
 
         _logger.LogInformation(
-            "SubscriptionReminderService run completed. scanned={Scanned} due={Due} sent={Sent}",
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Scanned={Scanned} Due={Due} Sent={Sent} SkippedDuplicate={SkippedDuplicate} DurationMs={DurationMs}",
+            "outcome",
+            "completed",
             scanned,
             due,
-            sent);
+            sent,
+            skippedDuplicate,
+            opWatch.ElapsedMilliseconds);
     }
 
     private static string BuildReminderWindowKey(SubscriptionReminderDispatch dispatch)
@@ -104,10 +180,26 @@ public sealed class SubscriptionReminderService
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "build_dispatch",
+                "no_action_needed",
+                "missing_manychat_subscriber_id");
             return null;
+        }
 
         if (string.IsNullOrWhiteSpace(user.StripeSubscriptionId))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "build_dispatch",
+                "no_action_needed",
+                "missing_subscription_id");
             return null;
+        }
 
         var facts = new SubscriptionReminderFacts(
             SubscriptionId: user.StripeSubscriptionId,
@@ -119,7 +211,15 @@ public sealed class SubscriptionReminderService
 
         var decision = SubscriptionReminderEvaluator.Evaluate(facts, nowUtc);
         if (decision is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "build_dispatch",
+                "no_action_needed",
+                "evaluator_returned_null");
             return null;
+        }
 
         var isCompanyReminder = IsCompanyPlan(user.PlanType);
         string? companyId = null;
@@ -128,15 +228,42 @@ public sealed class SubscriptionReminderService
         {
             var company = await ResolveCompanyAsync(user, ct);
             if (company is null)
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "build_dispatch",
+                    "no_action_needed",
+                    "company_not_resolved_for_company_reminder");
                 return null;
+            }
 
             if (!IsAdminTarget(user, company))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "build_dispatch",
+                    "denied",
+                    "user_not_company_admin_target");
                 return null;
+            }
 
             companyId = company.CompanyId;
         }
 
         var segment = DeriveAudienceSegment(user, nowUtc);
+
+        _logger.LogInformation(
+            "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType} Journey={Journey} DaysUntilPeriodEnd={DaysUntilPeriodEnd} CompanyReminder={CompanyReminder}",
+            "decision",
+            "build_dispatch",
+            "applied",
+            "dispatch_ready",
+            decision.Kind.ToEventName(),
+            decision.Journey,
+            decision.DaysUntilPeriodEnd,
+            isCompanyReminder);
 
         return new SubscriptionReminderDispatch(
             SubscriberId: user.ManyChatSubscriberId!.Trim(),
@@ -203,7 +330,4 @@ public sealed class SubscriptionReminderService
         return markerUtc.Value >= activeWindow ? "active" : "at_risk";
     }
 }
-
-
-
 

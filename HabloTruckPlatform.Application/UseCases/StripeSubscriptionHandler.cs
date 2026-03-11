@@ -7,6 +7,7 @@ using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -86,6 +87,23 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (string.IsNullOrWhiteSpace(data.CustomerId))
             throw new ArgumentException("StripeEventData.CustomerId is required for checkout completion.");
 
+        var opWatch = Stopwatch.StartNew();
+
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "stripe_checkout_completed",
+            ["StripeEventId"] = data.StripeEventId,
+            ["StripeCustomerId"] = data.CustomerId,
+            ["SubscriptionId"] = data.SubscriptionId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} PlanType={PlanType} Quantity={Quantity}",
+            "entry",
+            "stripe_checkout_completed",
+            data.Metadata is not null && data.Metadata.TryGetValue("planType", out var planTypeRaw) ? planTypeRaw : null,
+            data.Quantity);
+
         var nowUtc = _clock.UtcNow;
 
         var planTypeMeta = GetMeta(data, "planType")?.Trim().ToLowerInvariant();
@@ -144,7 +162,10 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
 
                     _logger.LogInformation(
-                        "Checkout handled: individual userId={UserId} priceId={PriceId} term={Term}",
+                        "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} UserId={UserId} PriceId={PriceId} Term={Term}",
+                        "step",
+                        "checkout_individual",
+                        "applied",
                         user.UserId,
                         user.StripePriceId,
                         user.IndividualPlanTerm);
@@ -195,7 +216,10 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     await _entitlementStore.UpsertAsync(entitlement, ct);
 
                     _logger.LogInformation(
-                        "Checkout handled: fleet companyId={CompanyId} entId={EntitlementId} seats={Seats}",
+                        "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} CompanyId={CompanyId} EntitlementId={EntitlementId} Seats={Seats}",
+                        "step",
+                        "checkout_fleet",
+                        "applied",
                         companyId,
                         entitlementId,
                         seats);
@@ -240,7 +264,10 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     await _expiryIndex.UpsertAsync(new EntitlementRef(companyId!, entitlementId), ent.EndUtc!.Value, ct);
 
                     _logger.LogInformation(
-                        "Checkout handled: cdl_cohort companyId={CompanyId} entId={EntitlementId} seats={Seats} endUtc={EndUtc}",
+                        "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} CompanyId={CompanyId} EntitlementId={EntitlementId} Seats={Seats} EndUtc={EndUtc}",
+                        "step",
+                        "checkout_cdl_cohort",
+                        "applied",
                         companyId,
                         entitlementId,
                         seats,
@@ -252,6 +279,13 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             default:
                 throw new InvalidOperationException($"Unknown normalized checkout plan '{user.PlanType}'.");
         }
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} DurationMs={DurationMs}",
+            "outcome",
+            "completed",
+            "checkout_flow_applied",
+            opWatch.ElapsedMilliseconds);
     }
 
     // =========================================================
@@ -287,43 +321,136 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         CancellationToken ct,
         bool triggerPaymentFailedFlowIfNeeded)
     {
-        var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(signal.StripeCustomerId, ct);
-        if (userRef is null) return null;
+        var opWatch = Stopwatch.StartNew();
 
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "stripe_subscription_reduce",
+            ["StripeEventId"] = signal.StripeEventId,
+            ["StripeCustomerId"] = signal.StripeCustomerId,
+            ["SubscriptionId"] = signal.StripeSubscriptionId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} Kind={Kind} TriggerPaymentFailedFlow={TriggerPaymentFailedFlow}",
+            "entry",
+            "stripe_subscription_reduce",
+            signal.Kind,
+            triggerPaymentFailedFlowIfNeeded);
+
+        var resolveWatch = Stopwatch.StartNew();
+        var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(signal.StripeCustomerId, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+            "dependency",
+            "table_storage",
+            "user_resolver.resolve_by_stripe_customer_id",
+            "UserStripeCustomerLookup",
+            resolveWatch.ElapsedMilliseconds,
+            true,
+            userRef is not null);
+
+        if (userRef is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "user_resolution",
+                "no_action_needed",
+                "user_not_found_by_stripe_customer_id");
+            return null;
+        }
+
+        var userReadWatch = Stopwatch.StartNew();
         var user = await _userStore.GetAsync(userRef.Value.UserPk, userRef.Value.UserId, ct);
-        if (user is null) return null;
+
+        _logger.LogDebug(
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+            "persistence",
+            "user.get",
+            "Users",
+            userReadWatch.ElapsedMilliseconds,
+            user is not null);
+
+        if (user is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserPk={UserPk} UserId={UserId}",
+                "decision",
+                "user_projection_missing",
+                "no_action_needed",
+                "user_not_found_after_resolve",
+                userRef.Value.UserPk,
+                userRef.Value.UserId);
+            return null;
+        }
 
         if (IsDuplicateByEventId(user, signal.StripeEventId))
         {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserId={UserId}",
+                "decision",
+                "duplicate_event_skipped",
+                "skipped_duplicate",
+                "last_stripe_event_id_matches",
+                user.UserId);
+
             return user.EffectiveAccess is not null
                 ? new AccessDecision(
                     user.EffectiveAccess.Mode,
                     user.EffectiveAccess.Source,
                     user.EffectiveAccess.GraceEndsAtUtc,
-                    "Ignored duplicate Stripe event")
+                    "Skipped duplicate Stripe event")
                 : null;
         }
 
         if (IsOutOfOrder(user, signal.StripeEventCreatedUtc))
         {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserId={UserId} EventCreatedUtc={EventCreatedUtc} LastEventCreatedUtc={LastEventCreatedUtc}",
+                "decision",
+                "out_of_order_event_skipped",
+                "skipped_out_of_order",
+                "stripe_event_created_before_last_processed",
+                user.UserId,
+                signal.StripeEventCreatedUtc,
+                user.LastStripeEventCreatedUtc);
+
             return user.EffectiveAccess is not null
                 ? new AccessDecision(
                     user.EffectiveAccess.Mode,
                     user.EffectiveAccess.Source,
                     user.EffectiveAccess.GraceEndsAtUtc,
-                    "Ignored out-of-order Stripe event")
+                    "Skipped out-of-order Stripe event")
                 : null;
         }
 
         var nowUtc = _clock.UtcNow;
 
-        // 1) Apply signal facts to user shadow cache
+        // 1) Apply signal facts to user shadow cache.
         ApplySignalFacts(user, signal, nowUtc);
 
+        _logger.LogDebug(
+            "Step completed. LogCategory={LogCategory} Step={Step} Status={Status} PriceId={PriceId} PlanType={PlanType} PeriodEndUtc={PeriodEndUtc}",
+            "step",
+            "apply_signal_facts",
+            user.SubscriptionStatus,
+            user.StripePriceId,
+            user.PlanType,
+            user.StripeCurrentPeriodEndUtc);
+
         // Keep fleet/company entitlement projection in sync with subscription lifecycle.
+        var projectionWatch = Stopwatch.StartNew();
         await ProjectCompanyEntitlementFromSignalAsync(user, signal, nowUtc, ct);
 
-        // 2) Build facts for reducer
+        _logger.LogDebug(
+            "Step completed. LogCategory={LogCategory} Step={Step} DurationMs={DurationMs}",
+            "step",
+            "project_company_entitlement",
+            projectionWatch.ElapsedMilliseconds);
+
+        // 2) Build facts for reducer.
         var facts = new StripeSubscriptionFacts(
             CustomerId: user.StripeCustomerId,
             SubscriptionId: user.StripeSubscriptionId,
@@ -335,28 +462,65 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             CanceledAtUtc: signal.CanceledAtUtc,
             EndedAtUtc: signal.EndedAtUtc);
 
-        // 3) Reduce
+        // 3) Reduce.
         var reduced = SubscriptionReducer.Reduce(
             facts,
             nowUtc,
             _individualGracePolicy,
             user.IndividualGraceEndsAtUtc);
 
-        // 4) Apply reducer result to user
+        _logger.LogInformation(
+            "Decision recorded. LogCategory={LogCategory} Decision={Decision} State={State} Reason={Reason} GraceEndsAtUtc={GraceEndsAtUtc}",
+            "decision",
+            "subscription_reduce",
+            reduced.State,
+            reduced.Reason,
+            reduced.GraceEndsAtUtc);
+
+        // 4) Apply reducer result to user.
         ApplyReducerResult(user, reduced);
 
-        // 5) Maintain grace index
+        // 5) Maintain grace index.
+        var graceWatch = Stopwatch.StartNew();
         await SyncGraceIndex(user, userRef.Value, ct);
 
-        // 6) Recompute access + ManyChat sync (inside orchestrator)
+        _logger.LogDebug(
+            "Persistence step completed. LogCategory={LogCategory} Step={Step} DurationMs={DurationMs}",
+            "persistence",
+            "sync_grace_index",
+            graceWatch.ElapsedMilliseconds);
+
+        // 6) Recompute access + ManyChat sync (inside orchestrator).
+        var accessWatch = Stopwatch.StartNew();
         var decision = await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
 
-        // 7) Persist
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Mode={Mode} Source={Source}",
+            "dependency",
+            "application",
+            "access_orchestrator.recompute",
+            "AccessOrchestrator",
+            accessWatch.ElapsedMilliseconds,
+            true,
+            decision.Mode,
+            decision.Source);
+
+        // 7) Persist.
+        var persistWatch = Stopwatch.StartNew();
         await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
+        _logger.LogDebug(
+            "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+            "persistence",
+            "user.upsert_and_lookups",
+            "Users+Lookups",
+            persistWatch.ElapsedMilliseconds,
+            true);
+
         _logger.LogInformation(
-            "Stripe reducer applied: kind={Kind} userId={UserId} reason={Reason} status={Status} periodEnd={PeriodEnd} graceEnd={GraceEnd}",
+            "Operation step applied. LogCategory={LogCategory} Kind={Kind} UserId={UserId} Reason={Reason} Status={Status} PeriodEndUtc={PeriodEndUtc} GraceEndUtc={GraceEndUtc}",
+            "step",
             signal.Kind,
             user.UserId,
             reduced.Reason,
@@ -366,17 +530,45 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (triggerPaymentFailedFlowIfNeeded
             && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId)
-            && (decision?.Mode == AccessMode.Grace || decision?.Mode == AccessMode.Blocked))
+            && (decision.Mode == AccessMode.Grace || decision.Mode == AccessMode.Blocked))
         {
+            var manyChatWatch = Stopwatch.StartNew();
             try
             {
                 await _manyChatSync.TriggerPaymentFailedFlowAsync(user.ManyChatSubscriberId!, ct);
+
+                _logger.LogDebug(
+                    "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Outcome={Outcome}",
+                    "dependency",
+                    "manychat",
+                    "trigger_payment_failed_flow",
+                    "ManyChat API",
+                    manyChatWatch.ElapsedMilliseconds,
+                    true,
+                    "applied");
             }
-            catch
+            catch (Exception ex)
             {
-                // best-effort
+                _logger.LogWarning(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs}",
+                    "exception",
+                    "dependency_failed",
+                    "manychat",
+                    "trigger_payment_failed_flow",
+                    "ManyChat API",
+                    manyChatWatch.ElapsedMilliseconds);
             }
         }
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} Kind={Kind} UserId={UserId} DurationMs={DurationMs}",
+            "outcome",
+            "applied",
+            reduced.Reason,
+            signal.Kind,
+            user.UserId,
+            opWatch.ElapsedMilliseconds);
 
         return decision;
     }
@@ -444,6 +636,22 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         DateTimeOffset nowUtc,
         CancellationToken ct)
     {
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "project_company_entitlement",
+            ["StripeEventId"] = signal.StripeEventId,
+            ["StripeCustomerId"] = signal.StripeCustomerId,
+            ["SubscriptionId"] = signal.StripeSubscriptionId,
+            ["UserId"] = user.UserId,
+            ["CompanyId"] = user.CompanyId
+        });
+
+        _logger.LogInformation(
+            "Step started. LogCategory={LogCategory} Step={Step} SignalKind={SignalKind}",
+            "step",
+            "project_company_entitlement",
+            signal.Kind);
+
         if (signal.Kind is not (StripeSignalKind.SubscriptionUpdated or StripeSignalKind.SubscriptionDeleted))
             return;
 
@@ -459,7 +667,15 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         }
 
         if (companyId is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "project_company_entitlement",
+                "no_action_needed",
+                "company_not_resolved");
             return;
+        }
 
         var entitlementId = ResolveEntitlementIdForFleet(companyId, signal.StripeSubscriptionId);
         var entitlement = await _entitlementStore.GetAsync(companyId, entitlementId, ct);
@@ -470,10 +686,27 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                           || string.Equals(plan, "fleet_seat", StringComparison.OrdinalIgnoreCase);
 
         if (!isFleetPlan && entitlement is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} PlanType={PlanType}",
+                "decision",
+                "project_company_entitlement",
+                "no_action_needed",
+                "not_fleet_plan_and_no_entitlement",
+                plan);
             return;
+        }
 
         if (entitlement is null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "project_company_entitlement",
+                "no_action_needed",
+                "entitlement_not_found");
             return;
+        }
 
         var previousEndUtc = entitlement.EndUtc;
 
@@ -498,6 +731,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 await _entitlementStore.UpsertAsync(projected, ct);
                 await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
                 await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), projectedEndUtc, ct);
+
+                _logger.LogInformation(
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+                    "outcome",
+                    "applied",
+                    "projected_paid_through_end",
+                    entitlementId,
+                    projectedEndUtc);
                 return;
             }
 
@@ -517,6 +758,13 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
                 await _entitlementStore.UpsertAsync(projected, ct);
                 await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+
+                _logger.LogInformation(
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId}",
+                    "outcome",
+                    "applied",
+                    "cancel_at_period_end_removed",
+                    entitlementId);
             }
 
             return;
@@ -541,6 +789,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             await _entitlementStore.UpsertAsync(paidThrough, ct);
             await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
             await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), endedUtc, ct);
+
+            _logger.LogInformation(
+                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+                "outcome",
+                "applied",
+                "subscription_deleted_but_paid_through",
+                entitlementId,
+                endedUtc);
             return;
         }
 
@@ -558,6 +814,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         await _entitlementStore.UpsertAsync(expired, ct);
         await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
+
+        _logger.LogInformation(
+            "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+            "outcome",
+            "expired",
+            "company_entitlement_expired",
+            entitlementId,
+            endedUtc);
     }
 
     private async Task DeleteExpiryIndexIfPresent(
@@ -825,9 +1089,4 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
-
-
-
-
-
 

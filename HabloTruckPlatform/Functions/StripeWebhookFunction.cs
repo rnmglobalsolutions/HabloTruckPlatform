@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
@@ -12,6 +13,8 @@ namespace HabloTruckPlatform.Functions.Functions;
 
 public sealed class StripeWebhookFunction
 {
+    private const string OperationName = "stripe_webhook";
+
     private readonly StripeSignatureValidator _sigValidator;
     private readonly StripeEventParser _parser;
     private readonly IStripeEventStore _eventStore;
@@ -47,14 +50,37 @@ public sealed class StripeWebhookFunction
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+        var invocationId = ctx.InvocationId;
+        var correlationId = LogContext.ResolveCorrelationId(
+            FirstHeader(req, "x-correlation-id", "x-request-id"),
+            invocationId);
+        var started = Stopwatch.StartNew();
+
+        using var operationScope = LogContext.BeginOperationScope(
+            _logger,
+            operationName: OperationName,
+            correlationId: correlationId,
+            invocationId: invocationId);
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} HttpMethod={HttpMethod} Path={Path}",
+            LogContext.Categories.Entry,
+            req.Method,
+            req.Url.AbsolutePath);
 
         string json;
         using (var reader = new StreamReader(req.Body))
-            json = await reader.ReadToEndAsync();
+        {
+            json = await reader.ReadToEndAsync(ct);
+        }
 
-        var stripeSignature = req.Headers.TryGetValues("Stripe-Signature", out var values)
-            ? values.FirstOrDefault()
-            : null;
+        _logger.LogDebug(
+            "Webhook payload accepted. LogCategory={LogCategory} Step={Step} PayloadBytes={PayloadBytes}",
+            LogContext.Categories.Step,
+            "read_body",
+            json.Length);
+
+        var stripeSignature = FirstHeader(req, "Stripe-Signature");
 
         Stripe.Event stripeEvent;
         try
@@ -63,27 +89,74 @@ public sealed class StripeWebhookFunction
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Invalid Stripe signature");
-            return req.CreateResponse(HttpStatusCode.BadRequest);
+            _logger.LogWarning(
+                ex,
+                "Stripe signature validation failed. LogCategory={LogCategory} Outcome={Outcome}",
+                LogContext.Categories.Exception,
+                LogContext.Outcomes.ValidationFailed);
+
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.BadRequest,
+                LogContext.Outcomes.ValidationFailed,
+                "invalid_signature",
+                started.ElapsedMilliseconds);
         }
 
+        using var eventScope = LogContext.BeginOperationScope(
+            _logger,
+            operationName: OperationName,
+            correlationId: correlationId,
+            invocationId: invocationId,
+            stripeEventId: stripeEvent.Id);
+
         _metrics.StripeEventReceived(stripeEvent.Type);
+
+        _logger.LogDebug(
+            "Stripe event received. LogCategory={LogCategory} EventType={EventType}",
+            LogContext.Categories.Step,
+            stripeEvent.Type);
 
         var createdToken = stripeEvent.RawJObject?["created"];
         var createdUtc = createdToken != null && long.TryParse(createdToken.ToString(), out var seconds)
             ? DateTimeOffset.FromUnixTimeSeconds(seconds).ToUniversalTime()
             : DateTimeOffset.UtcNow;
 
-        // Idempotency gate
+        var idempotencyWatch = Stopwatch.StartNew();
         var firstTime = await _eventStore.TryMarkProcessedAsync(
             stripeEvent.Id,
             stripeEvent.Type,
             createdUtc,
             ct);
 
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} FirstTime={FirstTime}",
+            LogContext.Categories.Dependency,
+            "table_storage",
+            "stripe_events.try_mark_processed",
+            "StripeEvents",
+            idempotencyWatch.ElapsedMilliseconds,
+            true,
+            firstTime);
+
+        if (firstTime)
+        {
+            _logger.LogInformation(
+                "Persistence transition. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} DurationMs={DurationMs}",
+                LogContext.Categories.Persistence,
+                LogContext.Outcomes.Applied,
+                "idempotency_marker_created",
+                idempotencyWatch.ElapsedMilliseconds);
+        }
+
         if (!firstTime)
         {
-            _logger.LogInformation("Duplicate Stripe event ignored: {EventId}", stripeEvent.Id);
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                LogContext.Categories.Decision,
+                "duplicate_event_skipped",
+                LogContext.Outcomes.SkippedDuplicate,
+                "Stripe event already processed");
 
             await AppendAuditSafeAsync(new StripeEventAuditItem(
                 StripeEventId: stripeEvent.Id,
@@ -94,7 +167,7 @@ public sealed class StripeWebhookFunction
                 Status: null,
                 EventCreatedUtc: createdUtc,
                 ProcessedUtc: DateTimeOffset.UtcNow,
-                Outcome: "ignored_duplicate",
+                Outcome: "skipped_duplicate",
                 Reason: "Stripe event already processed",
                 UserPk: null,
                 UserId: null,
@@ -105,7 +178,12 @@ public sealed class StripeWebhookFunction
                 Error: null
             ), ct);
 
-            return req.CreateResponse(HttpStatusCode.OK);
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.SkippedDuplicate,
+                "duplicate_event",
+                started.ElapsedMilliseconds);
         }
 
         StripeParsedEvent parsed;
@@ -115,7 +193,12 @@ public sealed class StripeWebhookFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse Stripe event payload. eventId={EventId} eventType={EventType}", stripeEvent.Id, stripeEvent.Type);
+            _logger.LogError(
+                ex,
+                "Stripe event parse failed. LogCategory={LogCategory} Outcome={Outcome} EventType={EventType}",
+                LogContext.Categories.Exception,
+                LogContext.Outcomes.ValidationFailed,
+                stripeEvent.Type);
 
             await AppendAuditSafeAsync(new StripeEventAuditItem(
                 StripeEventId: stripeEvent.Id,
@@ -137,12 +220,22 @@ public sealed class StripeWebhookFunction
                 Error: ex.Message
             ), ct);
 
-            return req.CreateResponse(HttpStatusCode.OK);
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.ValidationFailed,
+                "failed_parse",
+                started.ElapsedMilliseconds);
         }
 
         if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
         {
-            _logger.LogInformation("Event without customer ignored: {Type}", parsed.EventType);
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} EventType={EventType}",
+                LogContext.Categories.Decision,
+                "skipped_without_customer",
+                LogContext.Outcomes.SkippedNoCustomer,
+                parsed.EventType);
 
             await AppendAuditSafeAsync(new StripeEventAuditItem(
                 StripeEventId: stripeEvent.Id,
@@ -153,7 +246,7 @@ public sealed class StripeWebhookFunction
                 Status: parsed.Data?.Status,
                 EventCreatedUtc: createdUtc,
                 ProcessedUtc: DateTimeOffset.UtcNow,
-                Outcome: "ignored_no_customer",
+                Outcome: "skipped_no_customer",
                 Reason: "Parsed event had no customer id",
                 UserPk: null,
                 UserId: null,
@@ -164,74 +257,129 @@ public sealed class StripeWebhookFunction
                 Error: null
             ), ct);
 
-            return req.CreateResponse(HttpStatusCode.OK);
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.SkippedNoCustomer,
+                "customer_missing",
+                started.ElapsedMilliseconds);
         }
 
-        // Inject metadata if parser didn't already
+        // Inject metadata if parser didn't already.
         parsed.Data!.StripeEventId = stripeEvent.Id;
         parsed.Data.StripeEventCreatedUtc = createdUtc;
 
+        var resolveUserWatch = Stopwatch.StartNew();
         var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(parsed.Data.CustomerId!, ct);
 
-        using (LogContext.BeginUserScope(_logger, userRef?.UserId, null, parsed.Data.CustomerId))
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+            LogContext.Categories.Dependency,
+            "table_storage",
+            "user_resolver.resolve_by_stripe_customer_id",
+            "UserStripeCustomerLookup",
+            resolveUserWatch.ElapsedMilliseconds,
+            true,
+            userRef is not null);
+
+        using var processingScope = LogContext.BeginOperationScope(
+            _logger,
+            operationName: OperationName,
+            correlationId: correlationId,
+            invocationId: invocationId,
+            stripeEventId: stripeEvent.Id,
+            userId: userRef?.UserId,
+            stripeCustomerId: parsed.Data.CustomerId,
+            subscriptionId: parsed.Data.SubscriptionId);
+
+        DispatchResult? dispatch = null;
+        try
         {
-            try
-            {
-                var dispatch = await DispatchAsync(parsed, ct);
+            var dispatchWatch = Stopwatch.StartNew();
+            dispatch = await DispatchAsync(parsed, ct);
 
-                await AppendAuditSafeAsync(new StripeEventAuditItem(
-                    StripeEventId: stripeEvent.Id,
-                    EventType: parsed.EventType,
-                    CustomerId: parsed.Data.CustomerId,
-                    SubscriptionId: parsed.Data.SubscriptionId,
-                    PriceId: parsed.Data.PriceId,
-                    Status: parsed.Data.Status,
-                    EventCreatedUtc: createdUtc,
-                    ProcessedUtc: DateTimeOffset.UtcNow,
-                    Outcome: dispatch.Outcome,
-                    Reason: dispatch.Reason,
-                    UserPk: userRef?.UserPk,
-                    UserId: userRef?.UserId,
-                    CurrentPeriodEndUtc: parsed.Data.CurrentPeriodEndUtc,
-                    CancelAtPeriodEnd: parsed.Data.CancelAtPeriodEnd,
-                    AccessMode: dispatch.AccessMode,
-                    AccessSource: dispatch.AccessSource,
-                    Error: null
-                ), ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing Stripe event {Type}", parsed.EventType);
+            _logger.LogDebug(
+                "Step completed. LogCategory={LogCategory} Step={Step} DispatchOutcome={DispatchOutcome} DurationMs={DurationMs} Reason={Reason}",
+                LogContext.Categories.Step,
+                "dispatch_event",
+                dispatch.Outcome,
+                dispatchWatch.ElapsedMilliseconds,
+                dispatch.Reason);
 
-                await AppendAuditSafeAsync(new StripeEventAuditItem(
-                    StripeEventId: stripeEvent.Id,
-                    EventType: parsed.EventType,
-                    CustomerId: parsed.Data.CustomerId,
-                    SubscriptionId: parsed.Data.SubscriptionId,
-                    PriceId: parsed.Data.PriceId,
-                    Status: parsed.Data.Status,
-                    EventCreatedUtc: createdUtc,
-                    ProcessedUtc: DateTimeOffset.UtcNow,
-                    Outcome: "failed",
-                    Reason: "Exception while processing Stripe event",
-                    UserPk: userRef?.UserPk,
-                    UserId: userRef?.UserId,
-                    CurrentPeriodEndUtc: parsed.Data.CurrentPeriodEndUtc,
-                    CancelAtPeriodEnd: parsed.Data.CancelAtPeriodEnd,
-                    AccessMode: null,
-                    AccessSource: null,
-                    Error: ex.Message
-                ), ct);
+            await AppendAuditSafeAsync(new StripeEventAuditItem(
+                StripeEventId: stripeEvent.Id,
+                EventType: parsed.EventType,
+                CustomerId: parsed.Data.CustomerId,
+                SubscriptionId: parsed.Data.SubscriptionId,
+                PriceId: parsed.Data.PriceId,
+                Status: parsed.Data.Status,
+                EventCreatedUtc: createdUtc,
+                ProcessedUtc: DateTimeOffset.UtcNow,
+                Outcome: dispatch.Outcome,
+                Reason: dispatch.Reason,
+                UserPk: userRef?.UserPk,
+                UserId: userRef?.UserId,
+                CurrentPeriodEndUtc: parsed.Data.CurrentPeriodEndUtc,
+                CancelAtPeriodEnd: parsed.Data.CancelAtPeriodEnd,
+                AccessMode: dispatch.AccessMode,
+                AccessSource: dispatch.AccessSource,
+                Error: null
+            ), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Stripe event processing failed. LogCategory={LogCategory} Outcome={Outcome} EventType={EventType}",
+                LogContext.Categories.Exception,
+                LogContext.Outcomes.DependencyFailed,
+                parsed.EventType);
 
-                // Do not fail webhook
-            }
+            await AppendAuditSafeAsync(new StripeEventAuditItem(
+                StripeEventId: stripeEvent.Id,
+                EventType: parsed.EventType,
+                CustomerId: parsed.Data.CustomerId,
+                SubscriptionId: parsed.Data.SubscriptionId,
+                PriceId: parsed.Data.PriceId,
+                Status: parsed.Data.Status,
+                EventCreatedUtc: createdUtc,
+                ProcessedUtc: DateTimeOffset.UtcNow,
+                Outcome: "failed",
+                Reason: "Exception while processing Stripe event",
+                UserPk: userRef?.UserPk,
+                UserId: userRef?.UserId,
+                CurrentPeriodEndUtc: parsed.Data.CurrentPeriodEndUtc,
+                CancelAtPeriodEnd: parsed.Data.CancelAtPeriodEnd,
+                AccessMode: null,
+                AccessSource: null,
+                Error: ex.Message
+            ), ct);
+
+            // Do not fail webhook; Stripe expects 2xx to avoid retries for known handled failures.
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.DependencyFailed,
+                "handler_exception",
+                started.ElapsedMilliseconds);
         }
 
-        return req.CreateResponse(HttpStatusCode.OK);
+        return BuildOutcomeResponse(
+            req,
+            HttpStatusCode.OK,
+            NormalizeOutcomeForLogs(dispatch?.Outcome),
+            dispatch?.Reason ?? "processed",
+            started.ElapsedMilliseconds);
     }
 
     private async Task<DispatchResult> DispatchAsync(StripeParsedEvent parsed, CancellationToken ct)
     {
+        _logger.LogDebug(
+            "Dispatch started. LogCategory={LogCategory} Step={Step} EventType={EventType}",
+            LogContext.Categories.Step,
+            "dispatch",
+            parsed.EventType);
+
         switch (parsed.EventType)
         {
             case "checkout.session.completed":
@@ -263,8 +411,18 @@ public sealed class StripeWebhookFunction
                 }
 
             default:
-                _logger.LogInformation("Unhandled Stripe event type: {Type}", parsed.EventType);
-                return new DispatchResult("ignored_unhandled", $"Unhandled Stripe event type: {parsed.EventType}", null, null);
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} EventType={EventType}",
+                    LogContext.Categories.Decision,
+                    "unhandled_event_type",
+                    LogContext.Outcomes.SkippedUnhandled,
+                    parsed.EventType);
+
+                return new DispatchResult(
+                    "skipped_unhandled",
+                    $"Unhandled Stripe event type: {parsed.EventType}",
+                    null,
+                    null);
         }
     }
 
@@ -279,7 +437,7 @@ public sealed class StripeWebhookFunction
             reason.Contains("out-of-order", StringComparison.OrdinalIgnoreCase))
         {
             return new DispatchResult(
-                "ignored_out_of_order",
+                "skipped_out_of_order",
                 reason,
                 decision.Mode.ToString(),
                 decision.Source.ToString());
@@ -294,14 +452,80 @@ public sealed class StripeWebhookFunction
 
     private async Task AppendAuditSafeAsync(StripeEventAuditItem item, CancellationToken ct)
     {
+        var auditWatch = Stopwatch.StartNew();
         try
         {
             await _auditStore.AppendAsync(item, ct);
+
+            _logger.LogDebug(
+                "Persistence completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Success={Success} AuditOutcome={AuditOutcome}",
+                LogContext.Categories.Persistence,
+                "stripe_event_audit.append",
+                "StripeEventAudit",
+                auditWatch.ElapsedMilliseconds,
+                true,
+                item.Outcome);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to append Stripe audit item for event {EventId}", item.StripeEventId);
+            _logger.LogError(
+                ex,
+                "Persistence failed. LogCategory={LogCategory} Outcome={Outcome} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs}",
+                LogContext.Categories.Exception,
+                LogContext.Outcomes.PersistenceFailed,
+                "stripe_event_audit.append",
+                "StripeEventAudit",
+                auditWatch.ElapsedMilliseconds);
         }
+    }
+
+    private HttpResponseData BuildOutcomeResponse(
+        HttpRequestData req,
+        HttpStatusCode statusCode,
+        string outcome,
+        string reason,
+        long durationMs)
+    {
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} StatusCode={StatusCode} DurationMs={DurationMs}",
+            LogContext.Categories.Outcome,
+            outcome,
+            reason,
+            (int)statusCode,
+            durationMs);
+
+        return req.CreateResponse(statusCode);
+    }
+
+    private static string NormalizeOutcomeForLogs(string? dispatchOutcome)
+    {
+        var normalized = LogContext.NormalizeOutcomeAlias(dispatchOutcome);
+        return normalized switch
+        {
+            "skipped_duplicate" => LogContext.Outcomes.SkippedDuplicate,
+            "skipped_out_of_order" => LogContext.Outcomes.SkippedOutOfOrder,
+            "skipped_no_customer" => LogContext.Outcomes.SkippedNoCustomer,
+            "skipped_unhandled" => LogContext.Outcomes.SkippedUnhandled,
+            "failed_parse" => LogContext.Outcomes.ValidationFailed,
+            "failed" => LogContext.Outcomes.DependencyFailed,
+            "applied" => LogContext.Outcomes.Applied,
+            _ => LogContext.Outcomes.Completed
+        };
+    }
+
+    private static string? FirstHeader(HttpRequestData req, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (req.Headers.TryGetValues(name, out var values))
+            {
+                var value = values.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
+            }
+        }
+
+        return null;
     }
 
     private sealed record DispatchResult(
@@ -310,3 +534,4 @@ public sealed class StripeWebhookFunction
         string? AccessMode,
         string? AccessSource);
 }
+

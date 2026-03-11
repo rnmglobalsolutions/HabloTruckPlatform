@@ -1,19 +1,27 @@
-﻿using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Stripe;
 using Stripe.Checkout;
+using System.Diagnostics;
 
 namespace HabloTruckPlatform.Infrastructure.Stripe;
 
 public sealed class StripeCheckoutService : IStripeCheckoutService
 {
+    private readonly ILogger<StripeCheckoutService> _logger;
+
+    public StripeCheckoutService(ILogger<StripeCheckoutService>? logger = null)
+    {
+        _logger = logger ?? NullLogger<StripeCheckoutService>.Instance;
+    }
+
     public async Task<StripeCheckoutSessionResult> CreateCheckoutSessionAsync(
         StripeCheckoutSessionRequest request,
         CancellationToken ct = default)
     {
         var metadata = BuildMetadata(request);
-
-        // StripeConfiguration.ApiKey = _config["STRIPE_SECRET_KEY"];
 
         var options = new SessionCreateOptions
         {
@@ -26,8 +34,8 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
             CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
             PaymentMethodTypes = new List<string>
             {
-                "card",       // Includes Apple Pay and Google Pay when configured
-                "link",       // Stripe Link payments
+                "card", // Includes Apple Pay and Google Pay when configured
+                "link", // Stripe Link payments
                 "us_bank_account" // ACH Direct Debit if enabled for your account
             },
             LineItems = new List<SessionLineItemOptions>
@@ -46,13 +54,24 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
         };
 
         var service = new SessionService();
+        var watch = Stopwatch.StartNew();
         var session = await service.CreateAsync(options, cancellationToken: ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} SessionId={SessionId}",
+            "dependency",
+            "stripe",
+            "checkout_session_create",
+            "Stripe API",
+            watch.ElapsedMilliseconds,
+            session is not null,
+            session?.Id);
 
         return new StripeCheckoutSessionResult
         {
             Result = true,
-            Url = session.Url ?? "",
-            SessionId = session.Id,
+            Url = session?.Url ?? "",
+            SessionId = session?.Id,
             Error = null
         };
     }
@@ -86,3 +105,4 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
             metadata[key] = value.Trim();
     }
 }
+

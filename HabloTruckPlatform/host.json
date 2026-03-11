@@ -1,10 +1,22 @@
 {
   "version": "2.0",
   "logging": {
+    "logLevel": {
+      "default": "Information",
+      "Function": "Information",
+      "Host.Results": "Information",
+      "Host.Aggregator": "Warning",
+      "Host.Triggers": "Information",
+      "Microsoft": "Warning",
+      "System": "Warning",
+      "Worker": "Warning",
+      "Azure": "Warning"
+    },
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,
-        "excludedTypes": "Request"
+        "excludedTypes": "Request",
+        "maxTelemetryItemsPerSecond": 10
       },
       "enableLiveMetricsFilters": true
     }
