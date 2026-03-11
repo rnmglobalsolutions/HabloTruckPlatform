@@ -1,0 +1,152 @@
+KQL QUERY PACK
+
+Reconstruct one Stripe event end-to-end by StripeEventId:
+
+let stripeEventId = "evt_123";
+union isfuzzy=true traces, requests, exceptions
+| where timestamp > ago(7d)
+| extend StripeEventId = tostring(customDimensions["StripeEventId"])
+| where StripeEventId == stripeEventId
+   or tostring(message) has stripeEventId
+   or tostring(name) has stripeEventId
+| project timestamp, itemType, operation_Id, operation_Name,
+          severityLevel, name, message, outerMessage, resultCode, success,
+          CorrelationId=tostring(customDimensions["CorrelationId"]),
+          InvocationId=tostring(customDimensions["InvocationId"]),
+          UserId=tostring(customDimensions["UserId"]),
+          Outcome=tostring(customDimensions["Outcome"]),
+          Reason=tostring(customDimensions["Reason"])
+| order by timestamp asc
+
+---
+
+Find skipped_duplicate and skipped_out_of_order (including historical aliases):
+
+traces
+| where timestamp > ago(7d)
+| extend rawOutcome = tostring(customDimensions["Outcome"])
+| extend outcome = case(
+    rawOutcome == "ignored_duplicate", "skipped_duplicate",
+    rawOutcome == "ignored_out_of_order", "skipped_out_of_order",
+    rawOutcome)
+| where outcome in ("skipped_duplicate", "skipped_out_of_order")
+| project timestamp, operation_Id,
+          OperationName=tostring(customDimensions["OperationName"]),
+          StripeEventId=tostring(customDimensions["StripeEventId"]),
+          UserId=tostring(customDimensions["UserId"]),
+          outcome, Reason=tostring(customDimensions["Reason"]), message
+| order by timestamp desc
+
+
+---
+
+Find failed webhook executions:
+
+let failedReq =
+requests
+| where timestamp > ago(7d)
+| where name has "StripeWebhook" or tostring(url) has "/stripe/webhook"
+| where success == false or toint(resultCode) >= 500
+| project timestamp, operation_Id, name, resultCode, success, itemType="request", message="";
+let failedTrace =
+traces
+| where timestamp > ago(7d)
+| where tostring(customDimensions["OperationName"]) == "stripe_webhook"
+| where tostring(customDimensions["Outcome"]) in ("validation_failed","dependency_failed","persistence_failed")
+| project timestamp, operation_Id, name="", resultCode="", success=bool(null), itemType="trace", message;
+union failedReq, failedTrace
+| order by timestamp desc
+
+---
+
+One operation timeline ordered by timestamp:
+
+let correlationId = "corr_xxx";
+union isfuzzy=true traces, requests, exceptions
+| where timestamp > ago(48h)
+| where tostring(customDimensions["CorrelationId"]) == correlationId
+   or operation_Id == correlationId
+| project timestamp, itemType, operation_Id, operation_Name,
+          severityLevel, name, message, outerMessage,
+          LogCategory=tostring(customDimensions["LogCategory"]),
+          Step=tostring(customDimensions["Step"]),
+          Outcome=tostring(customDimensions["Outcome"]),
+          Reason=tostring(customDimensions["Reason"]),
+          InvocationId=tostring(customDimensions["InvocationId"]),
+          UserId=tostring(customDimensions["UserId"]),
+          StripeEventId=tostring(customDimensions["StripeEventId"])
+| order by timestamp asc
+
+
+---
+
+Search by CorrelationId / InvocationId / UserId:
+
+let correlationId = "";   // optional
+let invocationId = "";    // optional
+let userId = "";          // optional
+traces
+| where timestamp > ago(7d)
+| extend CorrelationId=tostring(customDimensions["CorrelationId"]),
+         InvocationId=tostring(customDimensions["InvocationId"]),
+         UserId=tostring(customDimensions["UserId"])
+| where (isempty(correlationId) or CorrelationId == correlationId)
+  and (isempty(invocationId) or InvocationId == invocationId)
+  and (isempty(userId) or UserId == userId)
+| project timestamp, operation_Id, severityLevel, message,
+          CorrelationId, InvocationId, UserId,
+          OperationName=tostring(customDimensions["OperationName"]),
+          StripeEventId=tostring(customDimensions["StripeEventId"]),
+          Outcome=tostring(customDimensions["Outcome"]),
+          Reason=tostring(customDimensions["Reason"])
+| order by timestamp desc
+
+
+-------
+
+Queryability improvements
+
+Add a one-time production smoke-check query for scope-field presence:
+
+traces
+| where timestamp > ago(24h)
+| where tostring(customDimensions["OperationName"]) in ("stripe_webhook","stripe_subscription_reduce","subscription_reminder_daily")
+| summarize total=count(),
+          withCorrelation=countif(isnotempty(tostring(customDimensions["CorrelationId"]))),
+          withInvocation=countif(isnotempty(tostring(customDimensions["InvocationId"]))),
+          withStripeEvent=countif(isnotempty(tostring(customDimensions["StripeEventId"]))),
+          withUser=countif(isnotempty(tostring(customDimensions["UserId"])))
+
+--
+
+Keep historical outcome compatibility in queries:
+
+traces
+| extend rawOutcome=tostring(customDimensions["Outcome"])
+| extend outcome=case(rawOutcome=="ignored_duplicate","skipped_duplicate",
+                      rawOutcome=="ignored_out_of_order","skipped_out_of_order",
+                      rawOutcome)
+| where outcome in ("skipped_duplicate","skipped_out_of_order")
+
+
+--
+
+End-to-end by StripeEventId:
+
+let id="evt_xxx";
+union isfuzzy=true traces, requests, exceptions
+| where timestamp > ago(7d)
+| where tostring(customDimensions["StripeEventId"]) == id or message has id
+| order by timestamp asc
+
+
+--
+
+Failed webhook executions:
+
+union isfuzzy=true traces, exceptions, requests
+| where timestamp > ago(7d)
+| where tostring(customDimensions["OperationName"]) == "stripe_webhook"
+| where tostring(customDimensions["Outcome"]) in ("validation_failed","dependency_failed","persistence_failed")
+   or (itemType=="request" and (success==false or toint(resultCode)>=500))
+| order by timestamp desc
