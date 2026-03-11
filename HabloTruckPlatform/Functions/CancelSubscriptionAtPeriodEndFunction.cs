@@ -70,6 +70,7 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
             "forbidden" => HttpStatusCode.Forbidden,
             "actor_not_found" => HttpStatusCode.NotFound,
             "company_not_found" => HttpStatusCode.NotFound,
+            "company_entitlement_not_found" => HttpStatusCode.NotFound,
             "subscription_not_found" => HttpStatusCode.NotFound,
             "stripe_update_failed" => HttpStatusCode.InternalServerError,
             _ => HttpStatusCode.BadRequest
@@ -84,3 +85,4 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
         return res;
     }
 }
+

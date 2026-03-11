@@ -154,6 +154,75 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
     }
 
     [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_MoveExpiryIndex_When_PeriodEndChanges()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var oldPeriodEnd = now.AddDays(10);
+        var newPeriodEnd = now.AddDays(25);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_FLEET_1B",
+            StripeCustomerId = "cus_fleet_1b",
+            StripeSubscriptionId = "sub_fleet_1b",
+            SubscriptionStatus = "active"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_1b", user);
+
+        fixture.CompanyStore.Companies["C_FLEET_1B"] = new Company
+        {
+            CompanyId = "C_FLEET_1B",
+            StripeCustomerId = "cus_fleet_1b",
+            AdminEmailNormalized = "admin@fleet1b.com",
+            Status = "active"
+        };
+
+        fixture.EntitlementStore.UpsertLocal(new Entitlement
+        {
+            CompanyId = "C_FLEET_1B",
+            EntitlementId = "ent_sub_fleet_1b",
+            SeatsTotal = 25,
+            SeatsUsed = 5,
+            Status = "active",
+            StartUtc = now.AddDays(-15),
+            EndUtc = oldPeriodEnd,
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        // Act
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_update_1b",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_1b",
+            StripeSubscriptionId: "sub_fleet_1b",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: newPeriodEnd,
+            CanceledAtUtc: null,
+            EndedAtUtc: null));
+
+        // Assert
+        var ent = await fixture.EntitlementStore.GetAsync("C_FLEET_1B", "ent_sub_fleet_1b");
+        Assert.NotNull(ent);
+        Assert.Equal("active", ent!.Status);
+        Assert.Equal(newPeriodEnd, ent.EndUtc);
+
+        Assert.Single(fixture.ExpiryIndexStore.Upserts);
+        Assert.Equal(newPeriodEnd, fixture.ExpiryIndexStore.Upserts[0].EndUtc);
+
+        Assert.Single(fixture.ExpiryIndexStore.Deletes);
+        var expectedDeletePk = $"{TablePrefixes.EntitlementExpiry}_{oldPeriodEnd:yyyyMMdd}";
+        var expectedDeleteRk = $"{oldPeriodEnd.Ticks:D19}_C_FLEET_1B_ent_sub_fleet_1b";
+        Assert.Equal((expectedDeletePk, expectedDeleteRk), fixture.ExpiryIndexStore.Deletes[0]);
+    }
+
+    [Fact]
     public async Task HandleSubscriptionDeletedAsync_Should_ExpireFleetEntitlement_When_SubscriptionIsDeleted()
     {
         // Arrange
@@ -211,6 +280,174 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
         Assert.Equal(now, ent.EndUtc);
     }
 
+    [Fact]
+    public async Task HandleSubscriptionDeletedAsync_Should_KeepFleetEntitlementActive_Until_FutureEndedAt()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var futureEnd = now.AddDays(4);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_FLEET_3",
+            StripeCustomerId = "cus_fleet_3",
+            StripeSubscriptionId = "sub_fleet_3",
+            SubscriptionStatus = "active"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_3", user);
+
+        fixture.CompanyStore.Companies["C_FLEET_3"] = new Company
+        {
+            CompanyId = "C_FLEET_3",
+            StripeCustomerId = "cus_fleet_3",
+            AdminEmailNormalized = "admin@fleet3.com",
+            Status = "active"
+        };
+
+        fixture.EntitlementStore.UpsertLocal(new Entitlement
+        {
+            CompanyId = "C_FLEET_3",
+            EntitlementId = "ent_sub_fleet_3",
+            SeatsTotal = 10,
+            SeatsUsed = 2,
+            Status = "active",
+            StartUtc = now.AddDays(-20),
+            EndUtc = null,
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        // Act
+        await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
+            StripeEventId: "evt_fleet_deleted_3",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_3",
+            StripeSubscriptionId: "sub_fleet_3",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: futureEnd,
+            CanceledAtUtc: now,
+            EndedAtUtc: futureEnd));
+
+        // Assert
+        var ent = await fixture.EntitlementStore.GetAsync("C_FLEET_3", "ent_sub_fleet_3");
+        Assert.NotNull(ent);
+        Assert.Equal("active", ent!.Status);
+        Assert.Equal(futureEnd, ent.EndUtc);
+        Assert.Single(fixture.ExpiryIndexStore.Upserts);
+        Assert.Equal(futureEnd, fixture.ExpiryIndexStore.Upserts[0].EndUtc);
+    }
+
+
+    [Fact]
+    public async Task HandleFleetLifecycleSequence_Should_ProjectCancelSchedule_IgnoreOlderReplay_AndExpireOnFinalDelete()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var periodEnd = now.AddDays(5);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_FLEET_SEQ_1",
+            StripeCustomerId = "cus_fleet_seq_1",
+            StripeSubscriptionId = "sub_fleet_seq_1",
+            SubscriptionStatus = "active"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_seq_1", user);
+
+        fixture.CompanyStore.Companies["C_FLEET_SEQ_1"] = new Company
+        {
+            CompanyId = "C_FLEET_SEQ_1",
+            StripeCustomerId = "cus_fleet_seq_1",
+            AdminEmailNormalized = "admin@fleet-seq.com",
+            Status = "active"
+        };
+
+        fixture.EntitlementStore.UpsertLocal(new Entitlement
+        {
+            CompanyId = "C_FLEET_SEQ_1",
+            EntitlementId = "ent_sub_fleet_seq_1",
+            SeatsTotal = 20,
+            SeatsUsed = 6,
+            Status = "active",
+            StartUtc = now.AddDays(-10),
+            EndUtc = null,
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_seq_update_1",
+            StripeEventCreatedUtc: now.AddMinutes(1),
+            StripeCustomerId: "cus_fleet_seq_1",
+            StripeSubscriptionId: "sub_fleet_seq_1",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: periodEnd,
+            CanceledAtUtc: now.AddMinutes(1),
+            EndedAtUtc: null));
+
+        var scheduledEntitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_SEQ_1", "ent_sub_fleet_seq_1");
+        Assert.NotNull(scheduledEntitlement);
+        Assert.Equal("active", scheduledEntitlement!.Status);
+        Assert.Equal(periodEnd, scheduledEntitlement.EndUtc);
+
+        await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
+            StripeEventId: "evt_fleet_seq_deleted_future",
+            StripeEventCreatedUtc: now.AddMinutes(2),
+            StripeCustomerId: "cus_fleet_seq_1",
+            StripeSubscriptionId: "sub_fleet_seq_1",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: periodEnd,
+            CanceledAtUtc: now.AddMinutes(2),
+            EndedAtUtc: periodEnd));
+
+        var futureEndedEntitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_SEQ_1", "ent_sub_fleet_seq_1");
+        Assert.NotNull(futureEndedEntitlement);
+        Assert.Equal("active", futureEndedEntitlement!.Status);
+        Assert.Equal(periodEnd, futureEndedEntitlement.EndUtc);
+
+        var outOfOrder = await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_seq_old_replay",
+            StripeEventCreatedUtc: now.AddMinutes(1),
+            StripeCustomerId: "cus_fleet_seq_1",
+            StripeSubscriptionId: "sub_fleet_seq_1",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(2),
+            CanceledAtUtc: null,
+            EndedAtUtc: null));
+
+        Assert.NotNull(outOfOrder);
+        Assert.Contains("out-of-order", outOfOrder!.Reason, StringComparison.OrdinalIgnoreCase);
+
+        await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
+            StripeEventId: "evt_fleet_seq_deleted_final",
+            StripeEventCreatedUtc: now.AddMinutes(3),
+            StripeCustomerId: "cus_fleet_seq_1",
+            StripeSubscriptionId: "sub_fleet_seq_1",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: now,
+            CanceledAtUtc: now,
+            EndedAtUtc: now));
+
+        var finalEntitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_SEQ_1", "ent_sub_fleet_seq_1");
+        Assert.NotNull(finalEntitlement);
+        Assert.Equal("expired", finalEntitlement!.Status);
+        Assert.Equal(now, finalEntitlement.EndUtc);
+    }
     private static HandlerFixture BuildFixture(DateTimeOffset now)
     {
         var clock = new FixedClock(now);
@@ -446,6 +683,9 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
 
         public Task NotifyCompanyPackPurchasedAsync(string companyId, int seatsTotal, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private sealed class NoopSeatAssignmentStore : ISeatAssignmentStore
@@ -490,4 +730,6 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             => Task.CompletedTask;
     }
 }
+
+
 

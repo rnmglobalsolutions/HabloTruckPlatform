@@ -58,6 +58,7 @@ public sealed class StripeEventParser
 
         // Best-effort: price info from invoice lines if expanded
         var (priceId, interval) = TryGetInvoicePrice(raw);
+        var currentPeriodEndUtc = TryGetInvoiceCurrentPeriodEnd(raw);
 
         return new StripeParsedEvent(
             e.Type,
@@ -66,7 +67,8 @@ public sealed class StripeEventParser
                 CustomerId = invoice.CustomerId,
                 SubscriptionId = subscriptionId,
                 PriceId = priceId,
-                Interval = interval
+                Interval = interval,
+                CurrentPeriodEndUtc = currentPeriodEndUtc
             }));
     }
 
@@ -240,14 +242,44 @@ public sealed class StripeEventParser
 
     private static (string? priceId, string? interval) TryGetInvoicePrice(JObject? raw)
     {
-        // invoice.lines.data[0].price.id and recurring.interval
-        var arr = raw?["items"]?["data"] as JArray;
+        // invoice.items.data[0] or invoice.lines.data[0].price.id and recurring.interval
+        var arr = raw?["items"]?["data"] as JArray
+                  ?? raw?["lines"]?["data"] as JArray;
         var line = arr?.FirstOrDefault() as JObject;
 
         var priceId = line?["price"]?["id"]?.ToString();
         var interval = line?["price"]?["recurring"]?["interval"]?.ToString();
 
         return (NullIfBlank(priceId), NullIfBlank(interval));
+    }
+    private static DateTimeOffset? TryGetInvoiceCurrentPeriodEnd(JObject? raw)
+    {
+        var lines = raw?["items"]?["data"] as JArray
+                    ?? raw?["lines"]?["data"] as JArray;
+
+        if (lines is null || lines.Count == 0)
+            return null;
+
+        DateTimeOffset? max = null;
+
+        foreach (var token in lines)
+        {
+            if (token is not JObject line)
+                continue;
+
+            var endToken = line["period"]?["end"]
+                           ?? line["period_end"]
+                           ?? line["current_period_end"];
+
+            var candidate = ToDateTimeOffsetUtc(endToken);
+            if (candidate is null)
+                continue;
+
+            if (max is null || candidate > max)
+                max = candidate;
+        }
+
+        return max;
     }
 
     private static (string? priceId, string? interval) TryGetCheckoutPrice(JObject? raw)
@@ -304,4 +336,6 @@ public sealed class StripeEventData
     public int Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
 }
+
+
 

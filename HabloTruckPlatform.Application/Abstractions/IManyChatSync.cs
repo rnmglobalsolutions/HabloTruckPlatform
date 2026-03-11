@@ -1,4 +1,5 @@
-﻿using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Application.Models;
+using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
 
 namespace HabloTruckPlatform.Application.Abstractions;
@@ -20,4 +21,9 @@ public interface IManyChatSync
     /// Optional: notify company admin that a pack was purchased.
     /// </summary>
     Task NotifyCompanyPackPurchasedAsync(string companyId, int seatsTotal, CancellationToken ct = default);
+
+    /// <summary>
+    /// Optional: trigger subscription renewal / churn-prevention reminders.
+    /// </summary>
+    Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default);
 }

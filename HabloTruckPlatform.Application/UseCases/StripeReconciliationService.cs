@@ -1,4 +1,4 @@
-﻿using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Billing;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
@@ -44,6 +44,14 @@ public sealed class StripeReconciliationService
             if (sub is null)
                 continue;
 
+            // Guard against stale Stripe reads regressing a terminal local projection.
+            // A deleted subscription should not flip back to active on the same subscription id.
+            if (string.Equals(user.SubscriptionStatus, "deleted", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(sub.Status, "deleted", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(user.StripeSubscriptionId, sub.SubscriptionId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
             var facts = new StripeSubscriptionFacts(
                 CustomerId: sub.CustomerId,
                 SubscriptionId: sub.SubscriptionId,

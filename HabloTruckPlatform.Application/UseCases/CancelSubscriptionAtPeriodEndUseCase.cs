@@ -12,17 +12,20 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
 
     private readonly IUserStore _users;
     private readonly ICompanyStore _companies;
+    private readonly IEntitlementStore _entitlements;
     private readonly IStripeSubscriptionGateway _stripeSubscriptions;
     private readonly IClock _clock;
 
     public CancelSubscriptionAtPeriodEndUseCase(
         IUserStore users,
         ICompanyStore companies,
+        IEntitlementStore entitlements,
         IStripeSubscriptionGateway stripeSubscriptions,
         IClock clock)
     {
         _users = users;
         _companies = companies;
+        _entitlements = entitlements;
         _stripeSubscriptions = stripeSubscriptions;
         _clock = clock;
     }
@@ -84,17 +87,18 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
                 return Fail("forbidden", scope);
 
             subscriptionId ??= TryGetSubscriptionIdFromEntitlementId(actor.SeatEntitlementId);
-
-            if (subscriptionId is null
-                && !string.IsNullOrWhiteSpace(actor.StripeSubscriptionId)
-                && string.Equals(actor.StripeCustomerId, company.StripeCustomerId, StringComparison.OrdinalIgnoreCase))
-            {
-                subscriptionId = actor.StripeSubscriptionId!.Trim();
-            }
         }
 
         if (subscriptionId is null)
             return Fail("subscription_id_required", scope);
+
+        if (scope == ScopeCompany && company is not null)
+        {
+            var entitlementId = ResolveEntitlementIdForFleetSubscription(subscriptionId);
+            var entitlement = await _entitlements.GetAsync(company.CompanyId, entitlementId, ct);
+            if (entitlement is null)
+                return Fail("company_entitlement_not_found", scope, subscriptionId);
+        }
 
         var nowUtc = _clock.UtcNow;
 
@@ -196,6 +200,9 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
     private static string BuildIdempotencyKey(string subscriptionId)
         => $"hablotruck-cancel-{subscriptionId}";
 
+    private static string ResolveEntitlementIdForFleetSubscription(string subscriptionId)
+        => $"ent_{subscriptionId.Trim()}";
+
     private static string? NormalizeScope(string? scope)
     {
         var s = (scope ?? ScopeIndividual).Trim().ToLowerInvariant();
@@ -223,3 +230,4 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
     private static string? NullIfBlank(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+

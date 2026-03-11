@@ -1,4 +1,4 @@
-﻿using HabloTruckPlatform.Infrastructure.Storage.Entities;
+using HabloTruckPlatform.Infrastructure.Storage.Entities;
 using HabloTruckPlatform.Infrastructure.Storage.Factory;
 using Microsoft.Extensions.Logging;
 
@@ -61,6 +61,11 @@ public sealed class StorageInitializer
         // FAILED ACTIONS (outbox / retry)
         // -----------------------------
         await _factory.EnsureTableAsync(TableNames.FailedActions, ct);
+
+        // -----------------------------
+        // REMINDER IDEMPOTENCY / AUDIT
+        // -----------------------------
+        await _factory.EnsureTableAsync(TableNames.SubscriptionReminders, ct);
 
         _logger.LogInformation("StorageInitializer completed.");
     }

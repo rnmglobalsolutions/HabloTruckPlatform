@@ -1,4 +1,4 @@
-﻿namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
+namespace HabloTruckPlatform.Infrastructure.Storage.Entities;
 
 public static class TableNames
 {
@@ -16,4 +16,5 @@ public static class TableNames
     public const string InviteCompanyIndex = "HTInviteCompanyIndex";
     public const string FailedActions = "HTFailedActions";
     public const string StripeEventAudit = "HTStripeEventAudit";
+    public const string SubscriptionReminders = "HTSubscriptionReminders";
 }
