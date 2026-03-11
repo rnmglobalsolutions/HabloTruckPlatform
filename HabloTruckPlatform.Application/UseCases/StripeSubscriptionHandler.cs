@@ -741,7 +741,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         PriceId: i.PriceId,
         Interval: i.Interval,
         CancelAtPeriodEnd: null,
-        CurrentPeriodEndUtc: null,
+        CurrentPeriodEndUtc: i.CurrentPeriodEndUtc,
         CanceledAtUtc: null,
         EndedAtUtc: null
     );
@@ -794,7 +794,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         StripeCustomerId: d.CustomerId ?? "",
         StripeSubscriptionId: d.SubscriptionId ?? "",
         PriceId: d.PriceId,
-        Interval: d.Interval
+        Interval: d.Interval,
+        CurrentPeriodEndUtc: d.CurrentPeriodEndUtc
     );
 
     private static StripeInvoicePaymentFailed ToInvoiceFailedDto(StripeEventData d) => new(
@@ -806,4 +807,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
+
+
+
 

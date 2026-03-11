@@ -1,4 +1,4 @@
-﻿namespace HabloTruckPlatform.Application.Models;
+namespace HabloTruckPlatform.Application.Models;
 
 public sealed record StripeInvoicePaid(
     string StripeEventId,
@@ -6,4 +6,5 @@ public sealed record StripeInvoicePaid(
     DateTimeOffset StripeEventCreatedUtc,
     string StripeCustomerId,
     string? PriceId,
-    string? Interval);
+    string? Interval,
+    DateTimeOffset? CurrentPeriodEndUtc = null);

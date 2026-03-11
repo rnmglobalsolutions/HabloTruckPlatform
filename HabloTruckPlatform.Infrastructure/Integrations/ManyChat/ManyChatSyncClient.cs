@@ -1,7 +1,8 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Options;
@@ -82,7 +83,6 @@ public sealed class ManyChatSyncClient : IManyChatSync
         {
             subscriber_id = sid,
             flow_ns = _opt.PaymentFailedFlowNs,
-            // optional "payload": {} (ManyChat allows payload blocks in some endpoints) :contentReference[oaicite:4]{index=4}
             payload = new { }
         };
 
@@ -91,9 +91,50 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
     public async Task NotifyCompanyPackPurchasedAsync(string companyId, int seatsTotal, CancellationToken ct = default)
     {
-        // Optional hook: If you later want to message an admin subscriber, you’d need admin subscriberId.
+        // Optional hook: If you later want to message an admin subscriber, you�d need admin subscriberId.
         // For now, no-op by design.
         await Task.CompletedTask;
+    }
+
+    public async Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
+    {
+        if (dispatch is null)
+            throw new ArgumentNullException(nameof(dispatch));
+
+        if (string.IsNullOrWhiteSpace(dispatch.SubscriberId))
+            return;
+
+        var journey = dispatch.Journey?.Trim().ToLowerInvariant() ?? "auto_renew";
+        var flowNs = journey == "save_before_churn"
+            ? _opt.SaveBeforeChurnFlowNs
+            : _opt.RenewalReminderFlowNs;
+
+        if (string.IsNullOrWhiteSpace(flowNs))
+            return; // reminder flow not configured
+
+        var payload = new
+        {
+            subscriber_id = dispatch.SubscriberId.Trim(),
+            flow_ns = flowNs,
+            payload = new
+            {
+                reminder_type = dispatch.ReminderType,
+                journey = dispatch.Journey,
+                days_until_period_end = dispatch.DaysUntilPeriodEnd,
+                period_end_utc = dispatch.PeriodEndUtc.UtcDateTime.ToString("O"),
+                positive_continuity = dispatch.UsePositiveContinuityFraming,
+                reminder_tone = dispatch.ReminderTone,
+                template_key = dispatch.TemplateKey,
+                audience_segment = dispatch.AudienceSegment,
+                subscription_id = dispatch.SubscriptionId,
+                user_id = dispatch.UserId,
+                company_id = dispatch.CompanyId ?? "",
+                is_company_reminder = dispatch.IsCompanyReminder,
+                plan_term = dispatch.PlanTerm ?? ""
+            }
+        };
+
+        await PostJson("fb/sending/sendFlow", payload, ct);
     }
 
     // --------------------
@@ -102,21 +143,21 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
     private async Task AddTagByName(string subscriberId, string tagName, CancellationToken ct)
     {
-        // POST /fb/subscriber/addTagByName :contentReference[oaicite:5]{index=5}
+        // POST /fb/subscriber/addTagByName
         var payload = new { subscriber_id = subscriberId, tag_name = tagName };
         await PostJson("fb/subscriber/addTagByName", payload, ct);
     }
 
     private async Task RemoveTagByName(string subscriberId, string tagName, CancellationToken ct)
     {
-        // POST /fb/subscriber/removeTagByName :contentReference[oaicite:6]{index=6}
+        // POST /fb/subscriber/removeTagByName
         var payload = new { subscriber_id = subscriberId, tag_name = tagName };
         await PostJson("fb/subscriber/removeTagByName", payload, ct);
     }
 
     private async Task SetCustomFieldByName(string subscriberId, string fieldName, string value, CancellationToken ct)
     {
-        // POST /fb/subscriber/setCustomFieldByName :contentReference[oaicite:7]{index=7}
+        // POST /fb/subscriber/setCustomFieldByName
         var payload = new { subscriber_id = subscriberId, field_name = fieldName, field_value = value };
         await PostJson("fb/subscriber/setCustomFieldByName", payload, ct);
     }
@@ -128,7 +169,6 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
         using var res = await _http.PostAsync(path, content, ct);
 
-        // ManyChat typically returns JSON with status; for reliability treat non-2xx as failure.
         if (!res.IsSuccessStatusCode)
         {
             var body = await res.Content.ReadAsStringAsync(ct);
@@ -136,3 +176,5 @@ public sealed class ManyChatSyncClient : IManyChatSync
         }
     }
 }
+
+

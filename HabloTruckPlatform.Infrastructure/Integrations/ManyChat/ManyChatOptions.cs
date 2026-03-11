@@ -1,4 +1,4 @@
-﻿namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
+namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
 public sealed class ManyChatOptions
 {
@@ -15,6 +15,10 @@ public sealed class ManyChatOptions
 
     // Optional: flow_ns for recovery
     public string? PaymentFailedFlowNs { get; set; }
+
+    // Optional: flow_ns for renewal/churn reminders
+    public string? RenewalReminderFlowNs { get; set; }
+    public string? SaveBeforeChurnFlowNs { get; set; }
 
     // Custom field names (by name)
     public string FieldAccessMode { get; set; } = "ht_access_mode";

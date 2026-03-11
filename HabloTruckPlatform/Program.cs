@@ -60,6 +60,7 @@ var host = new HostBuilder()
         services.AddSingleton<IInviteCodeStore, TableInviteCodeStore>();
         services.AddSingleton<IFailedActionStore, TableFailedActionStore>();
         services.AddSingleton<IStripeEventAuditStore, TableStripeEventAuditStore>();
+        services.AddSingleton<ISubscriptionReminderStore, TableSubscriptionReminderStore>();
         services.AddSingleton<IStripeAdminClient, StripeAdminClient>();
         services.AddSingleton<IStripeSubscriptionGateway, StripeSubscriptionGateway>();
         services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();
@@ -74,6 +75,7 @@ var host = new HostBuilder()
         services.AddSingleton<StripeReconciliationService>();
         services.AddSingleton<StripeCheckoutHandler>();
         services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
+        services.AddSingleton<SubscriptionReminderService>();
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
@@ -108,5 +110,3 @@ using (var scope = host.Services.CreateScope())
 }
 
 await host.RunAsync();
-
-
