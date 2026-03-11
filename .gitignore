@@ -65,3 +65,5 @@ HT_App_Settings.json
 # dotnet
 .dotnet/
 
+# postman
+postman/
