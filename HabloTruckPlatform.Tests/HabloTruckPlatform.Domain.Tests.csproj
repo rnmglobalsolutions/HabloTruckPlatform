@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -29,6 +29,11 @@
     <Compile Include="..\HabloTruckPlatform\Functions\CancelSubscriptionAtPeriodEndFunction.cs" Link="Functions\CancelSubscriptionAtPeriodEndFunction.cs" />
     <Compile Include="..\HabloTruckPlatform\Functions\Timer\SubscriptionReminderTimerFunction.cs" Link="Functions\Timer\SubscriptionReminderTimerFunction.cs" />
     <Compile Include="..\HabloTruckPlatform\Contracts\CancelSubscriptionAtPeriodEndHttpRequest.cs" Link="Functions\Contracts\CancelSubscriptionAtPeriodEndHttpRequest.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyAuthorizationHelper.cs" Link="Security\ApiKeyAuthorizationHelper.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyValidationResult.cs" Link="Security\ApiKeyValidationResult.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\IApiKeyValidator.cs" Link="Security\IApiKeyValidator.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\HttpSecurityOptions.cs" Link="Security\HttpSecurityOptions.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyValidator.cs" Link="Security\ApiKeyValidator.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,5 +41,6 @@
   </ItemGroup>
 
 </Project>
+
 
 

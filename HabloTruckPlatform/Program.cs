@@ -1,9 +1,10 @@
-using Azure.Data.Tables;
+﻿using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Security;
 using HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Factory;
@@ -53,6 +54,13 @@ var host = new HostBuilder()
 
         // ---- Clock
         services.AddSingleton<IClock, SystemClock>();
+        // ---- HTTP security
+        services.AddOptions<HttpSecurityOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
+            {
+                options.HttpApiKey = configuration["HttpApiKey"] ?? string.Empty;
+            });
+        services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
 
         // ---- App Insights (needed if Metrics uses TelemetryClient)
         services.AddApplicationInsightsTelemetryWorkerService();
@@ -135,3 +143,4 @@ using (var scope = host.Services.CreateScope())
 }
 
 await host.RunAsync();
+

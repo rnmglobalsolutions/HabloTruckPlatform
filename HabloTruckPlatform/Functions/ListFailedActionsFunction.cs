@@ -1,8 +1,10 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
@@ -18,10 +20,17 @@ GET https://<func>/api/admin/failed-actions?status=dead&lookbackHours=48&take=20
     #endregion
 
     private readonly IFailedActionStore _store;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<ListFailedActionsFunction> _logger;
 
-    public ListFailedActionsFunction(IFailedActionStore store)
+    public ListFailedActionsFunction(
+        IFailedActionStore store,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<ListFailedActionsFunction> logger)
     {
         _store = store;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("ListFailedActions")]
@@ -30,6 +39,15 @@ GET https://<func>/api/admin/failed-actions?status=dead&lookbackHours=48&take=20
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         var query = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
 

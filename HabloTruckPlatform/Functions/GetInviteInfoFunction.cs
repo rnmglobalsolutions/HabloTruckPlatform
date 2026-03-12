@@ -1,9 +1,11 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Functions.Contracts;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
@@ -25,17 +27,24 @@ Body:
 
 Then in ManyChat:
 
-if valid == true → show “✅ Código válido, continuamos”
+if valid == true â†’ show â€œâœ… CÃ³digo vÃ¡lido, continuamosâ€
 
-else → show “❌ Código inválido / expirado / cupo lleno”
+else â†’ show â€œâŒ CÃ³digo invÃ¡lido / expirado / cupo llenoâ€
      */
     #endregion
 
     private readonly IInviteCodeStore _invites;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<GetInviteInfoFunction> _logger;
 
-    public GetInviteInfoFunction(IInviteCodeStore invites)
+    public GetInviteInfoFunction(
+        IInviteCodeStore invites,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<GetInviteInfoFunction> logger)
     {
         _invites = invites;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("GetInviteInfo")]
@@ -44,6 +53,15 @@ else → show “❌ Código inválido / expirado / cupo lleno”
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         GetInviteInfoHttpRequest? body;
         try

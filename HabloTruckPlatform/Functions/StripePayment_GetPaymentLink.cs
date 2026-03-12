@@ -1,6 +1,7 @@
-using HabloTruckPlatform.Application.Models;
+﻿using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Infrastructure.Telemetry;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -14,12 +15,15 @@ public class StripePayment_GetPaymentLink
 {
     private readonly StripeCheckoutHandler _stripeCheckoutHandler;
     private readonly ILogger<StripePayment_GetPaymentLink> _logger;
+    private readonly IApiKeyValidator _apiKeyValidator;
 
     public StripePayment_GetPaymentLink(
         StripeCheckoutHandler stripeCheckoutHandler,
+        IApiKeyValidator apiKeyValidator,
         ILogger<StripePayment_GetPaymentLink> logger)
     {
         _stripeCheckoutHandler = stripeCheckoutHandler;
+        _apiKeyValidator = apiKeyValidator;
         _logger = logger;
     }
 
@@ -28,6 +32,15 @@ public class StripePayment_GetPaymentLink
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "stripe/payment-link")] HttpRequestData req,
         FunctionContext ctx)
     {
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ctx.CancellationToken);
+
+        if (unauthorized is not null)
+            return unauthorized;
+
         var invocationId = ctx.InvocationId;
         var correlationId = LogContext.ResolveCorrelationId(
             FirstHeader(req, "x-correlation-id", "x-request-id"),
@@ -154,4 +167,5 @@ public class StripePayment_GetPaymentLink
         return null;
     }
 }
+
 
