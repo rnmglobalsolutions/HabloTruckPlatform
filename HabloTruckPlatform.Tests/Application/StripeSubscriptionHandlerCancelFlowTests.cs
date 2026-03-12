@@ -491,6 +491,7 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             companyStore,
             entitlementStore,
             expiryIndexStore,
+            failedActions,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
         return new HandlerFixture(handler, userStore, userResolver, companyStore, entitlementStore, expiryIndexStore, priceCatalog);

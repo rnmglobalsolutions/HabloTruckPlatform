@@ -6,6 +6,7 @@ using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Net;
 
 namespace HabloTruckPlatform.Domain.Tests.Application;
 
@@ -91,6 +92,80 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.NotNull(saved.IndividualGraceEndsAtUtc);
         Assert.True(saved.IndividualGraceEndsAtUtc > now);
         Assert.Equal(1, fixture.ManyChatSync.PaymentFailedFlowCalls);
+        Assert.Empty(fixture.FailedActions.Enqueued);
+    }
+
+    [Fact]
+    public async Task HandleInvoicePaymentFailedAsync_Should_EnqueueFailedAction_WhenPaymentFlowFailsRetryably()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fail_retry_queue",
+            StripeCustomerId = "cus_fail_retry_queue",
+            StripeSubscriptionId = "sub_fail_retry_queue",
+            SubscriptionStatus = "active",
+            ManyChatSubscriberId = "sid_fail_retry_queue"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fail_retry_queue", user);
+        fixture.ManyChatSync.PaymentFailedFlowException = new ManyChatRequestException(
+            path: "fb/sending/sendFlow",
+            statusCode: HttpStatusCode.ServiceUnavailable,
+            isRetryable: true,
+            failureCategory: ManyChatFailureCategory.TransientHttp,
+            message: "retryable");
+
+        var decision = await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_fail_retry_queue",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fail_retry_queue",
+            StripeSubscriptionId: "sub_fail_retry_queue",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month"));
+
+        Assert.NotNull(decision);
+        var queued = Assert.Single(fixture.FailedActions.Enqueued);
+        Assert.Equal(FailedActionRetryService.ActionManyChatPaymentFailedFlow, queued.ActionType);
+    }
+
+    [Fact]
+    public async Task HandleInvoicePaymentFailedAsync_Should_NotEnqueueFailedAction_WhenPaymentFlowFailsNonRetryable()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fail_no_queue",
+            StripeCustomerId = "cus_fail_no_queue",
+            StripeSubscriptionId = "sub_fail_no_queue",
+            SubscriptionStatus = "active",
+            ManyChatSubscriberId = "sid_fail_no_queue"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fail_no_queue", user);
+        fixture.ManyChatSync.PaymentFailedFlowException = new ManyChatRequestException(
+            path: "fb/sending/sendFlow",
+            statusCode: HttpStatusCode.BadRequest,
+            isRetryable: false,
+            failureCategory: ManyChatFailureCategory.PermanentHttp,
+            message: "non_retryable");
+
+        var decision = await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_fail_no_queue",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fail_no_queue",
+            StripeSubscriptionId: "sub_fail_no_queue",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month"));
+
+        Assert.NotNull(decision);
+        Assert.Empty(fixture.FailedActions.Enqueued);
     }
 
     [Fact]
@@ -213,9 +288,10 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             companyStore,
             entitlementStore,
             expiryIndexStore,
+            failedActions,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
-        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog);
+        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions);
     }
 
     private sealed record HandlerFixture(
@@ -223,7 +299,8 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         InMemoryUserStore UserStore,
         InMemoryUserResolver UserResolver,
         RecordingManyChatSync ManyChatSync,
-        global::HabloTruckPlatform.Application.Integrations.Stripex.StripeOptions PriceCatalog);
+        global::HabloTruckPlatform.Application.Integrations.Stripex.StripeOptions PriceCatalog,
+        NoopFailedActionStore FailedActions);
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -302,6 +379,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
     {
         public int SyncCalls { get; private set; }
         public int PaymentFailedFlowCalls { get; private set; }
+        public Exception? PaymentFailedFlowException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
         {
@@ -312,6 +390,10 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         public Task TriggerPaymentFailedFlowAsync(string subscriberId, CancellationToken ct = default)
         {
             PaymentFailedFlowCalls++;
+
+            if (PaymentFailedFlowException is not null)
+                throw PaymentFailedFlowException;
+
             return Task.CompletedTask;
         }
 
@@ -384,11 +466,16 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
     private sealed class NoopFailedActionStore : IFailedActionStore
     {
+        public List<FailedActionItem> Enqueued { get; } = new();
+
         public Task EnsureTableAsync(CancellationToken ct = default)
             => Task.CompletedTask;
 
         public Task EnqueueAsync(string actionType, string payloadJson, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            Enqueued.Add(new FailedActionItem("pk", "rk", actionType, payloadJson, 0, nextRetryUtc));
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyList<FailedActionItem>> GetDueAsync(DateTimeOffset nowUtc, int lookbackHours, int take, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<FailedActionItem>>(Array.Empty<FailedActionItem>());

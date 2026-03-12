@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,7 +10,15 @@ namespace HabloTruckPlatform.Application.UseCases;
 
 public sealed class FailedActionRetryService
 {
-    public const string ActionManyChatSync = "manychat.sync";
+    public const string ActionManyChatSync = FailedActionTypes.ManyChatSync;
+    public const string ActionManyChatPaymentFailedFlow = FailedActionTypes.ManyChatPaymentFailedFlow;
+    public const string ActionManyChatSubscriptionReminder = FailedActionTypes.ManyChatSubscriptionReminder;
+    // Metadata sync operations (tags/custom fields) are effectively convergent, so they can tolerate
+    // a higher retry budget than user-facing flow sends.
+    private const int MaxAttemptsManyChatSync = 10;
+    // SendFlow actions are user-facing and effectively at-least-once; ambiguous delivery conditions
+    // (for example timeout after remote accept) can duplicate messages on retry, so keep cap lower.
+    private const int MaxAttemptsManyChatSendFlow = 6;
 
     private readonly IFailedActionStore _store;
     private readonly IUserStore _users;
@@ -57,6 +66,8 @@ public sealed class FailedActionRetryService
 
         foreach (var item in due)
         {
+            var maxAttempts = ResolveMaxAttempts(item.ActionType);
+
             using var itemScope = _logger.BeginScope(new Dictionary<string, object?>
             {
                 ["OperationName"] = "failed_action_retry_item",
@@ -80,11 +91,34 @@ public sealed class FailedActionRetryService
                     item.ActionType,
                     item.Attempts);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ManyChatRequestException ex) when (!ex.IsRetryable)
+            {
+                var nextAttempts = item.Attempts + 1;
+
+                await _store.MarkDeadAsync(item.Pk, item.Rk, nextAttempts, ex.Message, ct);
+                dead++;
+
+                _logger.LogError(
+                    ex,
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} ActionType={ActionType} Attempts={Attempts} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "validation_failed",
+                    "failed_action_non_retryable_marked_dead",
+                    item.ActionType,
+                    nextAttempts,
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
+            }
             catch (Exception ex)
             {
                 var nextAttempts = item.Attempts + 1;
 
-                if (nextAttempts >= 10)
+                if (nextAttempts >= maxAttempts)
                 {
                     await _store.MarkDeadAsync(item.Pk, item.Rk, nextAttempts, ex.Message, ct);
                     dead++;
@@ -130,8 +164,11 @@ public sealed class FailedActionRetryService
     {
         if (item.ActionType == ActionManyChatSync)
         {
-            var p = JsonSerializer.Deserialize<ManyChatSyncPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+            var p = JsonSerializer.Deserialize<ManyChatSyncFailedActionPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
                     ?? throw new InvalidOperationException("Invalid payload");
+
+            if (string.IsNullOrWhiteSpace(p.UserPk) || string.IsNullOrWhiteSpace(p.UserId))
+                throw new InvalidOperationException("Invalid payload: userPk/userId required.");
 
             var user = await _users.GetAsync(p.UserPk, p.UserId, ct)
                        ?? throw new InvalidOperationException("User not found for retry");
@@ -181,6 +218,71 @@ public sealed class FailedActionRetryService
             return;
         }
 
+        if (item.ActionType == ActionManyChatPaymentFailedFlow)
+        {
+            var p = JsonSerializer.Deserialize<ManyChatPaymentFailedFlowFailedActionPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("Invalid payload");
+
+            if (string.IsNullOrWhiteSpace(p.SubscriberId))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_payment_failed_retry",
+                    "no_action_needed",
+                    "missing_subscriber_id");
+                return;
+            }
+
+            var dependencyWatch = Stopwatch.StartNew();
+            await _manyChat.TriggerPaymentFailedFlowAsync(p.SubscriberId, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "dependency",
+                "manychat",
+                "trigger_payment_failed_flow_retry",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds,
+                true);
+
+            return;
+        }
+
+        if (item.ActionType == ActionManyChatSubscriptionReminder)
+        {
+            var p = JsonSerializer.Deserialize<ManyChatSubscriptionReminderFailedActionPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("Invalid payload");
+
+            if (p.Dispatch is null)
+                throw new InvalidOperationException("Invalid payload: dispatch required.");
+
+            if (string.IsNullOrWhiteSpace(p.Dispatch.SubscriberId))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_subscription_reminder_retry",
+                    "no_action_needed",
+                    "missing_subscriber_id");
+                return;
+            }
+
+            var dependencyWatch = Stopwatch.StartNew();
+            await _manyChat.SendSubscriptionReminderAsync(p.Dispatch, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "dependency",
+                "manychat",
+                "send_subscription_reminder_retry",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds,
+                true);
+
+            return;
+        }
+
         throw new InvalidOperationException($"Unknown actionType: {item.ActionType}");
     }
 
@@ -203,6 +305,13 @@ public sealed class FailedActionRetryService
         return now.AddMinutes(minutes);
     }
 
-    private sealed record ManyChatSyncPayload(string UserPk, string UserId, string? Reason);
+    private static int ResolveMaxAttempts(string actionType)
+        => actionType switch
+        {
+            // User-facing SendFlow retries are intentionally stricter than metadata sync retries.
+            ActionManyChatPaymentFailedFlow or ActionManyChatSubscriptionReminder => MaxAttemptsManyChatSendFlow,
+            _ => MaxAttemptsManyChatSync
+        };
+
 }
 

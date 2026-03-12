@@ -8,6 +8,7 @@ using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -28,7 +29,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly ICompanyStore _companyStore;
     private readonly IEntitlementStore _entitlementStore;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
+    private readonly IFailedActionStore _failedActionStore;
     private readonly ILogger<StripeSubscriptionHandler> _logger;
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     public StripeSubscriptionHandler(
         IUserResolver userResolver,
@@ -42,6 +45,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         ICompanyStore companyStore,
         IEntitlementStore entitlementStore,
         IEntitlementExpiryIndexStore expiryIndex,
+        IFailedActionStore failedActionStore,
         ILogger<StripeSubscriptionHandler> logger)
     {
         _userResolver = userResolver;
@@ -55,6 +59,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _companyStore = companyStore;
         _entitlementStore = entitlementStore;
         _expiryIndex = expiryIndex;
+        _failedActionStore = failedActionStore;
         _logger = logger;
     }
 
@@ -546,6 +551,64 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     manyChatWatch.ElapsedMilliseconds,
                     true,
                     "applied");
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ManyChatRequestException ex) when (ex.IsRetryable)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "dependency_failed",
+                    "manychat",
+                    "trigger_payment_failed_flow",
+                    "ManyChat API",
+                    manyChatWatch.ElapsedMilliseconds,
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
+
+                var payload = JsonSerializer.Serialize(
+                    new ManyChatPaymentFailedFlowFailedActionPayload(
+                        SubscriberId: user.ManyChatSubscriberId?.Trim(),
+                        UserId: user.UserId,
+                        CompanyId: user.CompanyId,
+                        SubscriptionId: user.StripeSubscriptionId,
+                        CorrelationId: signal.StripeEventId,
+                        Reason: "trigger_payment_failed_flow",
+                        OperationName: "manychat_trigger_payment_failed"),
+                    JsonOpts);
+
+                await _failedActionStore.EnqueueAsync(
+                    FailedActionRetryService.ActionManyChatPaymentFailedFlow,
+                    payload,
+                    _clock.UtcNow.AddMinutes(2),
+                    ct);
+
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "trigger_payment_failed_flow",
+                    "queued_for_retry",
+                    "retryable_manychat_failure");
+            }
+            catch (ManyChatRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "validation_failed",
+                    "manychat",
+                    "trigger_payment_failed_flow",
+                    "ManyChat API",
+                    manyChatWatch.ElapsedMilliseconds,
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
             }
             catch (Exception ex)
             {

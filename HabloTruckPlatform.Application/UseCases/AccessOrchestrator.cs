@@ -1,5 +1,6 @@
 
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
@@ -274,26 +275,35 @@ public sealed class AccessOrchestrator
                     true);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (ManyChatRequestException ex) when (ex.IsRetryable)
         {
             _logger.LogWarning(
                 ex,
-                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs}",
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
                 "exception",
                 "dependency_failed",
                 "manychat",
                 "sync_user_access",
                 "ManyChat API",
-                dependencyWatch.ElapsedMilliseconds);
+                dependencyWatch.ElapsedMilliseconds,
+                ex.IsRetryable,
+                ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                ex.FailureCategory);
 
-            var payload = JsonSerializer.Serialize(new
-            {
-                userPk = Buckets.UserBucketPk(user.UserId),
-                userId = user.UserId,
-                subscriberId = user.ManyChatSubscriberId,
-                companyId = user.CompanyId,
-                reason = "sync_access"
-            }, JsonOpts);
+            var payload = JsonSerializer.Serialize(
+                new ManyChatSyncFailedActionPayload(
+                    UserPk: Buckets.UserBucketPk(user.UserId),
+                    UserId: user.UserId,
+                    SubscriberId: user.ManyChatSubscriberId?.Trim(),
+                    CompanyId: user.CompanyId,
+                    CorrelationId: user.UserId,
+                    Reason: "sync_access",
+                    OperationName: "manychat_sync_user_access"),
+                JsonOpts);
 
             var queueWatch = Stopwatch.StartNew();
             await _failedActionStore.EnqueueAsync(
@@ -310,6 +320,33 @@ public sealed class AccessOrchestrator
                 queueWatch.ElapsedMilliseconds,
                 true,
                 "dependency_failed");
+        }
+        catch (ManyChatRequestException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                "exception",
+                "validation_failed",
+                "manychat",
+                "sync_user_access",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds,
+                ex.IsRetryable,
+                ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                ex.FailureCategory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs}",
+                "exception",
+                "dependency_failed",
+                "manychat",
+                "sync_user_access",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds);
         }
     }
 

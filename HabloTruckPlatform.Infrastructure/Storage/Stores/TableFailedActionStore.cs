@@ -39,7 +39,18 @@ public sealed class TableFailedActionStore : IFailedActionStore
         string payloadJson,
         DateTimeOffset nextRetryUtc,
         CancellationToken ct = default)
+        => await EnqueueInternalAsync(actionType, payloadJson, nextRetryUtc, attempts: 0, ct);
+
+    private async Task EnqueueInternalAsync(
+        string actionType,
+        string payloadJson,
+        DateTimeOffset nextRetryUtc,
+        int attempts,
+        CancellationToken ct)
     {
+        // attempts is part of retry state:
+        // - new failed actions start at 0
+        // - automatic retry reschedules carry the incremented attempts forward
         var pk = Pk(nextRetryUtc);
         var ulid = UlidIds.NewFailedActionId();
         var rk = $"{nextRetryUtc.Ticks:D19}_{ulid}";
@@ -52,7 +63,7 @@ public sealed class TableFailedActionStore : IFailedActionStore
             RowKey = rk,
             ActionType = actionType,
             PayloadJson = payloadJson,
-            Attempts = 0,
+            Attempts = attempts,
             Status = "pending",
             NextRetryUtc = nextRetryUtc,
             CreatedAtUtc = now,
@@ -138,11 +149,13 @@ public sealed class TableFailedActionStore : IFailedActionStore
         e.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         // IMPORTANT: NextRetryUtc changes ordering -> move row to new PK/RK.
-        // We close current row and enqueue a new one.
+        // We close current row and enqueue a new one, preserving attempts so
+        // terminal dead-letter thresholds can be reached.
         e.Status = "succeeded";
         await Table.UpdateEntityAsync(e, e.ETag, TableUpdateMode.Replace, ct);
 
-        await EnqueueAsync(e.ActionType, e.PayloadJson, nextRetryUtc, ct);
+        // Preserve attempts across retry reschedules so max-attempt dead-lettering can work.
+        await EnqueueInternalAsync(e.ActionType, e.PayloadJson, nextRetryUtc, attempts, ct);
     }
 
     public async Task MarkDeadAsync(
@@ -228,7 +241,8 @@ public sealed class TableFailedActionStore : IFailedActionStore
         e.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await Table.UpdateEntityAsync(e, e.ETag, TableUpdateMode.Replace, ct);
 
-        // enqueue new item (attempts reset)
+        // Manual admin requeue intentionally resets attempts as an operator override
+        // (for example after config fixes); this is different from automatic reschedule.
         await EnqueueAsync(e.ActionType, e.PayloadJson, nextRetryUtc, ct);
     }
 

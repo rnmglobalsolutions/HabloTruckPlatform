@@ -831,6 +831,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
             companies,
             entitlements,
             expiryIndex,
+            failedActions,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
         var reminderService = new SubscriptionReminderService(
@@ -838,6 +839,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
             companies,
             reminders,
             manyChat,
+            failedActions,
             clock,
             NullLogger<SubscriptionReminderService>.Instance);
 

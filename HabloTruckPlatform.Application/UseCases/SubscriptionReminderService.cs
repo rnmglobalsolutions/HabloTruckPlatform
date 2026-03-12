@@ -5,6 +5,7 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace HabloTruckPlatform.Application.UseCases;
 
@@ -16,14 +17,17 @@ public sealed class SubscriptionReminderService
     private readonly ICompanyStore _companies;
     private readonly ISubscriptionReminderStore _reminders;
     private readonly IManyChatSync _manyChat;
+    private readonly IFailedActionStore _failedActionStore;
     private readonly IClock _clock;
     private readonly ILogger<SubscriptionReminderService> _logger;
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     public SubscriptionReminderService(
         IUserStore users,
         ICompanyStore companies,
         ISubscriptionReminderStore reminders,
         IManyChatSync manyChat,
+        IFailedActionStore failedActionStore,
         IClock clock,
         ILogger<SubscriptionReminderService> logger)
     {
@@ -31,6 +35,7 @@ public sealed class SubscriptionReminderService
         _companies = companies;
         _reminders = reminders;
         _manyChat = manyChat;
+        _failedActionStore = failedActionStore;
         _clock = clock;
         _logger = logger;
     }
@@ -141,6 +146,65 @@ public sealed class SubscriptionReminderService
                     dispatch.ReminderType,
                     dispatch.Journey,
                     dependencyWatch.ElapsedMilliseconds);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ManyChatRequestException ex) when (ex.IsRetryable)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} ReminderType={ReminderType} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "dependency_failed",
+                    "manychat",
+                    "send_subscription_reminder",
+                    "ManyChat API",
+                    dependencyWatch.ElapsedMilliseconds,
+                    dispatch.ReminderType,
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
+
+                var payload = JsonSerializer.Serialize(
+                    new ManyChatSubscriptionReminderFailedActionPayload(
+                        Dispatch: dispatch,
+                        ReminderId: reminderId,
+                        CorrelationId: dispatch.UserId,
+                        Reason: "send_subscription_reminder",
+                        OperationName: "manychat_send_subscription_reminder"),
+                    JsonOpts);
+
+                await _failedActionStore.EnqueueAsync(
+                    FailedActionRetryService.ActionManyChatSubscriptionReminder,
+                    payload,
+                    _clock.UtcNow.AddMinutes(2),
+                    ct);
+
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType}",
+                    "decision",
+                    "manychat_send_subscription_reminder",
+                    "queued_for_retry",
+                    "retryable_manychat_failure",
+                    dispatch.ReminderType);
+            }
+            catch (ManyChatRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} ReminderType={ReminderType} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "validation_failed",
+                    "manychat",
+                    "send_subscription_reminder",
+                    "ManyChat API",
+                    dependencyWatch.ElapsedMilliseconds,
+                    dispatch.ReminderType,
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
             }
             catch (Exception ex)
             {

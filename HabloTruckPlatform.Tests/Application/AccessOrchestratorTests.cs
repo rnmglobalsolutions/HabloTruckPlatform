@@ -5,6 +5,8 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
+using System.Net;
+using System.Text.Json;
 
 namespace HabloTruckPlatform.Domain.Tests.Application;
 
@@ -25,6 +27,7 @@ public sealed class AccessOrchestratorTests
         Assert.Equal(AccessSource.Individual, decision.Source);
         Assert.Equal(AccessMode.Full, fixture.UserStore.Get(user.UserId)!.EffectiveAccess!.Mode);
         Assert.Equal(1, fixture.ManyChat.SyncCalls);
+        Assert.Empty(fixture.FailedActionStore.Enqueued);
     }
 
     [Fact]
@@ -221,6 +224,53 @@ public sealed class AccessOrchestratorTests
         Assert.Equal(1, fixture.ManyChat.SyncCalls);
     }
 
+    [Fact]
+    public async Task RecomputeForUserAsync_Should_EnqueueFailedAction_WhenManyChatFailureIsRetryable()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = NewUser("U_retryable_sync", subscriptionStatus: "active", manyChatSubscriberId: "sid_retryable_sync");
+        fixture.UserStore.Add(user);
+
+        fixture.ManyChat.SyncException = new ManyChatRequestException(
+            path: "fb/subscriber/addTagByName",
+            statusCode: HttpStatusCode.ServiceUnavailable,
+            isRetryable: true,
+            failureCategory: ManyChatFailureCategory.TransientHttp,
+            message: "transient");
+
+        await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+
+        var queued = Assert.Single(fixture.FailedActionStore.Enqueued);
+        Assert.Equal(FailedActionRetryService.ActionManyChatSync, queued.ActionType);
+
+        using var doc = JsonDocument.Parse(queued.PayloadJson);
+        Assert.Equal(user.UserId, doc.RootElement.GetProperty("userId").GetString());
+        Assert.Equal(user.CompanyId ?? "", doc.RootElement.GetProperty("companyId").GetString() ?? "");
+    }
+
+    [Fact]
+    public async Task RecomputeForUserAsync_Should_NotEnqueueFailedAction_WhenManyChatFailureIsNonRetryable()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = NewUser("U_non_retryable_sync", subscriptionStatus: "active", manyChatSubscriberId: "sid_non_retryable_sync");
+        fixture.UserStore.Add(user);
+
+        fixture.ManyChat.SyncException = new ManyChatRequestException(
+            path: "fb/subscriber/addTagByName",
+            statusCode: HttpStatusCode.BadRequest,
+            isRetryable: false,
+            failureCategory: ManyChatFailureCategory.PermanentHttp,
+            message: "bad_request");
+
+        await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+
+        Assert.Empty(fixture.FailedActionStore.Enqueued);
+    }
+
     private static Fixture BuildFixture(DateTimeOffset now)
     {
         var userStore = new InMemoryUserStore();
@@ -338,9 +388,13 @@ public sealed class AccessOrchestratorTests
     private sealed class RecordingManyChatSync : IManyChatSync
     {
         public int SyncCalls { get; private set; }
+        public Exception? SyncException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
         {
+            if (SyncException is not null)
+                throw SyncException;
+
             SyncCalls++;
             return Task.CompletedTask;
         }

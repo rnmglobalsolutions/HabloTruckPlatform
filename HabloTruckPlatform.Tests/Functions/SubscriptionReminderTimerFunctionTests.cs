@@ -83,12 +83,14 @@ public sealed class SubscriptionReminderTimerFunctionTests
         var companies = new InMemoryCompanyStore();
         var reminders = new InMemoryReminderStore();
         var manyChat = new RecordingManyChatSync();
+        var failedActions = new NoopFailedActionStore();
 
         var service = new SubscriptionReminderService(
             users,
             companies,
             reminders,
             manyChat,
+            failedActions,
             clock,
             NullLogger<SubscriptionReminderService>.Instance);
 
@@ -174,6 +176,33 @@ public sealed class SubscriptionReminderTimerFunctionTests
             Dispatches.Add(dispatch);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NoopFailedActionStore : IFailedActionStore
+    {
+        public Task EnsureTableAsync(CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task EnqueueAsync(string actionType, string payloadJson, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<FailedActionItem>> GetDueAsync(DateTimeOffset nowUtc, int lookbackHours, int take, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<FailedActionItem>>(Array.Empty<FailedActionItem>());
+
+        public Task MarkSucceededAsync(string pk, string rk, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RescheduleAsync(string pk, string rk, int attempts, DateTimeOffset nextRetryUtc, string lastError, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task MarkDeadAsync(string pk, string rk, int attempts, string lastError, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<FailedActionItem>> GetByStatusAsync(DateTimeOffset nowUtc, string status, int lookbackHours, int take, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<FailedActionItem>>(Array.Empty<FailedActionItem>());
+
+        public Task RequeueAsync(string pk, string rk, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private sealed class TestFunctionContext : FunctionContext

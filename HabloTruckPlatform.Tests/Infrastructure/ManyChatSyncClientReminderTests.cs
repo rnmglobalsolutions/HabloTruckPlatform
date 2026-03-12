@@ -87,11 +87,128 @@ public sealed class ManyChatSyncClientReminderTests
         Assert.Equal("save_before_churn_ending_soon_1d", payload.GetProperty("template_key").GetString());
     }
 
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On503()
+    {
+        var handler = new RecordingHandler
+        {
+            StatusCodeToReturn = HttpStatusCode.ServiceUnavailable
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_503"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.TransientHttp, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On429()
+    {
+        var handler = new RecordingHandler
+        {
+            StatusCodeToReturn = HttpStatusCode.TooManyRequests
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_429"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.TransientHttp, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On502()
+    {
+        var handler = new RecordingHandler
+        {
+            StatusCodeToReturn = HttpStatusCode.BadGateway
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_502"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Equal(HttpStatusCode.BadGateway, ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.TransientHttp, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On504()
+    {
+        var handler = new RecordingHandler
+        {
+            StatusCodeToReturn = HttpStatusCode.GatewayTimeout
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_504"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Equal(HttpStatusCode.GatewayTimeout, ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.TransientHttp, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_OnTimeout()
+    {
+        var handler = new RecordingHandler
+        {
+            ExceptionToThrow = new TaskCanceledException("timeout")
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_timeout"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Null(ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.Timeout, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowNonRetryableManyChatRequestException_On400()
+    {
+        var handler = new RecordingHandler
+        {
+            StatusCodeToReturn = HttpStatusCode.BadRequest
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_400"));
+
+        Assert.False(ex.IsRetryable);
+        Assert.Equal(HttpStatusCode.BadRequest, ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.PermanentHttp, ex.FailureCategory);
+    }
+
+    [Fact]
+    public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_OnTransportFailure()
+    {
+        var handler = new RecordingHandler
+        {
+            ExceptionToThrow = new HttpRequestException("network_down")
+        };
+        var sut = BuildClient(handler);
+
+        var ex = await Assert.ThrowsAsync<ManyChatRequestException>(() => sut.TriggerPaymentFailedFlowAsync("sid_transport"));
+
+        Assert.True(ex.IsRetryable);
+        Assert.Null(ex.StatusCode);
+        Assert.Equal(ManyChatFailureCategory.Transport, ex.FailureCategory);
+    }
+
     private static ManyChatSyncClient BuildClient(RecordingHandler handler)
     {
         var options = new ManyChatOptions
         {
             ApiKey = "test-key",
+            AddTagByNamePath = "fb/subscriber/addTagByName",
+            RemoveTagByNamePath = "fb/subscriber/removeTagByName",
+            SetCustomFieldByNamePath = "fb/subscriber/setCustomFieldByName",
+            SendFlowPath = "fb/sending/sendFlow",
+            PaymentFailedFlowNs = "flow_payment_failed",
             RenewalReminderFlowNs = "flow_renewal",
             SaveBeforeChurnFlowNs = "flow_churn"
         };
@@ -107,9 +224,14 @@ public sealed class ManyChatSyncClientReminderTests
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public List<CapturedRequest> Requests { get; } = new();
+        public HttpStatusCode StatusCodeToReturn { get; set; } = HttpStatusCode.OK;
+        public Exception? ExceptionToThrow { get; set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (ExceptionToThrow is not null)
+                throw ExceptionToThrow;
+
             var body = request.Content is null
                 ? string.Empty
                 : await request.Content.ReadAsStringAsync(cancellationToken);
@@ -117,7 +239,7 @@ public sealed class ManyChatSyncClientReminderTests
             var path = request.RequestUri?.AbsolutePath.TrimStart('/') ?? string.Empty;
             Requests.Add(new CapturedRequest(path, body));
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(StatusCodeToReturn)
             {
                 Content = new StringContent("{\"status\":\"success\"}", Encoding.UTF8, "application/json")
             };

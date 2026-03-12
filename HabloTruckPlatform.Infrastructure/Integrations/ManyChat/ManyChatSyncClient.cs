@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -241,26 +242,123 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
     private async Task PostJson(string path, object payload, CancellationToken ct)
     {
-        var json = JsonSerializer.Serialize(payload, JsonOpts);
+        string json;
+        try
+        {
+            json = JsonSerializer.Serialize(payload, JsonOpts);
+        }
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
+        {
+            throw new ManyChatRequestException(
+                path,
+                statusCode: null,
+                isRetryable: false,
+                failureCategory: ManyChatFailureCategory.InvalidPayload,
+                message: "ManyChat payload serialization failed.",
+                innerException: ex);
+        }
+
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var watch = Stopwatch.StartNew();
-        using var res = await _http.PostAsync(path, content, ct);
+        try
+        {
+            using var res = await _http.PostAsync(path, content, ct);
 
-        var success = res.IsSuccessStatusCode;
+            var success = res.IsSuccessStatusCode;
 
+            LogDependency(path, watch.ElapsedMilliseconds, success, (int)res.StatusCode);
+
+            if (success)
+                return;
+
+            throw new ManyChatRequestException(
+                path,
+                res.StatusCode,
+                IsRetryableStatusCode(res.StatusCode),
+                ClassifyFailure(res.StatusCode),
+                $"ManyChat call failed: {(int)res.StatusCode} {res.ReasonPhrase}.");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException ex)
+        {
+            LogDependency(path, watch.ElapsedMilliseconds, success: false, statusCode: null);
+
+            throw new ManyChatRequestException(
+                path,
+                statusCode: null,
+                isRetryable: true,
+                failureCategory: ManyChatFailureCategory.Timeout,
+                message: "ManyChat call timed out.",
+                innerException: ex);
+        }
+        catch (HttpRequestException ex)
+        {
+            var isRetryable = ex.StatusCode is null || IsRetryableStatusCode(ex.StatusCode.Value);
+            var category = ex.StatusCode is null
+                ? ManyChatFailureCategory.Transport
+                : ClassifyFailure(ex.StatusCode.Value);
+
+            LogDependency(
+                path,
+                watch.ElapsedMilliseconds,
+                success: false,
+                statusCode: ex.StatusCode is null ? null : (int)ex.StatusCode.Value);
+
+            throw new ManyChatRequestException(
+                path,
+                ex.StatusCode,
+                isRetryable,
+                category,
+                ex.StatusCode is null
+                    ? "ManyChat transport failure."
+                    : $"ManyChat call failed: {(int)ex.StatusCode.Value} {ex.StatusCode.Value}.",
+                ex);
+        }
+    }
+
+    private void LogDependency(string path, long durationMs, bool success, int? statusCode)
+    {
         _logger.LogDebug(
             "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} StatusCode={StatusCode}",
             "dependency",
             "manychat",
             "http_post",
             path,
-            watch.ElapsedMilliseconds,
+            durationMs,
             success,
-            (int)res.StatusCode);
+            statusCode);
+    }
 
-        if (!success)
-            throw new HttpRequestException($"ManyChat call failed: {(int)res.StatusCode} {res.ReasonPhrase}.");
+    private static bool IsRetryableStatusCode(HttpStatusCode statusCode)
+    {
+        // ManyChat retry policy:
+        // - retryable: 429, request timeout, and 5xx
+        // - non-retryable by default: most 4xx (classified below as permanent)
+        if (statusCode == HttpStatusCode.TooManyRequests || statusCode == HttpStatusCode.RequestTimeout)
+            return true;
+
+        return (int)statusCode >= 500;
+    }
+
+    private static ManyChatFailureCategory ClassifyFailure(HttpStatusCode statusCode)
+    {
+        if (IsRetryableStatusCode(statusCode))
+            return ManyChatFailureCategory.TransientHttp;
+
+        if (statusCode is HttpStatusCode.BadRequest
+            or HttpStatusCode.Unauthorized
+            or HttpStatusCode.Forbidden
+            or HttpStatusCode.NotFound)
+            return ManyChatFailureCategory.PermanentHttp;
+
+        if ((int)statusCode >= 400 && (int)statusCode < 500)
+            return ManyChatFailureCategory.PermanentHttp;
+
+        return ManyChatFailureCategory.Unknown;
     }
 
     private static string MaskSubscriberId(string subscriberId)

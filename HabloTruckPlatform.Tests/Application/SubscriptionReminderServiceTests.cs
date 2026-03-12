@@ -5,6 +5,7 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Net;
 
 namespace HabloTruckPlatform.Domain.Tests.Application;
 
@@ -492,6 +493,75 @@ public sealed class SubscriptionReminderServiceTests
     }
 
     [Fact]
+    public async Task RunDailyAsync_Should_EnqueueFailedAction_WhenManyChatFailureIsRetryable()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_retryable", "sub_retryable", "active", "monthly", false, now.AddDays(7), "sid_retryable"));
+
+        var manyChat = new RecordingManyChatSync();
+        manyChat.ExceptionsBySubscriberId["sid_retryable"] = new ManyChatRequestException(
+            path: "fb/sending/sendFlow",
+            statusCode: HttpStatusCode.ServiceUnavailable,
+            isRetryable: true,
+            failureCategory: ManyChatFailureCategory.TransientHttp,
+            message: "retryable");
+
+        var failedActions = new InMemoryFailedActionStore();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now, failedActions);
+
+        await sut.RunDailyAsync(take: 100);
+
+        var queued = Assert.Single(failedActions.Enqueued);
+        Assert.Equal(FailedActionRetryService.ActionManyChatSubscriptionReminder, queued.ActionType);
+        Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_NotEnqueueFailedAction_WhenManyChatFailureIsNonRetryable()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_non_retryable", "sub_non_retryable", "active", "monthly", false, now.AddDays(7), "sid_non_retryable"));
+
+        var manyChat = new RecordingManyChatSync();
+        manyChat.ExceptionsBySubscriberId["sid_non_retryable"] = new ManyChatRequestException(
+            path: "fb/sending/sendFlow",
+            statusCode: HttpStatusCode.BadRequest,
+            isRetryable: false,
+            failureCategory: ManyChatFailureCategory.PermanentHttp,
+            message: "non_retryable");
+
+        var failedActions = new InMemoryFailedActionStore();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now, failedActions);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Empty(failedActions.Enqueued);
+        Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_NotEnqueueFailedAction_WhenManyChatSendSucceeds()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(NewUser("U_ok_no_queue", "sub_ok_no_queue", "active", "monthly", false, now.AddDays(7), "sid_ok_no_queue"));
+
+        var manyChat = new RecordingManyChatSync();
+        var failedActions = new InMemoryFailedActionStore();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now, failedActions);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Single(manyChat.Dispatches);
+        Assert.Empty(failedActions.Enqueued);
+    }
+
+    [Fact]
     public async Task RunDailyAsync_Should_DeriveAudienceSegment_FromRecentVsStaleActivityMarkers()
     {
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
@@ -549,13 +619,15 @@ public sealed class SubscriptionReminderServiceTests
         InMemoryCompanyStore companies,
         InMemoryReminderStore reminders,
         RecordingManyChatSync manyChat,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        InMemoryFailedActionStore? failedActionStore = null)
     {
         return new SubscriptionReminderService(
             users,
             companies,
             reminders,
             manyChat,
+            failedActionStore ?? new InMemoryFailedActionStore(),
             new FixedClock(now),
             NullLogger<SubscriptionReminderService>.Instance);
     }
@@ -652,10 +724,43 @@ public sealed class SubscriptionReminderServiceTests
             => $"{subscriptionId.Trim()}|{reminderType.Trim().ToLowerInvariant()}|{periodEndUtc.UtcDateTime:yyyyMMdd}";
     }
 
+    private sealed class InMemoryFailedActionStore : IFailedActionStore
+    {
+        public List<FailedActionItem> Enqueued { get; } = new();
+
+        public Task EnsureTableAsync(CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task EnqueueAsync(string actionType, string payloadJson, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
+        {
+            Enqueued.Add(new FailedActionItem("pk", "rk", actionType, payloadJson, 0, nextRetryUtc));
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<FailedActionItem>> GetDueAsync(DateTimeOffset nowUtc, int lookbackHours, int take, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<FailedActionItem>>(Array.Empty<FailedActionItem>());
+
+        public Task MarkSucceededAsync(string pk, string rk, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RescheduleAsync(string pk, string rk, int attempts, DateTimeOffset nextRetryUtc, string lastError, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task MarkDeadAsync(string pk, string rk, int attempts, string lastError, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<FailedActionItem>> GetByStatusAsync(DateTimeOffset nowUtc, string status, int lookbackHours, int take, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<FailedActionItem>>(Array.Empty<FailedActionItem>());
+
+        public Task RequeueAsync(string pk, string rk, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+
     private sealed class RecordingManyChatSync : IManyChatSync
     {
         public List<SubscriptionReminderDispatch> Dispatches { get; } = new();
         public HashSet<string> FailSubscriberIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Exception> ExceptionsBySubscriberId { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
             => Task.CompletedTask;
@@ -668,6 +773,9 @@ public sealed class SubscriptionReminderServiceTests
 
         public Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
         {
+            if (ExceptionsBySubscriberId.TryGetValue(dispatch.SubscriberId, out var ex))
+                throw ex;
+
             if (FailSubscriberIds.Contains(dispatch.SubscriberId))
                 throw new InvalidOperationException("simulated_send_failure");
 
