@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -8,7 +9,6 @@ using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
 namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
@@ -20,7 +20,10 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    public ManyChatSyncClient(HttpClient http, IOptions<ManyChatOptions> opt, ILogger<ManyChatSyncClient>? logger = null)
+    public ManyChatSyncClient(
+        HttpClient http,
+        IOptions<ManyChatOptions> opt,
+        ILogger<ManyChatSyncClient>? logger = null)
     {
         _http = http;
         _opt = opt.Value;
@@ -29,13 +32,30 @@ public sealed class ManyChatSyncClient : IManyChatSync
         if (string.IsNullOrWhiteSpace(_opt.ApiKey))
             throw new InvalidOperationException("ManyChat ApiKey is missing.");
 
+        if (string.IsNullOrWhiteSpace(_opt.BaseUrl))
+            throw new InvalidOperationException("ManyChat BaseUrl is missing.");
+
+        if (string.IsNullOrWhiteSpace(_opt.AddTagByNamePath))
+            throw new InvalidOperationException("ManyChat AddTagByNamePath is missing.");
+
+        if (string.IsNullOrWhiteSpace(_opt.RemoveTagByNamePath))
+            throw new InvalidOperationException("ManyChat RemoveTagByNamePath is missing.");
+
+        if (string.IsNullOrWhiteSpace(_opt.SetCustomFieldByNamePath))
+            throw new InvalidOperationException("ManyChat SetCustomFieldByNamePath is missing.");
+
+        if (string.IsNullOrWhiteSpace(_opt.SendFlowPath))
+            throw new InvalidOperationException("ManyChat SendFlowPath is missing.");
+
         _http.BaseAddress = new Uri(_opt.BaseUrl.TrimEnd('/') + "/");
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _opt.ApiKey);
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
     public async Task SyncUserAccessAsync(
-        User user, AccessDecision decision, CancellationToken ct = default)
+        User user,
+        AccessDecision decision,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
         {
@@ -66,12 +86,10 @@ public sealed class ManyChatSyncClient : IManyChatSync
             decision.Mode,
             decision.Source);
 
-        // 1) Clear access tags.
         await RemoveTagByName(sid, _opt.TagAccessFull, ct);
         await RemoveTagByName(sid, _opt.TagAccessGrace, ct);
         await RemoveTagByName(sid, _opt.TagAccessBlocked, ct);
 
-        // 2) Set correct access tag.
         var accessTag = decision.Mode switch
         {
             AccessMode.Full => _opt.TagAccessFull,
@@ -79,16 +97,18 @@ public sealed class ManyChatSyncClient : IManyChatSync
             AccessMode.Blocked => _opt.TagAccessBlocked,
             _ => _opt.TagAccessBlocked
         };
+
         await AddTagByName(sid, accessTag, ct);
 
-        // 3) Clear/Set source tags (Individual/Company).
         await RemoveTagByName(sid, _opt.TagSourceIndividual, ct);
         await RemoveTagByName(sid, _opt.TagSourceCompany, ct);
 
-        if ((decision.Source & AccessSource.Individual) != 0) await AddTagByName(sid, _opt.TagSourceIndividual, ct);
-        if ((decision.Source & AccessSource.Company) != 0) await AddTagByName(sid, _opt.TagSourceCompany, ct);
+        if ((decision.Source & AccessSource.Individual) != 0)
+            await AddTagByName(sid, _opt.TagSourceIndividual, ct);
 
-        // 4) Custom fields.
+        if ((decision.Source & AccessSource.Company) != 0)
+            await AddTagByName(sid, _opt.TagSourceCompany, ct);
+
         await SetCustomFieldByName(sid, _opt.FieldAccessMode, decision.Mode.ToString(), ct);
 
         var graceValue = decision.GraceEndsAtUtc is null
@@ -96,7 +116,6 @@ public sealed class ManyChatSyncClient : IManyChatSync
             : decision.GraceEndsAtUtc.Value.UtcDateTime.ToString("O");
 
         await SetCustomFieldByName(sid, _opt.FieldGraceEndsAtUtc, graceValue, ct);
-
         await SetCustomFieldByName(sid, _opt.FieldCompanyId, user.CompanyId ?? "", ct);
 
         _logger.LogInformation(
@@ -121,7 +140,6 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
         var sid = subscriberId.Trim();
 
-        // /fb/sending/sendFlow (flow_ns)
         var payload = new
         {
             subscriber_id = sid,
@@ -129,13 +147,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
             payload = new { }
         };
 
-        await PostJson("fb/sending/sendFlow", payload, ct);
+        await PostJson(_opt.SendFlowPath, payload, ct);
     }
 
     public async Task NotifyCompanyPackPurchasedAsync(string companyId, int seatsTotal, CancellationToken ct = default)
     {
-        // Optional hook: If you later want to message an admin subscriber, you would need admin subscriberId.
-        // For now, no-op by design.
         await Task.CompletedTask;
     }
 
@@ -161,7 +177,7 @@ public sealed class ManyChatSyncClient : IManyChatSync
                 "no_action_needed",
                 "reminder_flow_not_configured",
                 journey);
-            return; // reminder flow not configured
+            return;
         }
 
         var payload = new
@@ -186,32 +202,41 @@ public sealed class ManyChatSyncClient : IManyChatSync
             }
         };
 
-        await PostJson("fb/sending/sendFlow", payload, ct);
+        await PostJson(_opt.SendFlowPath, payload, ct);
     }
-
-    // --------------------
-    // Low-level endpoints
-    // --------------------
 
     private async Task AddTagByName(string subscriberId, string tagName, CancellationToken ct)
     {
-        // POST /fb/subscriber/addTagByName
-        var payload = new { subscriber_id = subscriberId, tag_name = tagName };
-        await PostJson("fb/subscriber/addTagByName", payload, ct);
+        var payload = new
+        {
+            subscriber_id = subscriberId,
+            tag_name = tagName
+        };
+
+        await PostJson(_opt.AddTagByNamePath, payload, ct);
     }
 
     private async Task RemoveTagByName(string subscriberId, string tagName, CancellationToken ct)
     {
-        // POST /fb/subscriber/removeTagByName
-        var payload = new { subscriber_id = subscriberId, tag_name = tagName };
-        await PostJson("fb/subscriber/removeTagByName", payload, ct);
+        var payload = new
+        {
+            subscriber_id = subscriberId,
+            tag_name = tagName
+        };
+
+        await PostJson(_opt.RemoveTagByNamePath, payload, ct);
     }
 
     private async Task SetCustomFieldByName(string subscriberId, string fieldName, string value, CancellationToken ct)
     {
-        // POST /fb/subscriber/setCustomFieldByName
-        var payload = new { subscriber_id = subscriberId, field_name = fieldName, field_value = value };
-        await PostJson("fb/subscriber/setCustomFieldByName", payload, ct);
+        var payload = new
+        {
+            subscriber_id = subscriberId,
+            field_name = fieldName,
+            field_value = value
+        };
+
+        await PostJson(_opt.SetCustomFieldByNamePath, payload, ct);
     }
 
     private async Task PostJson(string path, object payload, CancellationToken ct)
@@ -247,4 +272,3 @@ public sealed class ManyChatSyncClient : IManyChatSync
         return trimmed.Length <= 4 ? trimmed : trimmed[^4..];
     }
 }
-

@@ -24,4 +24,10 @@ public sealed class ManyChatOptions
     public string FieldAccessMode { get; set; } = "ht_access_mode";
     public string FieldGraceEndsAtUtc { get; set; } = "ht_grace_ends_utc";
     public string FieldCompanyId { get; set; } = "ht_company_id";
+
+    // endpoint paths
+    public string AddTagByNamePath { get; set; } = string.Empty;
+    public string RemoveTagByNamePath { get; set; } = string.Empty;
+    public string SetCustomFieldByNamePath { get; set; } = string.Empty;
+    public string SendFlowPath { get; set; } = string.Empty;
 }
