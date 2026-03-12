@@ -1,19 +1,28 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Functions.Contracts;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
 public sealed class RequeueFailedActionFunction
 {
     private readonly IFailedActionStore _store;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<RequeueFailedActionFunction> _logger;
 
-    public RequeueFailedActionFunction(IFailedActionStore store)
+    public RequeueFailedActionFunction(
+        IFailedActionStore store,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<RequeueFailedActionFunction> logger)
     {
         _store = store;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("RequeueFailedAction")]
@@ -22,6 +31,15 @@ public sealed class RequeueFailedActionFunction
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         RequeueFailedActionHttpRequest? body;
         try

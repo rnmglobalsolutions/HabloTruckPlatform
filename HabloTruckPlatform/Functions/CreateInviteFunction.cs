@@ -1,11 +1,13 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Functions.Contracts;
 using HabloTruckPlatform.Functions.Infrastructure;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
@@ -13,6 +15,8 @@ public sealed class CreateInviteFunction
 {
     private readonly IInviteCodeStore _invites;
     private readonly IEntitlementStore _entitlements;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<CreateInviteFunction> _logger;
 
     #region ManyChat / Postman usage
     /*
@@ -45,10 +49,16 @@ public sealed class CreateInviteFunction
      */
     #endregion
 
-    public CreateInviteFunction(IInviteCodeStore invites, IEntitlementStore entitlements)
+    public CreateInviteFunction(
+        IInviteCodeStore invites,
+        IEntitlementStore entitlements,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<CreateInviteFunction> logger)
     {
         _invites = invites;
         _entitlements = entitlements;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("CreateInvite")]
@@ -57,6 +67,15 @@ public sealed class CreateInviteFunction
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         CreateInviteHttpRequest? body;
         try

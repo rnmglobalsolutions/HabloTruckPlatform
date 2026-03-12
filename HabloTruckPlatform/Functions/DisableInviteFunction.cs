@@ -1,9 +1,11 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Functions.Contracts;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
@@ -22,10 +24,17 @@ Body:
      */
     #endregion
     private readonly IInviteCodeStore _invites;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<DisableInviteFunction> _logger;
 
-    public DisableInviteFunction(IInviteCodeStore invites)
+    public DisableInviteFunction(
+        IInviteCodeStore invites,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<DisableInviteFunction> logger)
     {
         _invites = invites;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("DisableInvite")]
@@ -34,6 +43,15 @@ Body:
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         DisableInviteHttpRequest? body;
         try

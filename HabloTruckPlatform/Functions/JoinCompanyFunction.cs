@@ -1,9 +1,10 @@
-using HabloTruckPlatform.Application.Abstractions;
+﻿using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Functions.Contracts;
 using HabloTruckPlatform.Infrastructure.Telemetry;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -20,16 +21,19 @@ public sealed class JoinCompanyFunction
     private readonly IInviteCodeStore _invites;
     private readonly CompanyJoinHandler _join;
     private readonly ILogger<JoinCompanyFunction> _logger;
+    private readonly IApiKeyValidator _apiKeyValidator;
 
     public JoinCompanyFunction(
         IUserStore users,
         IInviteCodeStore invites,
         CompanyJoinHandler join,
+        IApiKeyValidator apiKeyValidator,
         ILogger<JoinCompanyFunction>? logger = null)
     {
         _users = users;
         _invites = invites;
         _join = join;
+        _apiKeyValidator = apiKeyValidator;
         _logger = logger ?? NullLogger<JoinCompanyFunction>.Instance;
     }
 
@@ -39,6 +43,15 @@ public sealed class JoinCompanyFunction
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
         var invocationId = ctx.InvocationId;
         var correlationId = LogContext.ResolveCorrelationId(
             FirstHeader(req, "x-correlation-id", "x-request-id"),
@@ -217,4 +230,5 @@ public sealed class JoinCompanyFunction
         return null;
     }
 }
+
 

@@ -1,10 +1,11 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Functions.Contracts;
 using HabloTruckPlatform.Infrastructure.Telemetry;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -16,12 +17,15 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
 {
     private readonly CancelSubscriptionAtPeriodEndUseCase _useCase;
     private readonly ILogger<CancelSubscriptionAtPeriodEndFunction> _logger;
+    private readonly IApiKeyValidator _apiKeyValidator;
 
     public CancelSubscriptionAtPeriodEndFunction(
         CancelSubscriptionAtPeriodEndUseCase useCase,
+        IApiKeyValidator apiKeyValidator,
         ILogger<CancelSubscriptionAtPeriodEndFunction>? logger = null)
     {
         _useCase = useCase;
+        _apiKeyValidator = apiKeyValidator;
         _logger = logger ?? NullLogger<CancelSubscriptionAtPeriodEndFunction>.Instance;
     }
 
@@ -30,6 +34,15 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "stripe/subscription/cancel-at-period-end")] HttpRequestData req,
         FunctionContext ctx)
     {
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ctx.CancellationToken);
+
+        if (unauthorized is not null)
+            return unauthorized;
+
         var invocationId = ctx.InvocationId;
         var correlationId = LogContext.ResolveCorrelationId(
             FirstHeader(req, "x-correlation-id", "x-request-id"),
@@ -163,4 +176,5 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
         return null;
     }
 }
+
 

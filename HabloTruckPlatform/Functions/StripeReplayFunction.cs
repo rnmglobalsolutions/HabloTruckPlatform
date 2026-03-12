@@ -1,8 +1,9 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Infrastructure.Telemetry;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -15,14 +16,17 @@ public sealed class StripeReplayFunction
     private readonly IStripeAdminClient _stripeAdminClient;
     private readonly IStripeSubscriptionHandler _handler;
     private readonly ILogger<StripeReplayFunction> _logger;
+    private readonly IApiKeyValidator _apiKeyValidator;
 
     public StripeReplayFunction(
         IStripeAdminClient stripeAdminClient,
         IStripeSubscriptionHandler handler,
+        IApiKeyValidator apiKeyValidator,
         ILogger<StripeReplayFunction>? logger = null)
     {
         _stripeAdminClient = stripeAdminClient;
         _handler = handler;
+        _apiKeyValidator = apiKeyValidator;
         _logger = logger ?? NullLogger<StripeReplayFunction>.Instance;
     }
 
@@ -31,6 +35,15 @@ public sealed class StripeReplayFunction
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "admin/stripe/replay")] HttpRequestData req,
         FunctionContext ctx)
     {
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ctx.CancellationToken);
+
+        if (unauthorized is not null)
+            return unauthorized;
+
         var invocationId = ctx.InvocationId;
         var correlationId = LogContext.ResolveCorrelationId(
             FirstHeader(req, "x-correlation-id", "x-request-id"),
@@ -165,4 +178,5 @@ public sealed class StripeReplayFunction
         return null;
     }
 }
+
 

@@ -1,10 +1,12 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using Azure;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Functions.Contracts;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging;
 
 namespace HabloTruckPlatform.Functions.Functions;
 
@@ -37,10 +39,17 @@ public sealed class ListInvitesForCompanyFunction
 
     #endregion
     private readonly IInviteCodeStore _invites;
+    private readonly IApiKeyValidator _apiKeyValidator;
+    private readonly ILogger<ListInvitesForCompanyFunction> _logger;
 
-    public ListInvitesForCompanyFunction(IInviteCodeStore invites)
+    public ListInvitesForCompanyFunction(
+        IInviteCodeStore invites,
+        IApiKeyValidator apiKeyValidator,
+        ILogger<ListInvitesForCompanyFunction> logger)
     {
         _invites = invites;
+        _apiKeyValidator = apiKeyValidator;
+        _logger = logger;
     }
 
     [Function("ListInvitesForCompany")]
@@ -49,6 +58,15 @@ public sealed class ListInvitesForCompanyFunction
     FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
+
+        var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
+            req,
+            _apiKeyValidator,
+            _logger,
+            ct);
+
+        if (unauthorized is not null)
+            return unauthorized;
 
         string? companyId = null;
         int take = 50;

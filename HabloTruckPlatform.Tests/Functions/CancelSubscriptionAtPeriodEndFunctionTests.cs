@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -9,13 +9,18 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Functions.Functions;
+using HabloTruckPlatform.Security;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace HabloTruckPlatform.Domain.Tests.Functions;
 
 public sealed class CancelSubscriptionAtPeriodEndFunctionTests
 {
+    private const string ValidApiKey = "test-http-api-key";
+
     [Fact]
     public async Task Run_Should_ReturnOk_ForValidIndividualCancelRequest()
     {
@@ -69,6 +74,74 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         Assert.Equal("sub_ind_ok", body.GetProperty("subscriptionId").GetString());
     }
 
+    [Fact]
+    public async Task Run_Should_ReturnUnauthorized_When_ApiKeyIsMissing()
+    {
+        var fixture = BuildFixture(new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+
+        var req = NewRequest(
+            """
+{
+  "scope": "individual",
+  "actorUserPk": "HT_U_001",
+  "actorUserId": "U1"
+}
+""",
+            apiKey: null);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+        var body = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.False(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("Unauthorized", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnUnauthorized_When_ApiKeyIsEmpty()
+    {
+        var fixture = BuildFixture(new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+
+        var req = NewRequest(
+            """
+{
+  "scope": "individual",
+  "actorUserPk": "HT_U_001",
+  "actorUserId": "U1"
+}
+""",
+            apiKey: "   ");
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+        var body = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.False(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("Unauthorized", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnUnauthorized_When_ApiKeyIsInvalid()
+    {
+        var fixture = BuildFixture(new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+
+        var req = NewRequest(
+            """
+{
+  "scope": "individual",
+  "actorUserPk": "HT_U_001",
+  "actorUserId": "U1"
+}
+""",
+            apiKey: "invalid-key");
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+        var body = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.False(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("Unauthorized", body.GetProperty("error").GetString());
+    }
     [Fact]
     public async Task Run_Should_ReturnBadRequest_When_RequestJsonIsInvalid()
     {
@@ -205,14 +278,23 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
             gateway,
             new FixedClock(now));
 
-        var function = new CancelSubscriptionAtPeriodEndFunction(useCase);
+        var validator = new ApiKeyValidator(
+            Options.Create(new HttpSecurityOptions { HttpApiKey = ValidApiKey }),
+            NullLogger<ApiKeyValidator>.Instance);
+
+        var function = new CancelSubscriptionAtPeriodEndFunction(useCase, validator);
         return new Fixture(function, userStore, companyStore, entitlementStore, gateway);
     }
 
-    private static TestHttpRequestData NewRequest(string body)
+    private static TestHttpRequestData NewRequest(string body, string? apiKey = ValidApiKey)
     {
         var ctx = new TestFunctionContext();
-        return new TestHttpRequestData(ctx, body);
+        var req = new TestHttpRequestData(ctx, body);
+
+        if (apiKey is not null)
+            req.Headers.Add("x-api-key", apiKey);
+
+        return req;
     }
 
     private static async Task<JsonElement> ReadJsonAsync(HttpResponseData response)
@@ -379,3 +461,8 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
+
+
+
+
+
