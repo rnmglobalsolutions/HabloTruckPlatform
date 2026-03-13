@@ -338,6 +338,7 @@ public sealed class AccessOrchestrator
         }
         catch (Exception ex)
         {
+            _logger.LogError("ManyChat Error: " + JsonSerializer.Serialize(ex));
             _logger.LogError(
                 ex,
                 "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs}",
