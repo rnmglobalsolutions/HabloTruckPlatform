@@ -258,7 +258,7 @@ public sealed class ManyChatSyncClient : IManyChatSync
                 innerException: ex);
         }
 
-        _logger.LogInformation($"ManyChat Path: {path} - ManyChat Payload: {json}");
+        _logger.LogInformation($"ManyChat Path: {_http.BaseAddress}{path} - ManyChat Payload: {json}");
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var watch = Stopwatch.StartNew();
