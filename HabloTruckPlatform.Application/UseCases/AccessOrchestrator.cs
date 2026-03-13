@@ -284,7 +284,7 @@ public sealed class AccessOrchestrator
             _logger.LogWarning(
                 ex,
                 "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
-                "exception",
+                "warning: ex is retryable",
                 "dependency_failed",
                 "manychat",
                 "sync_user_access",
