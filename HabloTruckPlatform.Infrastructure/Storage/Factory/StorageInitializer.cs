@@ -63,6 +63,11 @@ public sealed class StorageInitializer
         await _factory.EnsureTableAsync(TableNames.FailedActions, ct);
 
         // -----------------------------
+        // STRIPE EVENT AUDIT (for observability, debugging, and future analytics)
+        // -----------------------------
+        await _factory.EnsureTableAsync(TableNames.StripeEventAudit, ct);
+
+        // -----------------------------
         // REMINDER IDEMPOTENCY / AUDIT
         // -----------------------------
         await _factory.EnsureTableAsync(TableNames.SubscriptionReminders, ct);
