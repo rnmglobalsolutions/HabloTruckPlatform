@@ -123,11 +123,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
         await SetCustomFieldByNameAsync(sid, _opt.FieldAccessMode, decision.Mode.ToString(), ct);
 
         var graceValue = decision.GraceEndsAtUtc is null
-            ? ""
+            ? "-"
             : decision.GraceEndsAtUtc.Value.UtcDateTime.ToString("O");
 
         await SetCustomFieldByNameAsync(sid, _opt.FieldGraceEndsAtUtc, graceValue, ct);
-        await SetCustomFieldByNameAsync(sid, _opt.FieldCompanyId, user.CompanyId ?? "", ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldCompanyId, user.CompanyId ?? "-", ct);
 
         _logger.LogInformation(
             "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
