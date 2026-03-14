@@ -289,7 +289,7 @@ public sealed class SubscriptionReminderServiceTests
             SubscriptionStatus = "active",
             IndividualPlanTerm = "monthly",
             StripeCancelAtPeriodEnd = false,
-            StripeCurrentPeriodEndUtc = now.AddDays(7),
+            StripeCurrentPeriodEndUtc = now.AddDays(5),
             PaymentRecoveryStartedAtUtc = now.AddDays(-1),
             PlanType = "individual_monthly"
         });
@@ -904,7 +904,6 @@ public sealed class SubscriptionReminderServiceTests
         }
     }
 }
-
 
 
 

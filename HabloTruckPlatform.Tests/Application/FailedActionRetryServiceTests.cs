@@ -409,6 +409,17 @@ public sealed class FailedActionRetryServiceTests
                 failureCategory: ManyChatFailureCategory.TransientHttp,
                 message: "transient")
         };
+        users.Add(new User
+        {
+            UserId = "U_dead_sendflow",
+            ManyChatSubscriberId = "sid_dead_sendflow",
+            StripeSubscriptionId = "sub_dead_sendflow",
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = false,
+            StripeCurrentPeriodEndUtc = new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            PlanType = "individual_monthly"
+        });
 
         var dispatch = new SubscriptionReminderDispatch(
             SubscriberId: "sid_dead_sendflow",
