@@ -231,7 +231,7 @@ public sealed class ManyChatSyncClientReminderTests
         var manyChatSubscriberId = "1218185540";
         var handler = new RecordingHandler();
         var sut = BuildClient(handler);
-        var result = await sut.SetCustomFieldByNameAsync(manyChatSubscriberId, "HT_ACCESS_MODE", "FULL");
+        var result = await sut.SetCustomFieldByNameAsync(manyChatSubscriberId, "ht_grace_ends_utc", "");
         var captured = Assert.Single(handler.Requests);
         Assert.Equal("fb/subscriber/setCustomFieldByName", captured.Path);
         Assert.Equal("success", result?.status);

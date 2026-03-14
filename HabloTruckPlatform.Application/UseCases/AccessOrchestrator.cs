@@ -323,6 +323,9 @@ public sealed class AccessOrchestrator
         }
         catch (ManyChatRequestException ex)
         {
+            var msg = Newtonsoft.Json.JsonConvert.SerializeObject(ex);
+            user.SeatStatus = $"Manychat Error Msg: {msg}";
+            await _userStore.UpsertAsync(user, ct);
             _logger.LogError(
                 ex,
                 "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
