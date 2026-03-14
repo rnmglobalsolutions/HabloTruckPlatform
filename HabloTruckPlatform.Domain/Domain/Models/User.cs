@@ -62,6 +62,7 @@ public sealed class User
     public string? IndividualPlanTerm { get; set; } // monthly | annual
     public DateTimeOffset? StripeCurrentPeriodEndUtc { get; set; }
     public bool StripeCancelAtPeriodEnd { get; set; }
+    public DateTimeOffset? PaymentRecoveryStartedAtUtc { get; set; }
 
     // Decision sync
     public string? LastSyncedAccessMode { get; set; }

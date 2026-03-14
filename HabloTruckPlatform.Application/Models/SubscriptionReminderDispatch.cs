@@ -14,5 +14,7 @@ public sealed record SubscriptionReminderDispatch(
     string AudienceSegment,
     bool IsCompanyReminder,
     string? CompanyId,
-    string? PlanTerm
+    string? PlanTerm,
+    int? JourneyDay = null,
+    DateTimeOffset? JourneyAnchorUtc = null
 );

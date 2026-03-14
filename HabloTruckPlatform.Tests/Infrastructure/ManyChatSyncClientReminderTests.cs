@@ -88,6 +88,43 @@ public sealed class ManyChatSyncClientReminderTests
     }
 
     [Fact]
+    public async Task SendSubscriptionReminderAsync_Should_UsePaymentRecoveryFlow_ForRecoveryFollowup()
+    {
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+
+        var dispatch = new SubscriptionReminderDispatch(
+            SubscriberId: "sid_recovery",
+            UserId: "U_RECOVERY",
+            SubscriptionId: "sub_recovery",
+            ReminderType: "payment_recovery_followup_day_1",
+            Journey: "payment_recovery",
+            DaysUntilPeriodEnd: 0,
+            PeriodEndUtc: new DateTimeOffset(2026, 3, 11, 12, 0, 0, TimeSpan.Zero),
+            UsePositiveContinuityFraming: false,
+            ReminderTone: "PaymentRecoveryUpdateMethod",
+            TemplateKey: "payment_recovery_followup",
+            AudienceSegment: "at_risk",
+            IsCompanyReminder: false,
+            CompanyId: null,
+            PlanTerm: "monthly",
+            JourneyDay: 1,
+            JourneyAnchorUtc: new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+
+        await sut.SendSubscriptionReminderAsync(dispatch);
+
+        var captured = Assert.Single(handler.Requests);
+        using var doc = JsonDocument.Parse(captured.Body);
+        var root = doc.RootElement;
+        Assert.Equal("flow_payment_recovery", root.GetProperty("flow_ns").GetString());
+
+        var payload = root.GetProperty("payload");
+        Assert.Equal("payment_recovery", payload.GetProperty("journey").GetString());
+        Assert.Equal(1, payload.GetProperty("journey_day").GetInt32());
+        Assert.Equal("payment_recovery_followup", payload.GetProperty("template_key").GetString());
+    }
+
+    [Fact]
     public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On503()
     {
         var handler = new RecordingHandler
@@ -248,6 +285,7 @@ public sealed class ManyChatSyncClientReminderTests
             SetCustomFieldByNamePath = "fb/subscriber/setCustomFieldByName",
             SendFlowPath = "fb/sending/sendFlow",
             PaymentFailedFlowNs = "flow_payment_failed",
+            PaymentRecoveryReminderFlowNs = "flow_payment_recovery",
             RenewalReminderFlowNs = "flow_renewal",
             SaveBeforeChurnFlowNs = "flow_churn"
         };

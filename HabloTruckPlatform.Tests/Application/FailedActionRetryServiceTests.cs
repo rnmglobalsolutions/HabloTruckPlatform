@@ -19,6 +19,17 @@ public sealed class FailedActionRetryServiceTests
         var store = new InMemoryFailedActionStore();
         var users = new InMemoryUserStore();
         var manyChat = new RecordingManyChatSync();
+        users.Add(new User
+        {
+            UserId = "U_retry_reminder",
+            ManyChatSubscriberId = "sid_retry_reminder",
+            StripeSubscriptionId = "sub_retry_reminder",
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = false,
+            StripeCurrentPeriodEndUtc = new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            PlanType = "individual_monthly"
+        });
 
         var dispatch = new SubscriptionReminderDispatch(
             SubscriberId: "sid_retry_reminder",
@@ -62,6 +73,127 @@ public sealed class FailedActionRetryServiceTests
     }
 
     [Fact]
+    public async Task RetryDueAsync_Should_SkipAutoRenewReminder_WhenCurrentStateMovedToCancelScheduled()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+
+        users.Add(new User
+        {
+            UserId = "U_retry_auto_suppressed",
+            ManyChatSubscriberId = "sid_retry_auto_suppressed",
+            StripeSubscriptionId = "sub_retry_auto_suppressed",
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = true,
+            StripeCurrentPeriodEndUtc = new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            PlanType = "individual_monthly"
+        });
+
+        var dispatch = new SubscriptionReminderDispatch(
+            SubscriberId: "sid_retry_auto_suppressed",
+            UserId: "U_retry_auto_suppressed",
+            SubscriptionId: "sub_retry_auto_suppressed",
+            ReminderType: "renewal_reminder_1d",
+            Journey: "auto_renew",
+            DaysUntilPeriodEnd: 1,
+            PeriodEndUtc: new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            UsePositiveContinuityFraming: true,
+            ReminderTone: "PositiveContinuity",
+            TemplateKey: "renewal_positive_continuity_1d",
+            AudienceSegment: "active",
+            IsCompanyReminder: false,
+            CompanyId: null,
+            PlanTerm: "monthly");
+
+        var payload = JsonSerializer.Serialize(new ManyChatSubscriptionReminderFailedActionPayload(
+            Dispatch: dispatch,
+            ReminderId: "sub_retry_auto_suppressed:window_1d:20260320",
+            CorrelationId: "U_retry_auto_suppressed",
+            Reason: "send_subscription_reminder",
+            OperationName: "manychat_send_subscription_reminder"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_retry_auto_suppressed",
+            Rk: "rk_retry_auto_suppressed",
+            ActionType: FailedActionRetryService.ActionManyChatSubscriptionReminder,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Empty(manyChat.ReminderDispatches);
+        Assert.Single(store.Succeeded);
+        Assert.Empty(store.Dead);
+        Assert.Empty(store.Rescheduled);
+    }
+
+    [Fact]
+    public async Task RetryDueAsync_Should_SkipSaveBeforeChurnReminder_WhenCurrentStateMovedToPaymentRecovery()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+
+        users.Add(new User
+        {
+            UserId = "U_retry_save_suppressed",
+            ManyChatSubscriberId = "sid_retry_save_suppressed",
+            StripeSubscriptionId = "sub_retry_save_suppressed",
+            SubscriptionStatus = "past_due",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = true,
+            StripeCurrentPeriodEndUtc = new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            PaymentRecoveryStartedAtUtc = new DateTimeOffset(2026, 3, 18, 12, 0, 0, TimeSpan.Zero),
+            PlanType = "individual_monthly"
+        });
+
+        var dispatch = new SubscriptionReminderDispatch(
+            SubscriberId: "sid_retry_save_suppressed",
+            UserId: "U_retry_save_suppressed",
+            SubscriptionId: "sub_retry_save_suppressed",
+            ReminderType: "save_before_churn_1d",
+            Journey: "save_before_churn",
+            DaysUntilPeriodEnd: 1,
+            PeriodEndUtc: new DateTimeOffset(2026, 3, 20, 12, 0, 0, TimeSpan.Zero),
+            UsePositiveContinuityFraming: false,
+            ReminderTone: "EndingSoonReactivation",
+            TemplateKey: "save_before_churn_ending_soon_1d",
+            AudienceSegment: "at_risk",
+            IsCompanyReminder: false,
+            CompanyId: null,
+            PlanTerm: "monthly");
+
+        var payload = JsonSerializer.Serialize(new ManyChatSubscriptionReminderFailedActionPayload(
+            Dispatch: dispatch,
+            ReminderId: "sub_retry_save_suppressed:window_1d:20260320",
+            CorrelationId: "U_retry_save_suppressed",
+            Reason: "send_subscription_reminder",
+            OperationName: "manychat_send_subscription_reminder"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_retry_save_suppressed",
+            Rk: "rk_retry_save_suppressed",
+            ActionType: FailedActionRetryService.ActionManyChatSubscriptionReminder,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Empty(manyChat.ReminderDispatches);
+        Assert.Single(store.Succeeded);
+        Assert.Empty(store.Dead);
+        Assert.Empty(store.Rescheduled);
+    }
+
+    [Fact]
     public async Task RetryDueAsync_Should_MarkDead_WhenFailureIsNonRetryableManyChatError()
     {
         var store = new InMemoryFailedActionStore();
@@ -75,12 +207,21 @@ public sealed class FailedActionRetryServiceTests
                 failureCategory: ManyChatFailureCategory.PermanentHttp,
                 message: "bad_request")
         };
+        var recoveryStartedAt = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        users.Add(new User
+        {
+            UserId = "U_dead",
+            ManyChatSubscriberId = "sid_dead",
+            SubscriptionStatus = "past_due",
+            PaymentRecoveryStartedAtUtc = recoveryStartedAt
+        });
 
         var payload = JsonSerializer.Serialize(new ManyChatPaymentFailedFlowFailedActionPayload(
             SubscriberId: "sid_dead",
             UserId: "U_dead",
             CompanyId: "C_dead",
             SubscriptionId: "sub_dead",
+            RecoveryStartedAtUtc: recoveryStartedAt,
             CorrelationId: "evt_dead",
             Reason: "trigger_payment_failed_flow",
             OperationName: "manychat_trigger_payment_failed"));
@@ -116,12 +257,21 @@ public sealed class FailedActionRetryServiceTests
                 failureCategory: ManyChatFailureCategory.TransientHttp,
                 message: "transient")
         };
+        var recoveryStartedAt = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        users.Add(new User
+        {
+            UserId = "U_reschedule",
+            ManyChatSubscriberId = "sid_reschedule",
+            SubscriptionStatus = "past_due",
+            PaymentRecoveryStartedAtUtc = recoveryStartedAt
+        });
 
         var payload = JsonSerializer.Serialize(new ManyChatPaymentFailedFlowFailedActionPayload(
             SubscriberId: "sid_reschedule",
             UserId: "U_reschedule",
             CompanyId: "C_reschedule",
             SubscriptionId: "sub_reschedule",
+            RecoveryStartedAtUtc: recoveryStartedAt,
             CorrelationId: "evt_reschedule",
             Reason: "trigger_payment_failed_flow",
             OperationName: "manychat_trigger_payment_failed"));
@@ -142,6 +292,107 @@ public sealed class FailedActionRetryServiceTests
         Assert.Empty(store.Dead);
         var rescheduled = Assert.Single(store.Rescheduled);
         Assert.Equal(3, rescheduled.Attempts);
+    }
+
+    [Fact]
+    public async Task RetryDueAsync_Should_SkipPaymentFailedFlow_WhenRecoveryHasEnded()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+
+        users.Add(new User
+        {
+            UserId = "U_recovered",
+            ManyChatSubscriberId = "sid_recovered",
+            SubscriptionStatus = "active",
+            PaymentRecoveryStartedAtUtc = null
+        });
+
+        var payload = JsonSerializer.Serialize(new ManyChatPaymentFailedFlowFailedActionPayload(
+            SubscriberId: "sid_recovered",
+            UserId: "U_recovered",
+            CompanyId: "C_recovered",
+            SubscriptionId: "sub_recovered",
+            RecoveryStartedAtUtc: new DateTimeOffset(2026, 3, 9, 12, 0, 0, TimeSpan.Zero),
+            CorrelationId: "evt_recovered",
+            Reason: "trigger_payment_failed_flow",
+            OperationName: "manychat_trigger_payment_failed"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_recovered",
+            Rk: "rk_recovered",
+            ActionType: FailedActionRetryService.ActionManyChatPaymentFailedFlow,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Empty(store.Rescheduled);
+        Assert.Empty(store.Dead);
+        Assert.Single(store.Succeeded);
+    }
+
+    [Fact]
+    public async Task RetryDueAsync_Should_SkipPaymentRecoveryReminder_WhenRecoveryEpisodeChanges()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+        var currentRecoveryStartedAt = new DateTimeOffset(2026, 3, 10, 8, 0, 0, TimeSpan.Zero);
+
+        users.Add(new User
+        {
+            UserId = "U_recovery_reminder_skip",
+            ManyChatSubscriberId = "sid_recovery_reminder_skip",
+            SubscriptionStatus = "past_due",
+            PaymentRecoveryStartedAtUtc = currentRecoveryStartedAt
+        });
+
+        var dispatch = new SubscriptionReminderDispatch(
+            SubscriberId: "sid_recovery_reminder_skip",
+            UserId: "U_recovery_reminder_skip",
+            SubscriptionId: "sub_recovery_reminder_skip",
+            ReminderType: "payment_recovery_followup_day_1",
+            Journey: "payment_recovery",
+            DaysUntilPeriodEnd: 0,
+            PeriodEndUtc: new DateTimeOffset(2026, 3, 11, 12, 0, 0, TimeSpan.Zero),
+            UsePositiveContinuityFraming: false,
+            ReminderTone: "PaymentRecoveryUpdateMethod",
+            TemplateKey: "payment_recovery_followup",
+            AudienceSegment: "active",
+            IsCompanyReminder: false,
+            CompanyId: null,
+            PlanTerm: "monthly",
+            JourneyDay: 1,
+            JourneyAnchorUtc: currentRecoveryStartedAt.AddDays(-1));
+
+        var payload = JsonSerializer.Serialize(new ManyChatSubscriptionReminderFailedActionPayload(
+            Dispatch: dispatch,
+            ReminderId: "sub_recovery_reminder_skip:payment_recovery_day_1:20260311",
+            CorrelationId: "U_recovery_reminder_skip",
+            Reason: "send_subscription_reminder",
+            OperationName: "manychat_send_subscription_reminder"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_recovery_reminder_skip",
+            Rk: "rk_recovery_reminder_skip",
+            ActionType: FailedActionRetryService.ActionManyChatSubscriptionReminder,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Empty(manyChat.ReminderDispatches);
+        Assert.Empty(store.Rescheduled);
+        Assert.Empty(store.Dead);
+        Assert.Single(store.Succeeded);
     }
 
     [Fact]

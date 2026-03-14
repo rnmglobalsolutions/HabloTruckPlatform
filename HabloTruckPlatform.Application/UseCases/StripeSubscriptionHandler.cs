@@ -484,6 +484,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         // 4) Apply reducer result to user.
         ApplyReducerResult(user, reduced);
+        var paymentRecoveryJustStarted = SyncPaymentRecoveryState(user, signal, reduced, nowUtc);
 
         // 5) Maintain grace index.
         var graceWatch = Stopwatch.StartNew();
@@ -534,8 +535,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             user.IndividualGraceEndsAtUtc);
 
         if (triggerPaymentFailedFlowIfNeeded
+            && paymentRecoveryJustStarted
             && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId)
-            && (decision.Mode == AccessMode.Grace || decision.Mode == AccessMode.Blocked))
+            && user.PaymentRecoveryStartedAtUtc is not null)
         {
             var manyChatWatch = Stopwatch.StartNew();
             try
@@ -577,6 +579,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                         UserId: user.UserId,
                         CompanyId: user.CompanyId,
                         SubscriptionId: user.StripeSubscriptionId,
+                        RecoveryStartedAtUtc: user.PaymentRecoveryStartedAtUtc,
                         CorrelationId: signal.StripeEventId,
                         Reason: "trigger_payment_failed_flow",
                         OperationName: "manychat_trigger_payment_failed"),
@@ -691,6 +694,29 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 user.IndividualGraceEndsAtUtc = null;
                 break;
         }
+    }
+
+    private static bool SyncPaymentRecoveryState(
+        User user,
+        StripeSignal signal,
+        IndividualEntitlementResult reduced,
+        DateTimeOffset nowUtc)
+    {
+        var inPaymentRecovery = IsPaymentRecoveryLifecycle(user.SubscriptionStatus, reduced.State);
+        if (!inPaymentRecovery)
+        {
+            user.PaymentRecoveryStartedAtUtc = null;
+            return false;
+        }
+
+        if (signal.Kind != StripeSignalKind.InvoicePaymentFailed)
+            return false;
+
+        if (user.PaymentRecoveryStartedAtUtc is not null)
+            return false;
+
+        user.PaymentRecoveryStartedAtUtc = nowUtc;
+        return true;
     }
 
     private async Task ProjectCompanyEntitlementFromSignalAsync(
@@ -964,6 +990,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private static string? NormalizeStatus(string? status)
         => string.IsNullOrWhiteSpace(status) ? null : status.Trim().ToLowerInvariant();
 
+    private static bool IsPaymentRecoveryLifecycle(string? status, IndividualEntitlementState reducedState)
+        => IsDelinquentStatus(status)
+           && (reducedState is IndividualEntitlementState.Grace or IndividualEntitlementState.Blocked);
+
+    private static bool IsDelinquentStatus(string? status)
+    {
+        var normalized = NormalizeStatus(status);
+        return normalized is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
+    }
+
     private static string NormalizeCheckoutPlan(string? planType)
     {
         var p = (planType ?? "").Trim().ToLowerInvariant();
@@ -1152,4 +1188,3 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Interval: d.Interval
     );
 }
-

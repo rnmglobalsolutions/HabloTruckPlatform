@@ -41,6 +41,7 @@ public static class UserMapper
             IndividualPlanTerm = u.IndividualPlanTerm,
             StripeCurrentPeriodEndUtc = u.StripeCurrentPeriodEndUtc,
             StripeCancelAtPeriodEnd = u.StripeCancelAtPeriodEnd,
+            PaymentRecoveryStartedAtUtc = u.PaymentRecoveryStartedAtUtc,
 
             LastSyncedAccessMode = u.LastSyncedAccessMode,
             LastSyncedAccessSource = u.LastSyncedAccessSource,
@@ -98,6 +99,7 @@ public static class UserMapper
             IndividualPlanTerm = e.IndividualPlanTerm,
             StripeCurrentPeriodEndUtc = e.StripeCurrentPeriodEndUtc,
             StripeCancelAtPeriodEnd = e.StripeCancelAtPeriodEnd ?? false,
+            PaymentRecoveryStartedAtUtc = e.PaymentRecoveryStartedAtUtc,
 
             LastSyncedAccessMode = e.LastSyncedAccessMode,
             LastSyncedAccessSource = e.LastSyncedAccessSource,

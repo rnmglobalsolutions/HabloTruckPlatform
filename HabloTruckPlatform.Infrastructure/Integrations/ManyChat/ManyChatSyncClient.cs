@@ -175,9 +175,12 @@ public sealed class ManyChatSyncClient : IManyChatSync
             return;
 
         var journey = dispatch.Journey?.Trim().ToLowerInvariant() ?? "auto_renew";
-        var flowNs = journey == "save_before_churn"
-            ? _opt.SaveBeforeChurnFlowNs
-            : _opt.RenewalReminderFlowNs;
+        var flowNs = journey switch
+        {
+            "save_before_churn" => _opt.SaveBeforeChurnFlowNs,
+            "payment_recovery" => _opt.PaymentRecoveryReminderFlowNs ?? _opt.PaymentFailedFlowNs,
+            _ => _opt.RenewalReminderFlowNs
+        };
 
         if (string.IsNullOrWhiteSpace(flowNs))
         {
@@ -209,7 +212,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
                 user_id = dispatch.UserId,
                 company_id = dispatch.CompanyId ?? "",
                 is_company_reminder = dispatch.IsCompanyReminder,
-                plan_term = dispatch.PlanTerm ?? ""
+                plan_term = dispatch.PlanTerm ?? "",
+                journey_day = dispatch.JourneyDay,
+                journey_anchor_utc = dispatch.JourneyAnchorUtc is null
+                    ? ""
+                    : dispatch.JourneyAnchorUtc.Value.UtcDateTime.ToString("O")
             }
         };
 

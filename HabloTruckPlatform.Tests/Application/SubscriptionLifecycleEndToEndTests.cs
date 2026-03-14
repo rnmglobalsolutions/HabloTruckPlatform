@@ -492,6 +492,57 @@ public sealed class SubscriptionLifecycleEndToEndTests
     }
 
     [Fact]
+    public async Task EndToEnd_PaymentRecoveryReminderFlow_Should_FollowProjectedState_AndStopAfterRecovery()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = await SeedActiveIndividualSubscriptionAsync(
+            fixture,
+            "cus_recovery_reminder_e2e",
+            "sub_recovery_reminder_e2e",
+            "driver-recovery-reminder@hablotruck.com",
+            "sid_recovery_reminder_e2e");
+
+        fixture.Clock.UtcNow = now.AddDays(31);
+        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_recovery_reminder_failed",
+            StripeEventCreatedUtc: fixture.Clock.UtcNow,
+            StripeCustomerId: "cus_recovery_reminder_e2e",
+            StripeSubscriptionId: "sub_recovery_reminder_e2e",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month"));
+
+        var afterFailure = fixture.UserStore.Get(user.UserId)!;
+        Assert.Equal(fixture.Clock.UtcNow, afterFailure.PaymentRecoveryStartedAtUtc);
+
+        fixture.Clock.UtcNow = now.AddDays(32);
+        await fixture.ReminderService.RunDailyAsync(100);
+
+        var recoveryDispatch = Assert.Single(fixture.ManyChat.Reminders);
+        Assert.Equal("payment_recovery", recoveryDispatch.Journey);
+        Assert.Equal("payment_recovery_followup_day_1", recoveryDispatch.ReminderType);
+
+        fixture.Clock.UtcNow = now.AddDays(32).AddHours(1);
+        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
+            StripeEventId: "evt_recovery_reminder_paid",
+            StripeEventCreatedUtc: fixture.Clock.UtcNow,
+            StripeCustomerId: "cus_recovery_reminder_e2e",
+            StripeSubscriptionId: "sub_recovery_reminder_e2e",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month",
+            CurrentPeriodEndUtc: now.AddDays(60)));
+
+        fixture.Clock.UtcNow = now.AddDays(33);
+        await fixture.ReminderService.RunDailyAsync(100);
+
+        Assert.Single(fixture.ManyChat.Reminders);
+        var recoveredUser = fixture.UserStore.Get(user.UserId)!;
+        Assert.Null(recoveredUser.PaymentRecoveryStartedAtUtc);
+        Assert.Equal(1, fixture.ManyChat.PaymentFailedFlowCalls);
+    }
+
+    [Fact]
     public async Task Stress_LongEventStream_Should_EndInDeterministicState()
     {
         var start = Utc(2026, 3, 10, 12);
@@ -1130,7 +1181,6 @@ public sealed class SubscriptionLifecycleEndToEndTests
             => Task.CompletedTask;
     }
 }
-
 
 
 

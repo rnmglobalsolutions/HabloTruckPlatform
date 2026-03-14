@@ -211,6 +211,98 @@ public sealed class SubscriptionReminderServiceTests
     }
 
     [Fact]
+    public async Task RunDailyAsync_Should_SendPaymentRecoveryFollowup_WhileRecoveryJourneyIsActive()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(new User
+        {
+            UserId = "U_recovery_due",
+            ManyChatSubscriberId = "sid_recovery_due",
+            StripeSubscriptionId = "sub_recovery_due",
+            SubscriptionStatus = "past_due",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = false,
+            StripeCurrentPeriodEndUtc = now.AddDays(1),
+            PaymentRecoveryStartedAtUtc = now.AddDays(-1),
+            PlanType = "individual_monthly"
+        });
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+        await sut.RunDailyAsync(take: 100);
+
+        var dispatch = Assert.Single(manyChat.Dispatches);
+        Assert.Equal("payment_recovery_followup_day_1", dispatch.ReminderType);
+        Assert.Equal("payment_recovery", dispatch.Journey);
+        Assert.Equal(1, dispatch.JourneyDay);
+        Assert.Equal(now.AddDays(-1), dispatch.JourneyAnchorUtc);
+        Assert.Equal("PaymentRecoveryUpdateMethod", dispatch.ReminderTone);
+        Assert.Equal("payment_recovery_followup", dispatch.TemplateKey);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_GivePaymentRecoveryPriority_OverRenewalAndCancelScheduledJourneys()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(new User
+        {
+            UserId = "U_recovery_priority",
+            ManyChatSubscriberId = "sid_recovery_priority",
+            StripeSubscriptionId = "sub_recovery_priority",
+            SubscriptionStatus = "past_due",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = true,
+            StripeCurrentPeriodEndUtc = now.AddDays(1),
+            PaymentRecoveryStartedAtUtc = now.AddDays(-2),
+            PlanType = "individual_monthly"
+        });
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        var dispatch = Assert.Single(manyChat.Dispatches);
+        Assert.Equal("payment_recovery", dispatch.Journey);
+        Assert.Equal("payment_recovery_followup_day_2", dispatch.ReminderType);
+        Assert.NotEqual("save_before_churn_1d", dispatch.ReminderType);
+        Assert.NotEqual("renewal_reminder_1d", dispatch.ReminderType);
+    }
+
+    [Fact]
+    public async Task RunDailyAsync_Should_StopPaymentRecoveryFollowup_WhenSubscriptionRecovers()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(new User
+        {
+            UserId = "U_recovery_stopped",
+            ManyChatSubscriberId = "sid_recovery_stopped",
+            StripeSubscriptionId = "sub_recovery_stopped",
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = false,
+            StripeCurrentPeriodEndUtc = now.AddDays(7),
+            PaymentRecoveryStartedAtUtc = now.AddDays(-1),
+            PlanType = "individual_monthly"
+        });
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(userStore, new InMemoryCompanyStore(), new InMemoryReminderStore(), manyChat, now);
+
+        await sut.RunDailyAsync(take: 100);
+
+        Assert.Empty(manyChat.Dispatches);
+    }
+
+    [Fact]
     public async Task RunDailyAsync_Should_SuppressReminder_WhenPeriodEndIsPast()
     {
         var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
@@ -812,7 +904,6 @@ public sealed class SubscriptionReminderServiceTests
         }
     }
 }
-
 
 
 

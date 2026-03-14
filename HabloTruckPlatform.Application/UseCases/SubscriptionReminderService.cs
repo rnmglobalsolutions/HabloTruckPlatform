@@ -94,7 +94,8 @@ public sealed class SubscriptionReminderService
             // so journey flips (auto-renew <-> cancel-scheduled) cannot double-send
             // for the same subscription and billing period.
             var windowKey = BuildReminderWindowKey(dispatch);
-            var reminderId = $"{dispatch.SubscriptionId}:{windowKey}:{dispatch.PeriodEndUtc:yyyyMMdd}";
+            var idempotencyAnchorUtc = dispatch.JourneyAnchorUtc ?? dispatch.PeriodEndUtc;
+            var reminderId = $"{dispatch.SubscriptionId}:{windowKey}:{idempotencyAnchorUtc:yyyyMMdd}";
 
             using var reminderScope = _logger.BeginScope(new Dictionary<string, object?>
             {
@@ -105,7 +106,7 @@ public sealed class SubscriptionReminderService
             var firstTime = await _reminders.TryMarkSentAsync(
                 dispatch.SubscriptionId,
                 windowKey,
-                dispatch.PeriodEndUtc,
+                idempotencyAnchorUtc,
                 nowUtc,
                 ct);
 
@@ -234,6 +235,12 @@ public sealed class SubscriptionReminderService
 
     private static string BuildReminderWindowKey(SubscriptionReminderDispatch dispatch)
     {
+        if (string.Equals(dispatch.Journey, "payment_recovery", StringComparison.OrdinalIgnoreCase))
+        {
+            var day = Math.Max(0, dispatch.JourneyDay ?? 0);
+            return $"payment_recovery_day_{day}";
+        }
+
         var days = Math.Max(0, dispatch.DaysUntilPeriodEnd);
         return $"window_{days}d";
     }
@@ -263,6 +270,20 @@ public sealed class SubscriptionReminderService
                 "no_action_needed",
                 "missing_subscription_id");
             return null;
+        }
+
+        var paymentRecoveryDispatch = BuildPaymentRecoveryDispatch(user, nowUtc);
+        if (paymentRecoveryDispatch is not null)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType} Journey={Journey}",
+                "decision",
+                "build_dispatch",
+                "applied",
+                "payment_recovery_followup_ready",
+                paymentRecoveryDispatch.ReminderType,
+                paymentRecoveryDispatch.Journey);
+            return paymentRecoveryDispatch;
         }
 
         var facts = new SubscriptionReminderFacts(
@@ -347,6 +368,41 @@ public sealed class SubscriptionReminderService
         );
     }
 
+    private SubscriptionReminderDispatch? BuildPaymentRecoveryDispatch(User user, DateTimeOffset nowUtc)
+    {
+        if (!IsPaymentRecoveryJourneyActive(user))
+            return null;
+
+        if (user.PaymentRecoveryStartedAtUtc is null)
+            return null;
+
+        var recoveryDay = (nowUtc.UtcDateTime.Date - user.PaymentRecoveryStartedAtUtc.Value.UtcDateTime.Date).Days;
+        if (recoveryDay < 1)
+            return null;
+
+        var periodEndUtc = user.StripeCurrentPeriodEndUtc ?? user.PaymentRecoveryStartedAtUtc.Value;
+        var daysUntilPeriodEnd = Math.Max(0, (periodEndUtc.UtcDateTime.Date - nowUtc.UtcDateTime.Date).Days);
+        var segment = DeriveAudienceSegment(user, nowUtc);
+
+        return new SubscriptionReminderDispatch(
+            SubscriberId: user.ManyChatSubscriberId!.Trim(),
+            UserId: user.UserId,
+            SubscriptionId: user.StripeSubscriptionId!.Trim(),
+            ReminderType: $"payment_recovery_followup_day_{recoveryDay}",
+            Journey: "payment_recovery",
+            DaysUntilPeriodEnd: daysUntilPeriodEnd,
+            PeriodEndUtc: periodEndUtc,
+            UsePositiveContinuityFraming: false,
+            ReminderTone: "PaymentRecoveryUpdateMethod",
+            TemplateKey: "payment_recovery_followup",
+            AudienceSegment: segment,
+            IsCompanyReminder: false,
+            CompanyId: user.CompanyId,
+            PlanTerm: user.IndividualPlanTerm,
+            JourneyDay: recoveryDay,
+            JourneyAnchorUtc: user.PaymentRecoveryStartedAtUtc);
+    }
+
     private async Task<Company?> ResolveCompanyAsync(User user, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(user.CompanyId))
@@ -393,5 +449,16 @@ public sealed class SubscriptionReminderService
         var activeWindow = nowUtc.AddDays(-30);
         return markerUtc.Value >= activeWindow ? "active" : "at_risk";
     }
-}
 
+    private static bool IsPaymentRecoveryJourneyActive(User user)
+    {
+        if (user.PaymentRecoveryStartedAtUtc is null)
+            return false;
+
+        var status = string.IsNullOrWhiteSpace(user.SubscriptionStatus)
+            ? null
+            : user.SubscriptionStatus.Trim().ToLowerInvariant();
+
+        return status is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
+    }
+}

@@ -15,6 +15,7 @@ public sealed class ManyChatOptions
 
     // Optional: flow_ns for recovery
     public string? PaymentFailedFlowNs { get; set; }
+    public string? PaymentRecoveryReminderFlowNs { get; set; }
 
     // Optional: flow_ns for renewal/churn reminders
     public string? RenewalReminderFlowNs { get; set; }

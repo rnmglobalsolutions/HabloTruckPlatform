@@ -92,8 +92,53 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.Equal("past_due", saved!.SubscriptionStatus);
         Assert.NotNull(saved.IndividualGraceEndsAtUtc);
         Assert.True(saved.IndividualGraceEndsAtUtc > now);
+        Assert.Equal(now, saved.PaymentRecoveryStartedAtUtc);
         Assert.Equal(1, fixture.ManyChatSync.PaymentFailedFlowCalls);
         Assert.Empty(fixture.FailedActions.Enqueued);
+    }
+
+    [Fact]
+    public async Task HandleInvoicePaymentFailedAsync_Should_TriggerInitialRecoveryFlowOnlyOnce_PerRecoveryEpisode()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fail_once",
+            StripeCustomerId = "cus_fail_once",
+            StripeSubscriptionId = "sub_fail_once",
+            SubscriptionStatus = "active",
+            ManyChatSubscriberId = "sid_fail_once"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fail_once", user);
+
+        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_fail_once_1",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fail_once",
+            StripeSubscriptionId: "sub_fail_once",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month"));
+
+        var startedAt = fixture.UserStore.GetById("U_fail_once")!.PaymentRecoveryStartedAtUtc;
+
+        var later = now.AddHours(6);
+        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_fail_once_2",
+            StripeEventCreatedUtc: later,
+            StripeCustomerId: "cus_fail_once",
+            StripeSubscriptionId: "sub_fail_once",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month"));
+
+        var saved = fixture.UserStore.GetById("U_fail_once");
+
+        Assert.NotNull(saved);
+        Assert.Equal(startedAt, saved!.PaymentRecoveryStartedAtUtc);
+        Assert.Equal(1, fixture.ManyChatSync.PaymentFailedFlowCalls);
     }
 
     [Fact]
@@ -203,6 +248,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.NotNull(saved);
         Assert.Equal("active", saved!.SubscriptionStatus);
         Assert.Null(saved.IndividualGraceEndsAtUtc);
+        Assert.Null(saved.PaymentRecoveryStartedAtUtc);
         Assert.Equal(0, fixture.ManyChatSync.PaymentFailedFlowCalls);
     }
 

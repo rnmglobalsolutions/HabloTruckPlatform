@@ -1,7 +1,9 @@
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Billing;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Domain.Ids;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
@@ -234,6 +236,17 @@ public sealed class FailedActionRetryService
                 return;
             }
 
+            if (!await ShouldSendPaymentRecoveryAsync(p.UserId, p.RecoveryStartedAtUtc, ct))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_payment_failed_retry",
+                    "no_action_needed",
+                    "payment_recovery_no_longer_active");
+                return;
+            }
+
             var dependencyWatch = Stopwatch.StartNew();
             await _manyChat.TriggerPaymentFailedFlowAsync(p.SubscriberId, ct);
 
@@ -268,6 +281,17 @@ public sealed class FailedActionRetryService
                 return;
             }
 
+            if (!await ShouldSendSubscriptionReminderAsync(p.Dispatch, ct))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_subscription_reminder_retry",
+                    "no_action_needed",
+                    "payment_recovery_no_longer_active");
+                return;
+            }
+
             var dependencyWatch = Stopwatch.StartNew();
             await _manyChat.SendSubscriptionReminderAsync(p.Dispatch, ct);
 
@@ -284,6 +308,61 @@ public sealed class FailedActionRetryService
         }
 
         throw new InvalidOperationException($"Unknown actionType: {item.ActionType}");
+    }
+
+    private async Task<bool> ShouldSendSubscriptionReminderAsync(
+        SubscriptionReminderDispatch dispatch,
+        CancellationToken ct)
+    {
+        if (string.Equals(dispatch.Journey, "payment_recovery", StringComparison.OrdinalIgnoreCase))
+            return await ShouldSendPaymentRecoveryAsync(dispatch.UserId, dispatch.JourneyAnchorUtc, ct);
+
+        if (string.IsNullOrWhiteSpace(dispatch.UserId))
+            return true;
+
+        var normalizedUserId = dispatch.UserId.Trim();
+        var user = await _users.GetAsync(Buckets.UserBucketPk(normalizedUserId), normalizedUserId, ct);
+        if (user is null)
+            return false;
+
+        var evaluationNowUtc = dispatch.PeriodEndUtc.AddDays(-Math.Max(0, dispatch.DaysUntilPeriodEnd));
+        var decision = SubscriptionReminderEvaluator.Evaluate(
+            new SubscriptionReminderFacts(
+                SubscriptionId: user.StripeSubscriptionId,
+                Status: user.SubscriptionStatus,
+                PlanTerm: user.IndividualPlanTerm,
+                CancelAtPeriodEnd: user.StripeCancelAtPeriodEnd,
+                CurrentPeriodEndUtc: user.StripeCurrentPeriodEndUtc,
+                PlanType: user.PlanType),
+            evaluationNowUtc);
+
+        if (decision is null)
+            return false;
+
+        return string.Equals(dispatch.ReminderType, decision.Kind.ToEventName(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<bool> ShouldSendPaymentRecoveryAsync(
+        string? userId,
+        DateTimeOffset? recoveryStartedAtUtc,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return true;
+
+        var normalizedUserId = userId.Trim();
+        var user = await _users.GetAsync(Buckets.UserBucketPk(normalizedUserId), normalizedUserId, ct);
+        if (user is null)
+            return false;
+
+        if (user.PaymentRecoveryStartedAtUtc is null)
+            return false;
+
+        if (recoveryStartedAtUtc is not null && user.PaymentRecoveryStartedAtUtc != recoveryStartedAtUtc)
+            return false;
+
+        var status = user.SubscriptionStatus?.Trim().ToLowerInvariant();
+        return status is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
     }
 
     private static DateTimeOffset ComputeBackoffUtc(DateTimeOffset now, int attempts)
@@ -314,4 +393,3 @@ public sealed class FailedActionRetryService
         };
 
 }
-

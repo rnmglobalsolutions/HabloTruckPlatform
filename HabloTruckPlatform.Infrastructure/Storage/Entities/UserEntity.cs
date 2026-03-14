@@ -26,6 +26,7 @@ public sealed class UserEntity : ITableEntity
     public DateTimeOffset? StripeCurrentPeriodEndUtc { get; set; }
     public bool? StripeCancelAtPeriodEnd { get; set; }
     public string? IndividualPlanTerm { get; set; } // "monthly"|"annual"
+    public DateTimeOffset? PaymentRecoveryStartedAtUtc { get; set; }
 
     // optional analytics
     public string? PlanType { get; set; }           // "individual"|"fleet"|"cdl_cohort"

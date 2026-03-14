@@ -57,6 +57,7 @@ public sealed record ManyChatPaymentFailedFlowFailedActionPayload(
     string? UserId,
     string? CompanyId,
     string? SubscriptionId,
+    DateTimeOffset? RecoveryStartedAtUtc,
     string? CorrelationId,
     string? Reason,
     string? OperationName
