@@ -1,4 +1,5 @@
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
@@ -998,6 +999,21 @@ public sealed class SubscriptionLifecycleEndToEndTests
         {
             Reminders.Add(dispatch);
             return Task.CompletedTask;
+        }
+
+        public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "success" });
+        }
+
+        public Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "success" });
+        }
+
+        public Task<ManyChatResponse> SetCustomFieldByNameAsync(string subscriberId, string fieldName, string value, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "success" });
         }
     }
 

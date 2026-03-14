@@ -1,3 +1,4 @@
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
@@ -26,4 +27,20 @@ public interface IManyChatSync
     /// Optional: trigger subscription renewal / churn-prevention reminders.
     /// </summary>
     Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default);
+
+    /// <summary>
+    /// Optional: remove tag by name
+    /// </summary>
+    Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Optional: add tag by name
+    /// </summary>
+    Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Optional: set custom field by name
+    /// </summary>
+    Task<ManyChatResponse> SetCustomFieldByNameAsync(
+        string subscriberId, string fieldName, string value, CancellationToken ct = default);
 }

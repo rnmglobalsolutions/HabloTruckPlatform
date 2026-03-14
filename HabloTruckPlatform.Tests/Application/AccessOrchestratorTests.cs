@@ -1,4 +1,5 @@
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
@@ -407,6 +408,21 @@ public sealed class AccessOrchestratorTests
 
         public Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "ok" });
+        }
+
+        public Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "ok" });
+        }
+
+        public Task<ManyChatResponse> SetCustomFieldByNameAsync(string subscriberId, string fieldName, string value, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse { status = "ok" });
+        }
     }
 
     private sealed class InMemoryFailedActionStore : IFailedActionStore

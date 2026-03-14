@@ -199,11 +199,50 @@ public sealed class ManyChatSyncClientReminderTests
         Assert.Equal(ManyChatFailureCategory.Transport, ex.FailureCategory);
     }
 
+    [Fact]
+    public async Task RemoveTagByName_Should_Get_SuccessResponse()
+    {
+        var manyChatSubscriberId = "1218185540";
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+        var result = await sut.RemoveTagByNameAsync(manyChatSubscriberId, "HT_ACCESS_BLOCKED");
+        var captured = Assert.Single(handler.Requests);
+        Assert.Equal("fb/subscriber/removeTagByName", captured.Path);
+        Assert.Equal("success", result?.status);
+        Assert.Null(result?.message);
+    }
+
+    [Fact]
+    public async Task AddTagByName_Should_Get_SuccessResponse()
+    {
+        var manyChatSubscriberId = "1218185540";
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+        var result = await sut.AddTagByNameAsync(manyChatSubscriberId, "HT_ACCESS_BLOCKED");
+        var captured = Assert.Single(handler.Requests);
+        Assert.Equal("fb/subscriber/addTagByName", captured.Path);
+        Assert.Equal("success", result?.status);
+        Assert.Null(result?.message);
+    }
+
+    [Fact]
+    public async Task SetCustomFieldByNameAsync_Should_Get_SuccessResponse()
+    {
+        var manyChatSubscriberId = "1218185540";
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+        var result = await sut.SetCustomFieldByNameAsync(manyChatSubscriberId, "HT_ACCESS_MODE", "FULL");
+        var captured = Assert.Single(handler.Requests);
+        Assert.Equal("fb/subscriber/setCustomFieldByName", captured.Path);
+        Assert.Equal("success", result?.status);
+        Assert.Null(result?.message);
+    }
+
     private static ManyChatSyncClient BuildClient(RecordingHandler handler)
     {
         var options = new ManyChatOptions
         {
-            ApiKey = "test-key",
+            ApiKey = "651137388083807:781d2134122f99a37da42f45cf7da219",
             AddTagByNamePath = "fb/subscriber/addTagByName",
             RemoveTagByNamePath = "fb/subscriber/removeTagByName",
             SetCustomFieldByNamePath = "fb/subscriber/setCustomFieldByName",

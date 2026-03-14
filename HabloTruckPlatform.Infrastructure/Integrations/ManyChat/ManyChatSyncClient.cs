@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Models;
@@ -87,9 +89,14 @@ public sealed class ManyChatSyncClient : IManyChatSync
             decision.Mode,
             decision.Source);
 
-        await RemoveTagByName(sid, _opt.TagAccessFull, ct);
-        await RemoveTagByName(sid, _opt.TagAccessGrace, ct);
-        await RemoveTagByName(sid, _opt.TagAccessBlocked, ct);
+        await AddTagByNameAsync(sid, _opt.TagAccessFull, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagAccessFull, ct);
+
+        await AddTagByNameAsync(sid, _opt.TagAccessGrace, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagAccessGrace, ct);
+
+        await AddTagByNameAsync(sid, _opt.TagAccessBlocked, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagAccessBlocked, ct);
 
         var accessTag = decision.Mode switch
         {
@@ -99,25 +106,28 @@ public sealed class ManyChatSyncClient : IManyChatSync
             _ => _opt.TagAccessBlocked
         };
 
-        await AddTagByName(sid, accessTag, ct);
+        await AddTagByNameAsync(sid, accessTag, ct);
 
-        await RemoveTagByName(sid, _opt.TagSourceIndividual, ct);
-        await RemoveTagByName(sid, _opt.TagSourceCompany, ct);
+        await AddTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
+
+        await AddTagByNameAsync(sid, _opt.TagSourceCompany, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagSourceCompany, ct);
 
         if ((decision.Source & AccessSource.Individual) != 0)
-            await AddTagByName(sid, _opt.TagSourceIndividual, ct);
+            await AddTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
 
         if ((decision.Source & AccessSource.Company) != 0)
-            await AddTagByName(sid, _opt.TagSourceCompany, ct);
+            await AddTagByNameAsync(sid, _opt.TagSourceCompany, ct);
 
-        await SetCustomFieldByName(sid, _opt.FieldAccessMode, decision.Mode.ToString(), ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldAccessMode, decision.Mode.ToString(), ct);
 
         var graceValue = decision.GraceEndsAtUtc is null
             ? ""
             : decision.GraceEndsAtUtc.Value.UtcDateTime.ToString("O");
 
-        await SetCustomFieldByName(sid, _opt.FieldGraceEndsAtUtc, graceValue, ct);
-        await SetCustomFieldByName(sid, _opt.FieldCompanyId, user.CompanyId ?? "", ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldGraceEndsAtUtc, graceValue, ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldCompanyId, user.CompanyId ?? "", ct);
 
         _logger.LogInformation(
             "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
@@ -206,7 +216,7 @@ public sealed class ManyChatSyncClient : IManyChatSync
         await PostJson(_opt.SendFlowPath, payload, ct);
     }
 
-    private async Task AddTagByName(string subscriberId, string tagName, CancellationToken ct)
+    public async Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -214,10 +224,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
             tag_name = tagName
         };
 
-        await PostJson(_opt.AddTagByNamePath, payload, ct);
+        return await PostJson(_opt.AddTagByNamePath, payload, ct);
     }
 
-    private async Task RemoveTagByName(string subscriberId, string tagName, CancellationToken ct)
+    public async Task<ManyChatResponse> RemoveTagByNameAsync(
+        string subscriberId, string tagName, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -225,10 +236,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
             tag_name = tagName
         };
 
-        await PostJson(_opt.RemoveTagByNamePath, payload, ct);
+        return await PostJson(_opt.RemoveTagByNamePath, payload, ct);
     }
 
-    private async Task SetCustomFieldByName(string subscriberId, string fieldName, string value, CancellationToken ct)
+    public async Task<ManyChatResponse> SetCustomFieldByNameAsync(
+        string subscriberId, string fieldName, string value, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -237,12 +249,13 @@ public sealed class ManyChatSyncClient : IManyChatSync
             field_value = value
         };
 
-        await PostJson(_opt.SetCustomFieldByNamePath, payload, ct);
+        return await PostJson(_opt.SetCustomFieldByNamePath, payload, ct);
     }
 
-    private async Task PostJson(string path, object payload, CancellationToken ct)
+    private async Task<ManyChatResponse> PostJson(string path, object payload, CancellationToken ct)
     {
         string json;
+        bool success = false;
         try
         {
             json = JsonSerializer.Serialize(payload, JsonOpts);
@@ -266,12 +279,26 @@ public sealed class ManyChatSyncClient : IManyChatSync
         {
             using var res = await _http.PostAsync(path, content, ct);
 
-            var success = res.IsSuccessStatusCode;
+            success = res.IsSuccessStatusCode;
 
             LogDependency(path, watch.ElapsedMilliseconds, success, (int)res.StatusCode);
 
             if (success)
-                return;
+            {
+                var result = await res.Content.ReadFromJsonAsync<ManyChatResponse>(JsonOpts, ct);
+                if (result is null)
+                {
+                    // Treat an empty JSON body as an error
+                    throw new ManyChatRequestException(
+                        path,
+                        res.StatusCode,
+                        isRetryable: false,
+                        ManyChatFailureCategory.Unknown,
+                        "ManyChat returned an empty response body.");
+                }
+
+                return result;
+            }
 
             throw new ManyChatRequestException(
                 path,

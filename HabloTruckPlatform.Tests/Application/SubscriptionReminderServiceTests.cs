@@ -1,4 +1,5 @@
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
@@ -781,6 +782,33 @@ public sealed class SubscriptionReminderServiceTests
 
             Dispatches.Add(dispatch);
             return Task.CompletedTask;
+        }
+
+        public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"simulated removal of tag '{tagName}' for subscriber '{subscriberId}'"
+             });
+        }
+
+        public Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"simulated addition of tag '{tagName}' for subscriber '{subscriberId}'"
+            });
+        }
+
+        public Task<ManyChatResponse> SetCustomFieldByNameAsync(string subscriberId, string fieldName, string value, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"simulated setting of custom field '{fieldName}' to '{value}' for subscriber '{subscriberId}'"
+            });
         }
     }
 }

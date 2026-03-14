@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Integrations.ManyChat;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Access;
@@ -394,6 +395,33 @@ public sealed class FailedActionRetryServiceTests
 
             ReminderDispatches.Add(dispatch);
             return Task.CompletedTask;
+        }
+
+        public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"Tag '{tagName}' removed from subscriber '{subscriberId}'."
+            });
+        }
+
+        public Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"Tag '{tagName}' added to subscriber '{subscriberId}'."
+            });
+        }
+
+        public Task<ManyChatResponse> SetCustomFieldByNameAsync(string subscriberId, string fieldName, string value, CancellationToken ct = default)
+        {
+            return Task.FromResult(new ManyChatResponse
+            {
+                status = "ok",
+                message = $"Custom field '{fieldName}' set to '{value}' for subscriber '{subscriberId}'."
+            });
         }
     }
 }
