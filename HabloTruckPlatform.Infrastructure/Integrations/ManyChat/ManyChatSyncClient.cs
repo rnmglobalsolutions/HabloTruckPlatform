@@ -89,13 +89,13 @@ public sealed class ManyChatSyncClient : IManyChatSync
             decision.Mode,
             decision.Source);
 
-        // await AddTagByNameAsync(sid, _opt.TagAccessFull, ct);
+        await AddTagByNameAsync(sid, _opt.TagAccessFull, ct);
         await RemoveTagByNameAsync(sid, _opt.TagAccessFull, ct);
 
-        // await AddTagByNameAsync(sid, _opt.TagAccessGrace, ct);
+        await AddTagByNameAsync(sid, _opt.TagAccessGrace, ct);
         await RemoveTagByNameAsync(sid, _opt.TagAccessGrace, ct);
 
-        // await AddTagByNameAsync(sid, _opt.TagAccessBlocked, ct);
+        await AddTagByNameAsync(sid, _opt.TagAccessBlocked, ct);
         await RemoveTagByNameAsync(sid, _opt.TagAccessBlocked, ct);
 
         var accessTag = decision.Mode switch
@@ -108,10 +108,10 @@ public sealed class ManyChatSyncClient : IManyChatSync
 
         await AddTagByNameAsync(sid, accessTag, ct);
 
-        // await AddTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
+        await AddTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
         await RemoveTagByNameAsync(sid, _opt.TagSourceIndividual, ct);
 
-        // await AddTagByNameAsync(sid, _opt.TagSourceCompany, ct);
+        await AddTagByNameAsync(sid, _opt.TagSourceCompany, ct);
         await RemoveTagByNameAsync(sid, _opt.TagSourceCompany, ct);
 
         if ((decision.Source & AccessSource.Individual) != 0)
