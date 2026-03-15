@@ -123,6 +123,9 @@ public sealed class StripeReplayFunction
             case "invoice.payment_failed":
                 await _handler.HandleInvoicePaymentFailedAsync(data, ctx.CancellationToken);
                 break;
+            case "customer.updated":
+                await _handler.HandleCustomerUpdatedAsync(data, ctx.CancellationToken);
+                break;
             case "customer.subscription.updated":
                 await _handler.HandleSubscriptionUpdatedAsync(data, ctx.CancellationToken);
                 break;
@@ -178,5 +181,4 @@ public sealed class StripeReplayFunction
         return null;
     }
 }
-
 

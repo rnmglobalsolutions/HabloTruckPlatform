@@ -21,37 +21,7 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
         StripeCheckoutSessionRequest request,
         CancellationToken ct = default)
     {
-        var metadata = BuildMetadata(request);
-
-        var options = new SessionCreateOptions
-        {
-            Mode = "subscription",
-            ClientReferenceId = request.ManyChatSubscriberId,
-            SuccessUrl = request.SuccessUrl,
-            CancelUrl = request.CancelUrl,
-            AutomaticTax = new SessionAutomaticTaxOptions { Enabled = true },
-            BillingAddressCollection = "required",
-            CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
-            PaymentMethodTypes = new List<string>
-            {
-                "card", // Includes Apple Pay and Google Pay when configured
-                "link", // Stripe Link payments
-                "us_bank_account" // ACH Direct Debit if enabled for your account
-            },
-            LineItems = new List<SessionLineItemOptions>
-            {
-                new()
-                {
-                    Price = request.PriceId.Trim(),
-                    Quantity = request.Quantity
-                }
-            },
-            Metadata = metadata,
-            SubscriptionData = new SessionSubscriptionDataOptions
-            {
-                Metadata = metadata
-            }
-        };
+        var options = BuildSessionCreateOptions(request);
 
         var service = new SessionService();
         var watch = Stopwatch.StartNew();
@@ -73,6 +43,42 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
             Url = session?.Url ?? "",
             SessionId = session?.Id,
             Error = null
+        };
+    }
+
+    internal static SessionCreateOptions BuildSessionCreateOptions(StripeCheckoutSessionRequest request)
+    {
+        var metadata = BuildMetadata(request);
+
+        return new SessionCreateOptions
+        {
+            Mode = "subscription",
+            ClientReferenceId = request.ManyChatSubscriberId,
+            SuccessUrl = request.SuccessUrl,
+            CancelUrl = request.CancelUrl,
+            AutomaticTax = new SessionAutomaticTaxOptions { Enabled = true },
+            BillingAddressCollection = "required",
+            CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            // Keep initial signup on instant-confirmation methods so webhook-driven FULL access
+            // remains aligned with actual successful payment completion.
+            PaymentMethodTypes = new List<string>
+            {
+                "card",
+                "link"
+            },
+            LineItems = new List<SessionLineItemOptions>
+            {
+                new()
+                {
+                    Price = request.PriceId.Trim(),
+                    Quantity = request.Quantity
+                }
+            },
+            Metadata = metadata,
+            SubscriptionData = new SessionSubscriptionDataOptions
+            {
+                Metadata = metadata
+            }
         };
     }
 
@@ -105,4 +111,3 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
             metadata[key] = value.Trim();
     }
 }
-

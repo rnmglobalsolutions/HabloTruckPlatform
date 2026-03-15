@@ -12,6 +12,8 @@ public sealed class ManyChatOptions
 
     public string TagSourceIndividual { get; set; } = "HT_SRC_INDIVIDUAL";
     public string TagSourceCompany { get; set; } = "HT_SRC_COMPANY";
+    public string TagBillingActionRequired { get; set; } = "HT_BILLING_ACTION_REQUIRED";
+    public string TagBillingRecovered { get; set; } = "HT_PAYMENT_RECOVERED";
 
     // Optional: flow_ns for recovery
     public string? PaymentFailedFlowNs { get; set; }
@@ -25,6 +27,12 @@ public sealed class ManyChatOptions
     public string FieldAccessMode { get; set; } = "ht_access_mode";
     public string FieldGraceEndsAtUtc { get; set; } = "ht_grace_ends_utc";
     public string FieldCompanyId { get; set; } = "ht_company_id";
+    public string FieldBillingRecoveryStatus { get; set; } = "ht_billing_recovery_status";
+    public string FieldBillingRecoverySubscriptionId { get; set; } = "ht_billing_recovery_subscription_id";
+    public string FieldBillingRecoveryInvoiceId { get; set; } = "ht_billing_recovery_invoice_id";
+    public string FieldBillingRecoveryInvoiceStatus { get; set; } = "ht_billing_recovery_invoice_status";
+    public string FieldBillingRecoveryUpdatedAtUtc { get; set; } = "ht_billing_recovery_updated_utc";
+    public string FieldBillingRecoveryStartedAtUtc { get; set; } = "ht_billing_recovery_started_utc";
 
     // endpoint paths
     public string AddTagByNamePath { get; set; } = string.Empty;

@@ -398,6 +398,10 @@ public sealed class StripeWebhookFunction
                     return ToDispatchResult(decision, "Invoice payment failed handled");
                 }
 
+            case "customer.updated":
+                await _subscriptionHandler.HandleCustomerUpdatedAsync(parsed.Data!, ct);
+                return new DispatchResult("applied", "Customer updated handled", null, null);
+
             case "customer.subscription.updated":
                 {
                     var decision = await _subscriptionHandler.HandleSubscriptionUpdatedAsync(parsed.Data!, ct);
@@ -534,4 +538,3 @@ public sealed class StripeWebhookFunction
         string? AccessMode,
         string? AccessSource);
 }
-

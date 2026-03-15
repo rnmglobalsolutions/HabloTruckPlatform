@@ -125,6 +125,55 @@ public sealed class ManyChatSyncClientReminderTests
     }
 
     [Fact]
+    public async Task SyncBillingRecoveryStatusAsync_Should_SetFieldsAndActionRequiredTag_ForActiveRecovery()
+    {
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+
+        await sut.SyncBillingRecoveryStatusAsync(new BillingRecoveryManyChatUpdate(
+            SubscriberId: "sid_billing_active",
+            UserId: "U_BILLING",
+            CompanyId: null,
+            SubscriptionId: "sub_billing",
+            Status: BillingRecoveryManyChatStatuses.RecoveryActive,
+            StatusAtUtc: new DateTimeOffset(2026, 3, 14, 15, 0, 0, TimeSpan.Zero),
+            RecoveryStartedAtUtc: new DateTimeOffset(2026, 3, 14, 14, 0, 0, TimeSpan.Zero),
+            InvoiceId: null,
+            InvoiceStatus: null,
+            ActionRequired: true,
+            Recovered: false));
+
+        Assert.Contains(handler.Requests, x => x.Path == "fb/subscriber/setCustomFieldByName" && x.Body.Contains("ht_billing_recovery_status"));
+        var last = Assert.Single(handler.Requests.TakeLast(1));
+        Assert.Equal("fb/subscriber/addTagByName", last.Path);
+        Assert.Contains("HT_BILLING_ACTION_REQUIRED", last.Body);
+    }
+
+    [Fact]
+    public async Task SyncBillingRecoveryStatusAsync_Should_SetRecoveredTag_ForRecoveredState()
+    {
+        var handler = new RecordingHandler();
+        var sut = BuildClient(handler);
+
+        await sut.SyncBillingRecoveryStatusAsync(new BillingRecoveryManyChatUpdate(
+            SubscriberId: "sid_billing_recovered",
+            UserId: "U_BILLING_RECOVERED",
+            CompanyId: null,
+            SubscriptionId: "sub_billing_recovered",
+            Status: BillingRecoveryManyChatStatuses.Recovered,
+            StatusAtUtc: new DateTimeOffset(2026, 3, 14, 15, 0, 0, TimeSpan.Zero),
+            RecoveryStartedAtUtc: new DateTimeOffset(2026, 3, 14, 14, 0, 0, TimeSpan.Zero),
+            InvoiceId: null,
+            InvoiceStatus: "paid",
+            ActionRequired: false,
+            Recovered: true));
+
+        var last = Assert.Single(handler.Requests.TakeLast(1));
+        Assert.Equal("fb/subscriber/addTagByName", last.Path);
+        Assert.Contains("HT_PAYMENT_RECOVERED", last.Body);
+    }
+
+    [Fact]
     public async Task TriggerPaymentFailedFlowAsync_Should_ThrowRetryableManyChatRequestException_On503()
     {
         var handler = new RecordingHandler

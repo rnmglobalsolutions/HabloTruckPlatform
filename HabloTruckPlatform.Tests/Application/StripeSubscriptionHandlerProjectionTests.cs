@@ -1,5 +1,6 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.ManyChat;
+using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
@@ -94,6 +95,9 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.True(saved.IndividualGraceEndsAtUtc > now);
         Assert.Equal(now, saved.PaymentRecoveryStartedAtUtc);
         Assert.Equal(1, fixture.ManyChatSync.PaymentFailedFlowCalls);
+        var recoveryUpdate = Assert.Single(fixture.ManyChatSync.BillingRecoveryUpdates);
+        Assert.Equal(BillingRecoveryManyChatStatuses.RecoveryActive, recoveryUpdate.Status);
+        Assert.True(recoveryUpdate.ActionRequired);
         Assert.Empty(fixture.FailedActions.Enqueued);
     }
 
@@ -227,6 +231,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             StripeSubscriptionId = "sub_recover_1",
             SubscriptionStatus = "past_due",
             IndividualGraceEndsAtUtc = now.AddHours(10),
+            PaymentRecoveryStartedAtUtc = now.AddHours(-2),
             ManyChatSubscriberId = "sid_recover_1"
         };
 
@@ -250,6 +255,9 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.Null(saved.IndividualGraceEndsAtUtc);
         Assert.Null(saved.PaymentRecoveryStartedAtUtc);
         Assert.Equal(0, fixture.ManyChatSync.PaymentFailedFlowCalls);
+        var recoveredUpdate = Assert.Single(fixture.ManyChatSync.BillingRecoveryUpdates);
+        Assert.Equal(BillingRecoveryManyChatStatuses.Recovered, recoveredUpdate.Status);
+        Assert.True(recoveredUpdate.Recovered);
     }
 
     [Fact]
@@ -292,6 +300,78 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.Null(saved.IndividualGraceEndsAtUtc);
     }
 
+    [Fact]
+    public async Task HandleCustomerUpdatedAsync_Should_RetryOpenInvoice_When_RecoveryIsActive()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+        fixture.StripeAdmin.RetryAttempt = new StripeOpenInvoiceRetryAttempt(
+            CustomerId: "cus_customer_update_1",
+            SubscriptionId: "sub_customer_update_1",
+            InvoiceId: "in_customer_update_1",
+            InvoiceStatus: "paid",
+            CollectionMethod: "charge_automatically",
+            InvoiceFound: true,
+            PaymentAttempted: true,
+            InvoicePaid: true);
+
+        var user = new User
+        {
+            UserId = "U_customer_update_1",
+            StripeCustomerId = "cus_customer_update_1",
+            StripeSubscriptionId = "sub_customer_update_1",
+            SubscriptionStatus = "past_due",
+            PaymentRecoveryStartedAtUtc = now.AddHours(-3),
+            ManyChatSubscriberId = "sid_customer_update_1"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_customer_update_1", user);
+
+        await fixture.Handler.HandleCustomerUpdatedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_customer_update_1",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_customer_update_1",
+            PaymentMethodUpdated = true
+        });
+
+        Assert.Equal("cus_customer_update_1", fixture.StripeAdmin.LastRetryCustomerId);
+        Assert.Equal("sub_customer_update_1", fixture.StripeAdmin.LastRetrySubscriptionId);
+        var update = Assert.Single(fixture.ManyChatSync.BillingRecoveryUpdates);
+        Assert.Equal(BillingRecoveryManyChatStatuses.PaymentUpdatePendingConfirmation, update.Status);
+    }
+
+    [Fact]
+    public async Task HandleCustomerUpdatedAsync_Should_NotRetry_When_RecoveryIsNotActive()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_customer_update_2",
+            StripeCustomerId = "cus_customer_update_2",
+            StripeSubscriptionId = "sub_customer_update_2",
+            SubscriptionStatus = "active",
+            ManyChatSubscriberId = "sid_customer_update_2"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_customer_update_2", user);
+
+        await fixture.Handler.HandleCustomerUpdatedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_customer_update_2",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_customer_update_2",
+            PaymentMethodUpdated = true
+        });
+
+        Assert.Null(fixture.StripeAdmin.LastRetryCustomerId);
+        Assert.Empty(fixture.ManyChatSync.BillingRecoveryUpdates);
+    }
+
     private static HandlerFixture BuildFixture(DateTimeOffset now)
     {
         var clock = new FixedClock(now);
@@ -304,6 +384,11 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         var seatStore = new NoopSeatAssignmentStore();
         var companyStore = new InMemoryCompanyStore();
         var expiryIndexStore = new InMemoryEntitlementExpiryIndexStore();
+        var stripeAdmin = new NoopStripeAdminClient();
+        var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
+            manyChat,
+            failedActions,
+            clock);
 
         var orchestrator = new AccessOrchestrator(
             userStore,
@@ -336,9 +421,11 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             entitlementStore,
             expiryIndexStore,
             failedActions,
+            stripeAdmin,
+            billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
-        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions);
+        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin);
     }
 
     private sealed record HandlerFixture(
@@ -347,7 +434,8 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         InMemoryUserResolver UserResolver,
         RecordingManyChatSync ManyChatSync,
         global::HabloTruckPlatform.Application.Integrations.Stripex.StripeOptions PriceCatalog,
-        NoopFailedActionStore FailedActions);
+        NoopFailedActionStore FailedActions,
+        NoopStripeAdminClient StripeAdmin);
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -426,6 +514,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
     {
         public int SyncCalls { get; private set; }
         public int PaymentFailedFlowCalls { get; private set; }
+        public List<BillingRecoveryManyChatUpdate> BillingRecoveryUpdates { get; } = new();
         public Exception? PaymentFailedFlowException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
@@ -449,6 +538,12 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
         public Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task SyncBillingRecoveryStatusAsync(BillingRecoveryManyChatUpdate update, CancellationToken ct = default)
+        {
+            BillingRecoveryUpdates.Add(update);
+            return Task.CompletedTask;
+        }
 
         public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
         {
@@ -568,5 +663,37 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
         public Task RequeueAsync(string pk, string rk, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class NoopStripeAdminClient : IStripeAdminClient
+    {
+        public StripeOpenInvoiceRetryAttempt RetryAttempt { get; set; } = new(
+            CustomerId: "cus_default",
+            SubscriptionId: "sub_default",
+            InvoiceId: null,
+            InvoiceStatus: null,
+            CollectionMethod: null,
+            InvoiceFound: false,
+            PaymentAttempted: false,
+            InvoicePaid: false);
+
+        public string? LastRetryCustomerId { get; private set; }
+        public string? LastRetrySubscriptionId { get; private set; }
+
+        public Task<StripeSubscriptionSnapshot?> GetSubscriptionAsync(string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult<StripeSubscriptionSnapshot?>(null);
+
+        public Task<StripeEventData?> GetEventDataAsync(string eventId, CancellationToken ct = default)
+            => Task.FromResult<StripeEventData?>(null);
+
+        public Task<StripePaymentMethodUpdateSession> CreatePaymentMethodUpdateSessionAsync(string customerId, string? subscriptionId, string returnUrl, CancellationToken ct = default)
+            => Task.FromResult(new StripePaymentMethodUpdateSession("bps_default", customerId, subscriptionId, returnUrl));
+
+        public Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(string customerId, string subscriptionId, CancellationToken ct = default)
+        {
+            LastRetryCustomerId = customerId;
+            LastRetrySubscriptionId = subscriptionId;
+            return Task.FromResult(RetryAttempt);
+        }
     }
 }

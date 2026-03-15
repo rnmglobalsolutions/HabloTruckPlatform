@@ -129,6 +129,9 @@ public sealed class StripeCheckoutHandler
             case "individual_yearly":
                 priceId = _stripeOptions.IndividualYearlyPriceId ?? string.Empty;
                 break;
+            case "fleet":
+            case "fleet_seat":
+            case "company_seat":
             case "fleet_monthly":
                 priceId = _stripeOptions.FleetSeatMonthlyPriceId ?? string.Empty;
                 break;
@@ -186,4 +189,3 @@ public sealed class StripeCheckoutHandler
         };
     }
 }
-

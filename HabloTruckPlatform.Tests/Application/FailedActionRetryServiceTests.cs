@@ -558,6 +558,108 @@ public sealed class FailedActionRetryServiceTests
         Assert.Empty(store.Dead);
     }
 
+    [Fact]
+    public async Task RetryDueAsync_Should_DispatchBillingRecoveryState_WhenCurrentEpisodeStillMatches()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+        var recoveryStartedAt = new DateTimeOffset(2026, 3, 14, 12, 0, 0, TimeSpan.Zero);
+
+        users.Add(new User
+        {
+            UserId = "U_billing_retry",
+            ManyChatSubscriberId = "sid_billing_retry",
+            SubscriptionStatus = "past_due",
+            PaymentRecoveryStartedAtUtc = recoveryStartedAt
+        });
+
+        var payload = JsonSerializer.Serialize(new ManyChatBillingRecoveryStateFailedActionPayload(
+            Update: new BillingRecoveryManyChatUpdate(
+                SubscriberId: "sid_billing_retry",
+                UserId: "U_billing_retry",
+                CompanyId: null,
+                SubscriptionId: "sub_billing_retry",
+                Status: BillingRecoveryManyChatStatuses.RecoveryActive,
+                StatusAtUtc: recoveryStartedAt,
+                RecoveryStartedAtUtc: recoveryStartedAt,
+                InvoiceId: null,
+                InvoiceStatus: null,
+                ActionRequired: true,
+                Recovered: false),
+            UserPk: Buckets.UserBucketPk("U_billing_retry"),
+            UserId: "U_billing_retry",
+            CorrelationId: "corr_billing_retry",
+            Reason: "recovery_active",
+            OperationName: "manychat_billing_recovery_active"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_billing_retry",
+            Rk: "rk_billing_retry",
+            ActionType: FailedActionRetryService.ActionManyChatBillingRecoveryState,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Single(manyChat.BillingRecoveryUpdates);
+        Assert.Single(store.Succeeded);
+    }
+
+    [Fact]
+    public async Task RetryDueAsync_Should_SkipBillingRecoveryState_WhenRecoveryAlreadyEnded()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+        var recoveryStartedAt = new DateTimeOffset(2026, 3, 14, 12, 0, 0, TimeSpan.Zero);
+
+        users.Add(new User
+        {
+            UserId = "U_billing_retry_suppressed",
+            ManyChatSubscriberId = "sid_billing_retry_suppressed",
+            SubscriptionStatus = "active",
+            PaymentRecoveryStartedAtUtc = null
+        });
+
+        var payload = JsonSerializer.Serialize(new ManyChatBillingRecoveryStateFailedActionPayload(
+            Update: new BillingRecoveryManyChatUpdate(
+                SubscriberId: "sid_billing_retry_suppressed",
+                UserId: "U_billing_retry_suppressed",
+                CompanyId: null,
+                SubscriptionId: "sub_billing_retry_suppressed",
+                Status: BillingRecoveryManyChatStatuses.RecoveryActive,
+                StatusAtUtc: recoveryStartedAt,
+                RecoveryStartedAtUtc: recoveryStartedAt,
+                InvoiceId: null,
+                InvoiceStatus: null,
+                ActionRequired: true,
+                Recovered: false),
+            UserPk: Buckets.UserBucketPk("U_billing_retry_suppressed"),
+            UserId: "U_billing_retry_suppressed",
+            CorrelationId: "corr_billing_retry_suppressed",
+            Reason: "recovery_active",
+            OperationName: "manychat_billing_recovery_active"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_billing_retry_suppressed",
+            Rk: "rk_billing_retry_suppressed",
+            ActionType: FailedActionRetryService.ActionManyChatBillingRecoveryState,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Empty(manyChat.BillingRecoveryUpdates);
+        Assert.Single(store.Succeeded);
+    }
+
     private sealed class InMemoryFailedActionStore : IFailedActionStore
     {
         public List<FailedActionItem> DueItems { get; } = new();
@@ -626,9 +728,11 @@ public sealed class FailedActionRetryServiceTests
     {
         public int SyncCalls { get; private set; }
         public List<SubscriptionReminderDispatch> ReminderDispatches { get; } = new();
+        public List<BillingRecoveryManyChatUpdate> BillingRecoveryUpdates { get; } = new();
         public Exception? PaymentFailedFlowException { get; set; }
         public Exception? SyncException { get; set; }
         public Exception? ReminderException { get; set; }
+        public Exception? BillingRecoveryException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
         {
@@ -656,6 +760,15 @@ public sealed class FailedActionRetryServiceTests
                 throw ReminderException;
 
             ReminderDispatches.Add(dispatch);
+            return Task.CompletedTask;
+        }
+
+        public Task SyncBillingRecoveryStatusAsync(BillingRecoveryManyChatUpdate update, CancellationToken ct = default)
+        {
+            if (BillingRecoveryException is not null)
+                throw BillingRecoveryException;
+
+            BillingRecoveryUpdates.Add(update);
             return Task.CompletedTask;
         }
 

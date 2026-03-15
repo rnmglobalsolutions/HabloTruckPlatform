@@ -14,6 +14,7 @@ public sealed class StripeEventParser
             "checkout.session.completed" => ParseCheckout(stripeEvent),
             "invoice.paid" => ParseInvoicePaid(stripeEvent),
             "invoice.payment_failed" => ParseInvoiceFailed(stripeEvent),
+            "customer.updated" => ParseCustomerUpdated(stripeEvent),
             "customer.subscription.updated" => ParseSubUpdated(stripeEvent),
             "customer.subscription.deleted" => ParseSubDeleted(stripeEvent),
             _ => new StripeParsedEvent(type, null)
@@ -130,6 +131,23 @@ public sealed class StripeEventParser
                 PriceId = priceId,
                 Interval = interval,
                 Metadata = sub.Metadata
+            }));
+    }
+
+    private static StripeParsedEvent ParseCustomerUpdated(Event e)
+    {
+        var customer = e.Data.Object as Customer
+                       ?? throw new InvalidOperationException("Invalid customer");
+
+        var raw = customer.RawJObject;
+        var previousAttributes = e.RawJObject?["data"]?["previous_attributes"];
+
+        return new StripeParsedEvent(
+            e.Type,
+            Stamp(e, new StripeEventData
+            {
+                CustomerId = customer.Id,
+                PaymentMethodUpdated = HasUpdatedDefaultPaymentMethod(raw, previousAttributes)
             }));
     }
 
@@ -304,6 +322,19 @@ public sealed class StripeEventParser
 
     private static string? NullIfBlank(string? s)
         => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private static bool HasUpdatedDefaultPaymentMethod(JObject? current, JToken? previousAttributes)
+    {
+        var currentDefaultPaymentMethod = current?["invoice_settings"]?["default_payment_method"]?.ToString();
+        if (string.IsNullOrWhiteSpace(currentDefaultPaymentMethod))
+            return false;
+
+        return previousAttributes?["invoice_settings"]?["default_payment_method"] is not null
+               || previousAttributes?["invoice_settings"] is not null
+               || previousAttributes?["default_payment_method"] is not null
+               || previousAttributes?["default_source"] is not null
+               || previousAttributes?["source"] is not null;
+    }
 }
 
 public sealed record StripeParsedEvent(string EventType, StripeEventData? Data);
@@ -335,7 +366,7 @@ public sealed class StripeEventData
     public string? CustomerEmail { get; set; }
     public int Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
+    public bool? PaymentMethodUpdated { get; set; }
 }
-
 
 

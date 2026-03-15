@@ -208,6 +208,23 @@ public sealed class StripeWebhookFunctionTests
     }
 
     [Fact]
+    public async Task Run_Should_DispatchCustomerUpdated_ToCorrectHandler()
+    {
+        var fixture = BuildFixture(eventStoreResult: true);
+        var json = BuildCustomerUpdatedEventJson("evt_customer_updated", "cus_customer_updated");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("customer_updated", fixture.Handler.Calls);
+
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("applied", audit.Outcome);
+        Assert.Equal("customer.updated", audit.EventType);
+    }
+
+    [Fact]
     public async Task Run_Should_DispatchSubscriptionDeleted_ToCorrectHandler()
     {
         var fixture = BuildFixture(eventStoreResult: true);
@@ -542,6 +559,37 @@ public sealed class StripeWebhookFunctionTests
 }
 """;
 
+    private static string BuildCustomerUpdatedEventJson(string eventId, string customerId)
+        => $$"""
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "customer.updated",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_customer_updated",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "{{customerId}}",
+      "object": "customer",
+      "invoice_settings": {
+        "default_payment_method": "pm_new_123"
+      }
+    },
+    "previous_attributes": {
+      "invoice_settings": {
+        "default_payment_method": "pm_old_123"
+      }
+    }
+  }
+}
+""";
+
     private static string BuildCheckoutCompletedEventJson(string eventId, string customerId, string subscriptionId, string email)
         => $$"""
 {
@@ -763,6 +811,12 @@ public sealed class StripeWebhookFunctionTests
             return Task.FromResult<AccessDecision?>(null);
         }
 
+        public Task HandleCustomerUpdatedAsync(StripeEventData data, CancellationToken ct = default)
+        {
+            Calls.Add("customer_updated");
+            return Task.CompletedTask;
+        }
+
         public Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeSubscriptionUpdate input, CancellationToken ct = default)
             => Task.FromResult<AccessDecision?>(null);
 
@@ -837,4 +891,3 @@ public sealed class StripeWebhookFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
-

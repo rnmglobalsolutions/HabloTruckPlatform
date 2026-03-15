@@ -280,6 +280,12 @@ public sealed class StripeReconciliationServiceTests
 
         public Task<StripeEventData?> GetEventDataAsync(string eventId, CancellationToken ct = default)
             => Task.FromResult<StripeEventData?>(null);
+
+        public Task<StripePaymentMethodUpdateSession> CreatePaymentMethodUpdateSessionAsync(string customerId, string? subscriptionId, string returnUrl, CancellationToken ct = default)
+            => Task.FromResult(new StripePaymentMethodUpdateSession("bps_recon", customerId, subscriptionId, returnUrl));
+
+        public Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(string customerId, string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult(new StripeOpenInvoiceRetryAttempt(customerId, subscriptionId, null, null, null, false, false, false));
     }
 
     private sealed class NoopGraceIndexStore : IGraceIndexStore
@@ -396,4 +402,3 @@ public sealed class StripeReconciliationServiceTests
             => Task.CompletedTask;
     }
 }
-

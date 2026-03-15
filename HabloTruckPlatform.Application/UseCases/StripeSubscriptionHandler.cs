@@ -30,6 +30,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IEntitlementStore _entitlementStore;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
     private readonly IFailedActionStore _failedActionStore;
+    private readonly IStripeAdminClient _stripeAdminClient;
+    private readonly BillingRecoveryManyChatNotifier _billingRecoveryNotifier;
     private readonly ILogger<StripeSubscriptionHandler> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -46,6 +48,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         IEntitlementStore entitlementStore,
         IEntitlementExpiryIndexStore expiryIndex,
         IFailedActionStore failedActionStore,
+        IStripeAdminClient stripeAdminClient,
+        BillingRecoveryManyChatNotifier billingRecoveryNotifier,
         ILogger<StripeSubscriptionHandler> logger)
     {
         _userResolver = userResolver;
@@ -60,6 +64,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _entitlementStore = entitlementStore;
         _expiryIndex = expiryIndex;
         _failedActionStore = failedActionStore;
+        _stripeAdminClient = stripeAdminClient;
+        _billingRecoveryNotifier = billingRecoveryNotifier;
         _logger = logger;
     }
 
@@ -81,6 +87,91 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
     public Task<AccessDecision?> HandleInvoicePaymentFailedAsync(StripeEventData data, CancellationToken ct = default)
         => HandleInvoicePaymentFailedAsync(ToInvoiceFailedDto(data), ct);
+
+    public async Task HandleCustomerUpdatedAsync(StripeEventData data, CancellationToken ct = default)
+    {
+        if (data is null) throw new ArgumentNullException(nameof(data));
+        if (string.IsNullOrWhiteSpace(data.CustomerId))
+            return;
+
+        if (data.PaymentMethodUpdated != true)
+            return;
+
+        var opWatch = Stopwatch.StartNew();
+
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "stripe_customer_updated",
+            ["StripeEventId"] = data.StripeEventId,
+            ["StripeCustomerId"] = data.CustomerId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} PaymentMethodUpdated={PaymentMethodUpdated}",
+            "entry",
+            "stripe_customer_updated",
+            data.PaymentMethodUpdated);
+
+        var resolveWatch = Stopwatch.StartNew();
+        var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(data.CustomerId.Trim(), ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+            "dependency",
+            "table_storage",
+            "user_resolver.resolve_by_stripe_customer_id",
+            "UserStripeCustomerLookup",
+            resolveWatch.ElapsedMilliseconds,
+            true,
+            userRef is not null);
+
+        if (userRef is null)
+            return;
+
+        var userWatch = Stopwatch.StartNew();
+        var user = await _userStore.GetAsync(userRef.Value.UserPk, userRef.Value.UserId, ct);
+
+        _logger.LogDebug(
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+            "persistence",
+            "user.get",
+            "Users",
+            userWatch.ElapsedMilliseconds,
+            user is not null);
+
+        if (user is null || !IsActivePaymentRecovery(user))
+            return;
+
+        var customerId = NullIfBlank(user.StripeCustomerId) ?? NullIfBlank(data.CustomerId);
+        var subscriptionId = NullIfBlank(user.StripeSubscriptionId) ?? NullIfBlank(data.SubscriptionId);
+
+        if (customerId is null || subscriptionId is null)
+            return;
+
+        var retryWatch = Stopwatch.StartNew();
+        var attempt = await _stripeAdminClient.RetryOpenInvoiceAsync(customerId, subscriptionId, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} InvoiceId={InvoiceId} InvoiceFound={InvoiceFound}",
+            "dependency",
+            "stripe",
+            "retry_open_invoice_after_customer_updated",
+            "Stripe API",
+            retryWatch.ElapsedMilliseconds,
+            attempt.InvoiceFound,
+            attempt.InvoiceId,
+            attempt.InvoiceFound);
+
+        if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+            await _billingRecoveryNotifier.NotifyRetryOutcomeAsync(user, attempt, data.StripeEventId, ct);
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} DurationMs={DurationMs}",
+            "outcome",
+            "completed",
+            attempt.InvoicePaid ? "invoice_retry_requested_after_payment_method_update" : "payment_method_update_processed",
+            opWatch.ElapsedMilliseconds);
+    }
 
     // =========================================================
     // CHECKOUT
@@ -484,7 +575,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         // 4) Apply reducer result to user.
         ApplyReducerResult(user, reduced);
+        var previousRecoveryStartedAtUtc = user.PaymentRecoveryStartedAtUtc;
         var paymentRecoveryJustStarted = SyncPaymentRecoveryState(user, signal, reduced, nowUtc);
+        var paymentRecoveryJustEnded = previousRecoveryStartedAtUtc is not null && user.PaymentRecoveryStartedAtUtc is null;
 
         // 5) Maintain grace index.
         var graceWatch = Stopwatch.StartNew();
@@ -533,6 +626,19 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             user.SubscriptionStatus,
             user.StripeCurrentPeriodEndUtc,
             user.IndividualGraceEndsAtUtc);
+
+        if (paymentRecoveryJustStarted && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        {
+            await _billingRecoveryNotifier.NotifyRecoveryActiveAsync(user, signal.StripeEventId, ct);
+        }
+
+        if (paymentRecoveryJustEnded && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        {
+            if (signal.Kind == StripeSignalKind.InvoicePaid)
+                await _billingRecoveryNotifier.NotifyRecoveredAsync(user, previousRecoveryStartedAtUtc, signal.StripeEventId, ct);
+            else
+                await _billingRecoveryNotifier.NotifyClosedAsync(user, previousRecoveryStartedAtUtc, signal.StripeEventId, ct);
+        }
 
         if (triggerPaymentFailedFlowIfNeeded
             && paymentRecoveryJustStarted
@@ -999,6 +1105,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         var normalized = NormalizeStatus(status);
         return normalized is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
     }
+
+    private static bool IsActivePaymentRecovery(User user)
+        => user.PaymentRecoveryStartedAtUtc is not null && IsDelinquentStatus(user.SubscriptionStatus);
 
     private static string NormalizeCheckoutPlan(string? planType)
     {

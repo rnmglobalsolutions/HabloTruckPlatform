@@ -106,7 +106,10 @@ var host = new HostBuilder()
         services.AddSingleton<EntitlementExpirySweeperService>();
         services.AddSingleton<StripeReconciliationService>();
         services.AddSingleton<StripeCheckoutHandler>();
+        services.AddSingleton<BillingRecoveryManyChatNotifier>();
         services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
+        services.AddSingleton<CreateStripePaymentMethodUpdateLinkUseCase>();
+        services.AddSingleton<RetryStripeOpenInvoiceUseCase>();
         services.AddSingleton<SubscriptionReminderService>();
 
         // Stripe orchestration handler
@@ -143,4 +146,3 @@ using (var scope = host.Services.CreateScope())
 }
 
 await host.RunAsync();
-

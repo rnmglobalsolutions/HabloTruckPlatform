@@ -40,6 +40,7 @@ public static class FailedActionTypes
     public const string ManyChatSync = "manychat.sync";
     public const string ManyChatPaymentFailedFlow = "manychat.payment_failed_flow";
     public const string ManyChatSubscriptionReminder = "manychat.subscription_reminder";
+    public const string ManyChatBillingRecoveryState = "manychat.billing_recovery_state";
 }
 
 public sealed record ManyChatSyncFailedActionPayload(
@@ -66,6 +67,15 @@ public sealed record ManyChatPaymentFailedFlowFailedActionPayload(
 public sealed record ManyChatSubscriptionReminderFailedActionPayload(
     SubscriptionReminderDispatch? Dispatch,
     string? ReminderId,
+    string? CorrelationId,
+    string? Reason,
+    string? OperationName
+);
+
+public sealed record ManyChatBillingRecoveryStateFailedActionPayload(
+    BillingRecoveryManyChatUpdate? Update,
+    string? UserPk,
+    string? UserId,
     string? CorrelationId,
     string? Reason,
     string? OperationName

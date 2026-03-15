@@ -1,0 +1,1725 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 15 /Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1146 >>
+stream
+1 w
+0.970 0.930 0.880 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 612 612 180 re f
+0.930 0.570 0.340 rg
+48 542 516 70 re f
+BT
+/F2 30 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 702 Tm
+(HabloTruck Platform) Tj
+ET
+BT
+/F2 20 Tf
+0.880 0.940 1.000 rg
+1 0 0 1 48 667 Tm
+(Use Cases Guide) Tj
+ET
+BT
+/F2 17 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 66 570 Tm
+(Subscription Journeys, Stripe and ManyChat) Tj
+ET
+BT
+/F1 14 Tf
+0.160 0.180 0.200 rg
+1 0 0 1 48 482 Tm
+(Documento operativo para QA, validacion integral y presentacion interna.) Tj
+ET
+BT
+/F1 14 Tf
+0.160 0.180 0.200 rg
+1 0 0 1 48 454 Tm
+(Cubre Stripe, Webhooks, Reducer, Access, ManyChat y Journeys de suscripcion.) Tj
+ET
+1.000 1.000 1.000 rg
+0.820 0.820 0.820 RG
+1 w
+48 180 516 120 re B
+BT
+/F2 18 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 270 Tm
+(Resumen visual) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 66 242 Tm
+(1. Stripe sigue siendo source of truth del lifecycle.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 66 220 Tm
+(2. SubscriptionReducer sigue decidiendo transiciones reales.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 66 198 Tm
+(3. ManyChat comunica estados; no decide acceso ni billing.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 2213 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(1. Alta Inicial de Suscripcion) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Checkout inicial y activacion de acceso) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? El frontend o ManyChat solicita al backend Get Payment Link.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El backend crea un Stripe Checkout Session de suscripcion con card y) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(  link.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? El usuario completa el pago en Stripe.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 545 Tm
+(? Stripe envia checkout.session.completed al webhook.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 525 Tm
+(? StripeSubscriptionHandler crea o actualiza al usuario y vincula) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 510 Tm
+(  StripeCustomerId y StripeSubscriptionId.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 490 Tm
+(? AccessOrchestrator recomputa acceso y sincroniza ManyChat.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 470 Tm
+(? Si todo es correcto, el usuario queda con acceso FULL.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Usuario creado o actualizado con StripeCustomerId y StripeSubscriptionId) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 303 Tm
+(  persistidos.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 282 Tm
+(- Acceso efectivo Full.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 261 Tm
+(- ManyChat sincronizado sin activar payment recovery ni journeys) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 246 Tm
+(  contradictorios.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 1806 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(2. Renovacion Automatica Normal) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Ciclo activo mensual o anual) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Stripe renueva la suscripcion y envia invoice.paid y/o) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 605 Tm
+(  customer.subscription.updated.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(? El webhook procesa el evento en StripeSubscriptionHandler.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? ApplyReducerAsync y SubscriptionReducer mantienen al usuario en active o) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 550 Tm
+(  paid-through.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 530 Tm
+(? AccessOrchestrator confirma acceso Full.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 510 Tm
+(? El timer de reminders evalua luego las ventanas elegibles de auto-renew.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- El usuario sigue en active con acceso Full.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No se activa payment recovery.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No se activa save-before-churn mientras auto-renew siga activo.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 2133 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(3. Auto-Renew Reminder Journey) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Reminders previos a la renovacion automatica) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? SubscriptionReminderTimer ejecuta SubscriptionReminderService) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 605 Tm
+(  diariamente.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(? El servicio lee el estado local proyectado y aplica prioridad de) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 570 Tm
+(  journeys.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 550 Tm
+(? Si el usuario esta activo, con auto-renew ON y sin recovery ni) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 535 Tm
+(  cancel_at_period_end, entra en auto-renew.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 515 Tm
+(? SubscriptionReminderEvaluator calcula si esta en una ventana elegible.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 495 Tm
+(? Si la ventana aplica y no fue enviada antes, ManyChat recibe el flow) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 480 Tm
+(  correspondiente.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Mensual: 7d, 3d y 1d antes de renovar.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- Anual: 30d, 14d, 7d y 1d antes de renovar.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- La ventana de 1 dia usa framing positivo de continuidad.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 255 Tm
+(- Se suprime si hay payment recovery o cancel_at_period_end.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 12 0 R >>
+endobj
+12 0 obj
+<< /Length 1921 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(4. Payment Recovery Inicial) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Entrada al journey de recuperacion de cobro) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Stripe envia invoice.payment_failed cuando falla el cobro recurrente.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El webhook lo recibe y ApplyReducerAsync ejecuta el reducer.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? El usuario entra en past_due o grace segun las reglas actuales.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 560 Tm
+(? Se guarda PaymentRecoveryStartedAtUtc en la proyeccion local.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 540 Tm
+(? ManyChat recibe el flow inicial de recovery y el estado recovery_active.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 520 Tm
+(? Payment recovery pasa a tener prioridad maxima sobre los otros journeys.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- SubscriptionStatus delinquent o grace segun el reducer.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- PaymentRecoveryStartedAtUtc poblado.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- Flow inicial disparado solo una vez por episodio.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 255 Tm
+(- Auto-renew y save-before-churn suprimidos.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 14 0 R >>
+endobj
+14 0 obj
+<< /Length 1675 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(5. Payment Recovery Follow-up Diario) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Recordatorios mientras el usuario siga en recovery) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? El timer diario ejecuta SubscriptionReminderService.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El servicio encuentra usuarios con PaymentRecoveryStartedAtUtc.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? Valida que el estado siga siendo delinquent segun la proyeccion local.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 560 Tm
+(? Calcula el dia del episodio recovery.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 540 Tm
+(? Si corresponde y no fue enviado antes, manda el follow-up de ManyChat.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Los follow-ups solo salen mientras el recovery siga activo.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No hay duplicados por ventana o por episodio.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- Se detienen cuando el usuario sale de recovery.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 16 0 R >>
+endobj
+16 0 obj
+<< /Length 1730 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(6. Actualizacion de Metodo de Pago) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Self-service seguro via Stripe Customer Portal) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? El usuario pulsa Actualizar metodo de pago desde ManyChat o frontend.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? La app llama al endpoint payment-method-update-link del backend.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? El backend valida ownership y crea una session de Stripe Customer Portal) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(  en payment_method_update.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 545 Tm
+(? Devuelve la URL segura de Stripe.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 525 Tm
+(? El usuario abre Stripe y actualiza su tarjeta.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Solo el dueno de la suscripcion puede abrir la session.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No cambia el lifecycle local por si sola.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No marca recovered sin invoice.paid.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 18 0 R >>
+endobj
+18 0 obj
+<< /Length 1960 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(7. Recovery Webhook-Driven por customer.updated) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Retry automatico sin depender del return URL) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Tras actualizar la tarjeta, Stripe emite customer.updated.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El webhook procesa customer.updated y detecta cambio relevante de) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(  payment method.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? StripeSubscriptionHandler resuelve al usuario por StripeCustomerId.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 545 Tm
+(? Si el usuario sigue en payment recovery segun la proyeccion local, el) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 530 Tm
+(  backend intenta invoice.pay.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 510 Tm
+(? ManyChat puede recibir un estado operativo intermedio.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 490 Tm
+(? El lifecycle todavia no cambia en este paso.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Solo hace retry si recovery sigue activo.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No crea un state machine paralelo.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No usa customer.updated como confirmacion final de negocio.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 20 0 R >>
+endobj
+20 0 obj
+<< /Length 1675 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(8. Retry Manual de Factura Abierta) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Fallback o accion manual desde app) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? La app llama al endpoint retry-payment del backend.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El backend valida ownership y consulta Stripe.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? Busca un open invoice para la suscripcion.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 560 Tm
+(? Si collection_method es charge_automatically, ejecuta invoice.pay.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 540 Tm
+(? Si recovery sigue activo localmente, sincroniza estado operativo a) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 525 Tm
+(  ManyChat.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- No falla si no hay open invoice.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No marca recovered por si solo.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No envia estados de recovery si el episodio ya termino.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 22 0 R >>
+endobj
+22 0 obj
+<< /Length 1812 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(9. Confirmacion Final de Recuperacion) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Salida oficial del journey de recovery) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Stripe cobra con exito la factura y envia invoice.paid.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El webhook procesa invoice.paid.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? El reducer saca al usuario de recovery y lo devuelve a active.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 560 Tm
+(? PaymentRecoveryStartedAtUtc se limpia.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 540 Tm
+(? AccessOrchestrator devuelve acceso Full.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 520 Tm
+(? ManyChat recibe el estado recovered y se apagan los reminders de) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 505 Tm
+(  recovery.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- SubscriptionStatus = active.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- PaymentRecoveryStartedAtUtc = null.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- AccessMode = Full.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 255 Tm
+(- ManyChat = recovered.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 24 0 R >>
+endobj
+24 0 obj
+<< /Length 1680 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(10. Cancel at Period End) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Cancelacion programada sin revocar acceso antes de tiempo) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? El usuario solicita cancelar al final del periodo.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? CancelSubscriptionAtPeriodEndUseCase valida ownership y actualiza) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(  Stripe.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? El webhook recibe el cambio y el reducer actualiza la proyeccion local.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 545 Tm
+(? El usuario sigue activo hasta CurrentPeriodEndUtc.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 525 Tm
+(? Auto-renew deja de aplicar y entra save-before-churn.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- StripeCancelAtPeriodEnd = true.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- Acceso sigue Full hasta la fecha final.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No hay early revocation.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 26 0 R >>
+endobj
+26 0 obj
+<< /Length 1842 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(11. Save-Before-Churn Journey) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Recordatorios cuando la cancelacion ya esta programada) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? El timer diario evalua usuarios con cancel_at_period_end = true.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? SubscriptionReminderEvaluator usa CurrentPeriodEndUtc para calcular la) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(  ventana.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? Si la ventana aplica y no se envio antes, ManyChat recibe el flow ending) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 550 Tm
+(  soon o reactivate.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 530 Tm
+(? Auto-renew se mantiene suprimido mientras siga esta condicion.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 510 Tm
+(? Si tambien hay recovery, payment recovery gana por prioridad.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Mensual: 7d, 3d y 1d antes del fin real.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- Anual: 30d, 14d, 7d y 1d antes del fin real.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No hay dual-send con auto-renew ni con recovery.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 28 0 R >>
+endobj
+28 0 obj
+<< /Length 1648 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(12. Deletion o Fin Final) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Cierre terminal de la suscripcion) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Stripe envia customer.subscription.deleted o evento final equivalente.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 600 Tm
+(? El webhook procesa el evento.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 580 Tm
+(? El reducer mueve al usuario al estado terminal.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 560 Tm
+(? AccessOrchestrator bloquea acceso.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 540 Tm
+(? Se limpian estados transitorios como grace o recovery.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 520 Tm
+(? No deben salir mas journeys ni reminders.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- Estado terminal correcto.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- AccessMode = Blocked.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- Sin auto-renew, sin save-before-churn y sin payment recovery.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 30 0 R >>
+endobj
+30 0 obj
+<< /Length 1793 >>
+stream
+1 w
+0.980 0.980 0.970 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 700 612 92 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 740 Tm
+(13. Retry y Replay Safe Behavior) Tj
+ET
+BT
+/F1 12 Tf
+0.870 0.930 1.000 rg
+1 0 0 1 48 716 Tm
+(Reintentos sin mensajes viejos o contradictorios) Tj
+ET
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 420 516 275 re B
+1.000 1.000 1.000 rg
+0.850 0.850 0.850 RG
+1 w
+48 92 516 300 re B
+0.930 0.570 0.340 rg
+48 670 150 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 646 Tm
+(Pasos del flujo) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 620 Tm
+(? Si una accion de ManyChat falla de forma retryable, se guarda en failed) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 605 Tm
+(  actions.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 585 Tm
+(? FailedActionRetryService la reintenta mas tarde.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 565 Tm
+(? Antes de reenviar, valida el estado local actual del usuario.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 545 Tm
+(? Si el episodio ya termino o un journey superior tiene prioridad, suprime) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 530 Tm
+(  el envio.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 510 Tm
+(? Solo reenvia si el estado sigue vigente.) Tj
+ET
+0.490 0.720 0.410 rg
+48 367 170 18 re f
+BT
+/F2 17 Tf
+0.120 0.280 0.440 rg
+1 0 0 1 66 344 Tm
+(Que validar) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 318 Tm
+(- No se reenvian reminders viejos.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 297 Tm
+(- No se reenvia recovery si ya termino.) Tj
+ET
+BT
+/F1 11 Tf
+0.120 0.120 0.120 rg
+1 0 0 1 66 276 Tm
+(- No se envia auto-renew si recovery o churn ya tienen prioridad.) Tj
+ET
+BT
+/F1 10 Tf
+0.450 0.450 0.450 rg
+1 0 0 1 452 28 Tm
+(HabloTruck Platform) Tj
+ET
+endstream
+endobj
+31 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 33 0 R /F2 34 0 R >> >> /Contents 32 0 R >>
+endobj
+32 0 obj
+<< /Length 1497 >>
+stream
+1 w
+0.950 0.970 0.990 rg
+0 0 612 792 re f
+0.120 0.280 0.440 rg
+0 702 612 90 re f
+BT
+/F2 24 Tf
+1.000 1.000 1.000 rg
+1 0 0 1 48 738 Tm
+(Checklist para Tests Integrales) Tj
+ET
+1.000 1.000 1.000 rg
+0.820 0.820 0.820 RG
+1 w
+48 110 516 590 re B
+BT
+/F1 13 Tf
+0.200 0.200 0.200 rg
+1 0 0 1 66 670 Tm
+(Usa este bloque como base comun de QA para todos los escenarios.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 625 Tm
+(? Verificar evento o request de entrada correcto.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 599 Tm
+(? Verificar proyeccion local del User despues del flujo.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 573 Tm
+(? Verificar acceso efectivo calculado por AccessOrchestrator.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 547 Tm
+(? Verificar estado, tags, custom fields o flows enviados a ManyChat.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 521 Tm
+(? Verificar suppression rules y prioridad entre journeys.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 495 Tm
+(? Verificar dedupe, replay-safe behavior y out-of-order protection.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 469 Tm
+(? Verificar que el lifecycle final solo cambie por webhook y reducer.) Tj
+ET
+BT
+/F1 13 Tf
+0.100 0.100 0.100 rg
+1 0 0 1 72 443 Tm
+(? Verificar que invoice.paid siga siendo la confirmacion final de recovery.) Tj
+ET
+BT
+/F1 11 Tf
+0.350 0.350 0.350 rg
+1 0 0 1 66 120 Tm
+(Documento generado para uso interno, documentacion funcional y pruebas end-to-end.) Tj
+ET
+endstream
+endobj
+33 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+34 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+xref
+0 35
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000217 00000 n 
+0000000355 00000 n 
+0000001552 00000 n 
+0000001690 00000 n 
+0000003954 00000 n 
+0000004092 00000 n 
+0000005949 00000 n 
+0000006088 00000 n 
+0000008273 00000 n 
+0000008413 00000 n 
+0000010386 00000 n 
+0000010526 00000 n 
+0000012253 00000 n 
+0000012393 00000 n 
+0000014175 00000 n 
+0000014315 00000 n 
+0000016327 00000 n 
+0000016467 00000 n 
+0000018194 00000 n 
+0000018334 00000 n 
+0000020198 00000 n 
+0000020338 00000 n 
+0000022070 00000 n 
+0000022210 00000 n 
+0000024104 00000 n 
+0000024244 00000 n 
+0000025944 00000 n 
+0000026084 00000 n 
+0000027929 00000 n 
+0000028069 00000 n 
+0000029618 00000 n 
+0000029689 00000 n 
+trailer
+<< /Size 35 /Root 1 0 R >>
+startxref
+29765
+%%EOF

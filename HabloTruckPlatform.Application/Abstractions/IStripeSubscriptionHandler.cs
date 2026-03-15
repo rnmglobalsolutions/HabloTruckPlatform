@@ -18,6 +18,8 @@ public interface IStripeSubscriptionHandler
 
     Task<AccessDecision?> HandleInvoicePaymentFailedAsync(StripeEventData data, CancellationToken ct = default);
 
+    Task HandleCustomerUpdatedAsync(StripeEventData data, CancellationToken ct = default);
+
     // Your existing DTO-based methods (keep them callable from anywhere else)
     Task<AccessDecision?> HandleSubscriptionUpdatedAsync(StripeSubscriptionUpdate input, CancellationToken ct = default);
 

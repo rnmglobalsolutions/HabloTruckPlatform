@@ -10,4 +10,13 @@ public interface IStripeAdminClient
         CancellationToken ct = default);
     Task<StripeEventData?> GetEventDataAsync(
         string eventId, CancellationToken ct = default);
+    Task<StripePaymentMethodUpdateSession> CreatePaymentMethodUpdateSessionAsync(
+        string customerId,
+        string? subscriptionId,
+        string returnUrl,
+        CancellationToken ct = default);
+    Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(
+        string customerId,
+        string subscriptionId,
+        CancellationToken ct = default);
 }

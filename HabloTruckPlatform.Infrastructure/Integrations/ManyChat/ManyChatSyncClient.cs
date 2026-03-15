@@ -223,6 +223,39 @@ public sealed class ManyChatSyncClient : IManyChatSync
         await PostJson(_opt.SendFlowPath, payload, ct);
     }
 
+    public async Task SyncBillingRecoveryStatusAsync(BillingRecoveryManyChatUpdate update, CancellationToken ct = default)
+    {
+        if (update is null)
+            throw new ArgumentNullException(nameof(update));
+
+        if (string.IsNullOrWhiteSpace(update.SubscriberId))
+            return;
+
+        var sid = update.SubscriberId.Trim();
+
+        await SetCustomFieldByNameAsync(sid, _opt.FieldBillingRecoveryStatus, update.Status, ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldBillingRecoverySubscriptionId, update.SubscriptionId ?? "-", ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldBillingRecoveryInvoiceId, update.InvoiceId ?? "-", ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldBillingRecoveryInvoiceStatus, update.InvoiceStatus ?? "-", ct);
+        await SetCustomFieldByNameAsync(sid, _opt.FieldBillingRecoveryUpdatedAtUtc, update.StatusAtUtc.UtcDateTime.ToString("O"), ct);
+        await SetCustomFieldByNameAsync(
+            sid,
+            _opt.FieldBillingRecoveryStartedAtUtc,
+            update.RecoveryStartedAtUtc is null ? "-" : update.RecoveryStartedAtUtc.Value.UtcDateTime.ToString("O"),
+            ct);
+
+        await AddTagByNameAsync(sid, _opt.TagBillingActionRequired, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagBillingActionRequired, ct);
+        await AddTagByNameAsync(sid, _opt.TagBillingRecovered, ct);
+        await RemoveTagByNameAsync(sid, _opt.TagBillingRecovered, ct);
+
+        if (update.ActionRequired)
+            await AddTagByNameAsync(sid, _opt.TagBillingActionRequired, ct);
+
+        if (update.Recovered)
+            await AddTagByNameAsync(sid, _opt.TagBillingRecovered, ct);
+    }
+
     public async Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
     {
         var payload = new

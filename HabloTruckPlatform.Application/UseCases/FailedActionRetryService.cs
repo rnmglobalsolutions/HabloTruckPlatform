@@ -15,6 +15,7 @@ public sealed class FailedActionRetryService
     public const string ActionManyChatSync = FailedActionTypes.ManyChatSync;
     public const string ActionManyChatPaymentFailedFlow = FailedActionTypes.ManyChatPaymentFailedFlow;
     public const string ActionManyChatSubscriptionReminder = FailedActionTypes.ManyChatSubscriptionReminder;
+    public const string ActionManyChatBillingRecoveryState = FailedActionTypes.ManyChatBillingRecoveryState;
     // Metadata sync operations (tags/custom fields) are effectively convergent, so they can tolerate
     // a higher retry budget than user-facing flow sends.
     private const int MaxAttemptsManyChatSync = 10;
@@ -307,6 +308,48 @@ public sealed class FailedActionRetryService
             return;
         }
 
+        if (item.ActionType == ActionManyChatBillingRecoveryState)
+        {
+            var p = JsonSerializer.Deserialize<ManyChatBillingRecoveryStateFailedActionPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("Invalid payload");
+
+            if (p.Update is null || string.IsNullOrWhiteSpace(p.Update.SubscriberId))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_billing_recovery_retry",
+                    "no_action_needed",
+                    "missing_update_or_subscriber_id");
+                return;
+            }
+
+            if (!await ShouldSendBillingRecoveryStatusAsync(p.Update, ct))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_billing_recovery_retry",
+                    "no_action_needed",
+                    "billing_recovery_state_no_longer_current");
+                return;
+            }
+
+            var dependencyWatch = Stopwatch.StartNew();
+            await _manyChat.SyncBillingRecoveryStatusAsync(p.Update, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "dependency",
+                "manychat",
+                "sync_billing_recovery_status_retry",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds,
+                true);
+
+            return;
+        }
+
         throw new InvalidOperationException($"Unknown actionType: {item.ActionType}");
     }
 
@@ -365,6 +408,33 @@ public sealed class FailedActionRetryService
         return status is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
     }
 
+    private async Task<bool> ShouldSendBillingRecoveryStatusAsync(
+        BillingRecoveryManyChatUpdate update,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(update.UserId))
+            return true;
+
+        var normalizedUserId = update.UserId.Trim();
+        var user = await _users.GetAsync(Buckets.UserBucketPk(normalizedUserId), normalizedUserId, ct);
+        if (user is null)
+            return false;
+
+        return update.Status switch
+        {
+            BillingRecoveryManyChatStatuses.RecoveryActive
+                or BillingRecoveryManyChatStatuses.PaymentUpdatePendingConfirmation
+                or BillingRecoveryManyChatStatuses.PaymentRetryFailed
+                => await ShouldSendPaymentRecoveryAsync(user.UserId, update.RecoveryStartedAtUtc, ct),
+
+            BillingRecoveryManyChatStatuses.Recovered
+                or BillingRecoveryManyChatStatuses.Closed
+                => user.PaymentRecoveryStartedAtUtc is null,
+
+            _ => true
+        };
+    }
+
     private static DateTimeOffset ComputeBackoffUtc(DateTimeOffset now, int attempts)
     {
         // exponential-ish: 1,2,4,8,16,32,60,120,240...
@@ -389,6 +459,7 @@ public sealed class FailedActionRetryService
         {
             // User-facing SendFlow retries are intentionally stricter than metadata sync retries.
             ActionManyChatPaymentFailedFlow or ActionManyChatSubscriptionReminder => MaxAttemptsManyChatSendFlow,
+            ActionManyChatBillingRecoveryState => MaxAttemptsManyChatSync,
             _ => MaxAttemptsManyChatSync
         };
 

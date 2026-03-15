@@ -1,0 +1,266 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="ProgId" content="Excel.Sheet" />
+  <meta name="Generator" content="Codex" />
+  <style>
+    body { font-family: Calibri, Arial, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td {
+      border: 1px solid #999;
+      padding: 6px 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #1f4e78;
+      color: #fff;
+      font-weight: 700;
+    }
+    .section {
+      background: #d9eaf7;
+      font-weight: 700;
+    }
+    .required { background: #e2f0d9; }
+    .recommended { background: #fff2cc; }
+    .notes {
+      margin-top: 18px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <table>
+    <tr>
+      <th>Categoria</th>
+      <th>Nombre exacto</th>
+      <th>Tipo en ManyChat</th>
+      <th>Obligatorio o recomendado</th>
+      <th>Quien lo actualiza</th>
+      <th>Cuando cambia</th>
+      <th>Para que lo usa el flow</th>
+      <th>Ejemplo</th>
+    </tr>
+
+    <tr class="section">
+      <td colspan="8">Custom Fields</td>
+    </tr>
+    <tr class="required">
+      <td>Access</td>
+      <td>ht_access_mode</td>
+      <td>Texto</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cada vez que AccessOrchestrator recomputa acceso</td>
+      <td>Permite que ManyChat sepa si el usuario esta en Full, Grace o Blocked</td>
+      <td>Full</td>
+    </tr>
+    <tr class="recommended">
+      <td>Access</td>
+      <td>ht_grace_ends_utc</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando entra, sale o cambia el estado de grace</td>
+      <td>Mostrar o segmentar usuarios cuyo grace esta por terminar</td>
+      <td>2026-03-20T18:30:00.0000000Z</td>
+    </tr>
+    <tr class="recommended">
+      <td>Access</td>
+      <td>ht_company_id</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando cambia el contexto de acceso company</td>
+      <td>Segmentacion o mensajes dependientes de empresa</td>
+      <td>COMP_001</td>
+    </tr>
+    <tr class="required">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_status</td>
+      <td>Texto</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cuando inicia recovery, se intenta retry, se recupera o se cierra</td>
+      <td>Permite al flow saber el estado visible del recovery</td>
+      <td>recovery_active</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_subscription_id</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando se sincroniza estado de recovery</td>
+      <td>Trazabilidad operativa del subscription id</td>
+      <td>sub_123</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_invoice_id</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando existe una invoice relevante en el episodio recovery</td>
+      <td>Trazabilidad operativa del invoice id</td>
+      <td>in_123</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_invoice_status</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando se sincroniza el resultado del intento de cobro</td>
+      <td>Distinguir entre invoice abierta, pagada o sin estado disponible</td>
+      <td>open</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_updated_utc</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>En cada sync del estado de recovery</td>
+      <td>Auditoria y depuracion operativa</td>
+      <td>2026-03-14T17:00:00.0000000Z</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>ht_billing_recovery_started_utc</td>
+      <td>Texto</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando se crea o cierra un episodio recovery</td>
+      <td>Identificar el episodio actual y evitar mensajes viejos</td>
+      <td>2026-03-13T15:00:00.0000000Z</td>
+    </tr>
+
+    <tr class="section">
+      <td colspan="8">Tags</td>
+    </tr>
+    <tr class="required">
+      <td>Access</td>
+      <td>HT_ACCESS_FULL</td>
+      <td>Tag</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cuando el acceso efectivo es Full</td>
+      <td>Segmentacion y automatizaciones visuales de usuarios activos</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="required">
+      <td>Access</td>
+      <td>HT_ACCESS_GRACE</td>
+      <td>Tag</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cuando el acceso efectivo es Grace</td>
+      <td>Segmentacion de usuarios en periodo de gracia</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="required">
+      <td>Access</td>
+      <td>HT_ACCESS_BLOCKED</td>
+      <td>Tag</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cuando el acceso efectivo es Blocked</td>
+      <td>Evitar mensajes de acceso completo y segmentar bloqueados</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="recommended">
+      <td>Access Source</td>
+      <td>HT_SRC_INDIVIDUAL</td>
+      <td>Tag</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando el acceso efectivo tiene origen individual</td>
+      <td>Personalizar mensajes segun fuente de acceso</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="recommended">
+      <td>Access Source</td>
+      <td>HT_SRC_COMPANY</td>
+      <td>Tag</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando el acceso efectivo tiene origen company</td>
+      <td>Personalizar mensajes segun fuente de acceso</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="required">
+      <td>Billing Recovery</td>
+      <td>HT_BILLING_ACTION_REQUIRED</td>
+      <td>Tag</td>
+      <td>Obligatorio</td>
+      <td>Backend</td>
+      <td>Cuando el recovery requiere accion del usuario</td>
+      <td>Segmentar usuarios que aun deben actualizar pago</td>
+      <td>Aplicado</td>
+    </tr>
+    <tr class="recommended">
+      <td>Billing Recovery</td>
+      <td>HT_PAYMENT_RECOVERED</td>
+      <td>Tag</td>
+      <td>Recomendado</td>
+      <td>Backend</td>
+      <td>Cuando el backend confirma recuperacion via invoice.paid</td>
+      <td>Permite un mensaje o automatizacion post-recovery</td>
+      <td>Aplicado</td>
+    </tr>
+
+    <tr class="section">
+      <td colspan="8">Flows y configuracion backend</td>
+    </tr>
+    <tr class="required">
+      <td>Flow</td>
+      <td>ManyChat:PaymentFailedFlowNs</td>
+      <td>Configuracion backend + Flow NS</td>
+      <td>Obligatorio</td>
+      <td>Backend dispara / ManyChat ejecuta</td>
+      <td>Despues del primer invoice.payment_failed relevante</td>
+      <td>Enviar el mensaje inicial de payment recovery</td>
+      <td>flow_payment_recovery_initial</td>
+    </tr>
+    <tr class="required">
+      <td>Flow</td>
+      <td>ManyChat:PaymentRecoveryReminderFlowNs</td>
+      <td>Configuracion backend + Flow NS</td>
+      <td>Obligatorio</td>
+      <td>Backend dispara / ManyChat ejecuta</td>
+      <td>En follow-ups diarios mientras recovery siga activo</td>
+      <td>Enviar recordatorios de recovery</td>
+      <td>flow_payment_recovery_followup</td>
+    </tr>
+    <tr class="required">
+      <td>Flow</td>
+      <td>ManyChat:RenewalReminderFlowNs</td>
+      <td>Configuracion backend + Flow NS</td>
+      <td>Obligatorio</td>
+      <td>Backend dispara / ManyChat ejecuta</td>
+      <td>En ventanas auto-renew elegibles</td>
+      <td>Journey de auto-renew reminder</td>
+      <td>flow_auto_renew</td>
+    </tr>
+    <tr class="required">
+      <td>Flow</td>
+      <td>ManyChat:SaveBeforeChurnFlowNs</td>
+      <td>Configuracion backend + Flow NS</td>
+      <td>Obligatorio</td>
+      <td>Backend dispara / ManyChat ejecuta</td>
+      <td>Cuando cancel_at_period_end = true y aun sigue activo</td>
+      <td>Journey de save-before-churn</td>
+      <td>flow_save_before_churn</td>
+    </tr>
+  </table>
+
+  <div class="notes">
+    <p><strong>Nota 1:</strong> El boton <em>Actualizar metodo de pago</em> del flow de recovery debe abrir una URL propia o una app propia que obtenga la URL del Stripe Customer Portal desde el backend. No debe reutilizar el payment link inicial.</p>
+    <p><strong>Nota 2:</strong> ManyChat no debe decidir el lifecycle. El backend empuja acceso, recovery y recovered; Stripe sigue siendo la fuente de verdad.</p>
+    <p><strong>Nota 3:</strong> El estado final de recuperacion solo se confirma cuando Stripe envia <em>invoice.paid</em>.</p>
+  </div>
+</body>
+</html>

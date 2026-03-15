@@ -29,6 +29,12 @@ public interface IManyChatSync
     Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default);
 
     /// <summary>
+    /// Optional: sync payment recovery progress fields/tags.
+    /// </summary>
+    Task SyncBillingRecoveryStatusAsync(BillingRecoveryManyChatUpdate update, CancellationToken ct = default)
+        => Task.CompletedTask;
+
+    /// <summary>
     /// Optional: remove tag by name
     /// </summary>
     Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default);

@@ -94,6 +94,9 @@ public sealed class SubscriptionLifecycleEndToEndTests
         var afterFailure = fixture.UserStore.Get(user.UserId)!;
         Assert.Equal("past_due", afterFailure.SubscriptionStatus);
         Assert.NotNull(afterFailure.IndividualGraceEndsAtUtc);
+        Assert.Contains(
+            fixture.ManyChat.BillingRecoveryUpdates,
+            x => x.Status == BillingRecoveryManyChatStatuses.RecoveryActive && x.ActionRequired);
 
         fixture.Clock.UtcNow = now.AddDays(31).AddHours(1);
         var paidDecision = await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
@@ -111,6 +114,9 @@ public sealed class SubscriptionLifecycleEndToEndTests
         Assert.Equal("active", afterRecovery.SubscriptionStatus);
         Assert.Null(afterRecovery.IndividualGraceEndsAtUtc);
         Assert.Equal(1, fixture.ManyChat.PaymentFailedFlowCalls);
+        Assert.Contains(
+            fixture.ManyChat.BillingRecoveryUpdates,
+            x => x.Status == BillingRecoveryManyChatStatuses.Recovered && x.Recovered);
     }
 
     [Fact]
@@ -852,6 +858,10 @@ public sealed class SubscriptionLifecycleEndToEndTests
         var companies = new NoopCompanyStore();
         var expiryIndex = new NoopEntitlementExpiryIndexStore();
         var reminders = new InMemoryReminderStore();
+        var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
+            manyChat,
+            failedActions,
+            clock);
 
         var orchestrator = new AccessOrchestrator(
             users,
@@ -884,6 +894,8 @@ public sealed class SubscriptionLifecycleEndToEndTests
             entitlements,
             expiryIndex,
             failedActions,
+            new NoopStripeAdminClient(),
+            billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
         var reminderService = new SubscriptionReminderService(
@@ -923,6 +935,21 @@ public sealed class SubscriptionLifecycleEndToEndTests
         InMemoryUserStore UserStore,
         RecordingManyChatSync ManyChat,
         StripeOptions PriceCatalog);
+
+    private sealed class NoopStripeAdminClient : IStripeAdminClient
+    {
+        public Task<StripeSubscriptionSnapshot?> GetSubscriptionAsync(string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult<StripeSubscriptionSnapshot?>(null);
+
+        public Task<StripeEventData?> GetEventDataAsync(string eventId, CancellationToken ct = default)
+            => Task.FromResult<StripeEventData?>(null);
+
+        public Task<StripePaymentMethodUpdateSession> CreatePaymentMethodUpdateSessionAsync(string customerId, string? subscriptionId, string returnUrl, CancellationToken ct = default)
+            => Task.FromResult(new StripePaymentMethodUpdateSession("bps_default", customerId, subscriptionId, returnUrl));
+
+        public Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(string customerId, string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult(new StripeOpenInvoiceRetryAttempt(customerId, subscriptionId, null, null, null, false, false, false));
+    }
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -1030,6 +1057,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
         public int SyncCalls { get; private set; }
         public int PaymentFailedFlowCalls { get; private set; }
         public List<SubscriptionReminderDispatch> Reminders { get; } = new();
+        public List<BillingRecoveryManyChatUpdate> BillingRecoveryUpdates { get; } = new();
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
         {
@@ -1049,6 +1077,12 @@ public sealed class SubscriptionLifecycleEndToEndTests
         public Task SendSubscriptionReminderAsync(SubscriptionReminderDispatch dispatch, CancellationToken ct = default)
         {
             Reminders.Add(dispatch);
+            return Task.CompletedTask;
+        }
+
+        public Task SyncBillingRecoveryStatusAsync(BillingRecoveryManyChatUpdate update, CancellationToken ct = default)
+        {
+            BillingRecoveryUpdates.Add(update);
             return Task.CompletedTask;
         }
 
@@ -1181,9 +1215,6 @@ public sealed class SubscriptionLifecycleEndToEndTests
             => Task.CompletedTask;
     }
 }
-
-
-
 
 
 

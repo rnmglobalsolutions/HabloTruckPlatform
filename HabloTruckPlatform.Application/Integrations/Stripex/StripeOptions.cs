@@ -4,6 +4,7 @@ public sealed class StripeOptions
 {
     public string? WebhookSecret { get; set; }
     public string? StripeSecretKey { get; set; }
+    public string? CustomerPortalConfigurationId { get; set; }
     // Individual
     public string? IndividualMonthlyPriceId { get; set; }
     public string? IndividualYearlyPriceId { get; set; }

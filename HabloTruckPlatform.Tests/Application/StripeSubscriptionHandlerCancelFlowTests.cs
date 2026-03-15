@@ -1,5 +1,6 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.ManyChat;
+using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
@@ -461,6 +462,10 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
         var seatStore = new NoopSeatAssignmentStore();
         var companyStore = new InMemoryCompanyStore();
         var expiryIndexStore = new InMemoryEntitlementExpiryIndexStore();
+        var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
+            manyChat,
+            failedActions,
+            clock);
 
         var orchestrator = new AccessOrchestrator(
             userStore,
@@ -493,6 +498,8 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             entitlementStore,
             expiryIndexStore,
             failedActions,
+            new NoopStripeAdminClient(),
+            billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
         return new HandlerFixture(handler, userStore, userResolver, companyStore, entitlementStore, expiryIndexStore, priceCatalog);
@@ -506,6 +513,21 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
         InMemoryEntitlementStore EntitlementStore,
         InMemoryEntitlementExpiryIndexStore ExpiryIndexStore,
         global::HabloTruckPlatform.Application.Integrations.Stripex.StripeOptions PriceCatalog);
+
+    private sealed class NoopStripeAdminClient : IStripeAdminClient
+    {
+        public Task<StripeSubscriptionSnapshot?> GetSubscriptionAsync(string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult<StripeSubscriptionSnapshot?>(null);
+
+        public Task<StripeEventData?> GetEventDataAsync(string eventId, CancellationToken ct = default)
+            => Task.FromResult<StripeEventData?>(null);
+
+        public Task<StripePaymentMethodUpdateSession> CreatePaymentMethodUpdateSessionAsync(string customerId, string? subscriptionId, string returnUrl, CancellationToken ct = default)
+            => Task.FromResult(new StripePaymentMethodUpdateSession("bps_default", customerId, subscriptionId, returnUrl));
+
+        public Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(string customerId, string subscriptionId, CancellationToken ct = default)
+            => Task.FromResult(new StripeOpenInvoiceRetryAttempt(customerId, subscriptionId, null, null, null, false, false, false));
+    }
 
     private sealed class FixedClock : IClock
     {
@@ -759,6 +781,3 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             => Task.CompletedTask;
     }
 }
-
-
-
