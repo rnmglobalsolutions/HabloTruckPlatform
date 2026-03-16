@@ -1,5 +1,6 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
+using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,6 +14,7 @@ public sealed class CompanyJoinHandler
     private readonly IEntitlementStore _entitlementStore;
     private readonly ISeatAssignmentStore _seatStore;
     private readonly AccessOrchestrator _accessOrchestrator;
+    private readonly IClock _clock;
     private readonly ILogger<CompanyJoinHandler> _logger;
 
     public CompanyJoinHandler(
@@ -20,12 +22,14 @@ public sealed class CompanyJoinHandler
         IEntitlementStore entitlementStore,
         ISeatAssignmentStore seatStore,
         AccessOrchestrator accessOrchestrator,
+        IClock clock,
         ILogger<CompanyJoinHandler>? logger = null)
     {
         _userStore = userStore;
         _entitlementStore = entitlementStore;
         _seatStore = seatStore;
         _accessOrchestrator = accessOrchestrator;
+        _clock = clock;
         _logger = logger ?? NullLogger<CompanyJoinHandler>.Instance;
     }
 
@@ -58,7 +62,7 @@ public sealed class CompanyJoinHandler
 
         var userReadWatch = Stopwatch.StartNew();
         var user = await _userStore.GetAsync(req.UserPk, req.UserId, ct)
-                   ?? throw new InvalidOperationException("User not found.");
+                   ?? throw new CompanyJoinException("user_not_found", "User not found.");
 
         _logger.LogDebug(
             "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs}",
@@ -69,7 +73,7 @@ public sealed class CompanyJoinHandler
 
         var entitlementReadWatch = Stopwatch.StartNew();
         var ent = await _entitlementStore.GetAsync(req.CompanyId, req.EntitlementId, ct)
-                  ?? throw new InvalidOperationException("Entitlement not found.");
+                  ?? throw new CompanyJoinException("entitlement_not_found", "Entitlement not found.");
 
         _logger.LogDebug(
             "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} EntitlementStatus={EntitlementStatus}",
@@ -79,8 +83,38 @@ public sealed class CompanyJoinHandler
             entitlementReadWatch.ElapsedMilliseconds,
             ent.Status);
 
-        // Enforcement suave: only verify entitlement is usable.
-        if (!string.Equals(ent.Status, "active", StringComparison.OrdinalIgnoreCase))
+        var existingSeatReadWatch = Stopwatch.StartNew();
+        var existingSeat = await _seatStore.GetAsync(req.CompanyId, user.UserId, ct);
+
+        _logger.LogDebug(
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Found={Found}",
+            "persistence",
+            "seat_assignment.get",
+            "Seats",
+            existingSeatReadWatch.ElapsedMilliseconds,
+            existingSeat is not null);
+
+        var existingSeatAlreadyActive = existingSeat is not null
+            && existingSeat.IsActive()
+            && string.Equals(existingSeat.EntitlementId, ent.EntitlementId, StringComparison.OrdinalIgnoreCase);
+
+        var activeSeatsFloor = await _seatStore.CountActiveSeatsAsync(req.CompanyId, ent.EntitlementId, ct);
+        ent = await _entitlementStore.SyncSeatsUsedAsync(req.CompanyId, ent.EntitlementId, activeSeatsFloor, ct) ?? ent;
+        ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
+
+        if (existingSeatAlreadyActive)
+        {
+            user.CompanyId = req.CompanyId;
+            user.SeatEntitlementId = ent.EntitlementId;
+            user.SeatStatus = "active";
+
+            await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
+            await _userStore.UpsertAsync(user, ct);
+            await _userStore.UpsertLookupsAsync(user, ct);
+            return;
+        }
+
+        if (!ent.IsActive(_clock.UtcNow))
         {
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} EntitlementStatus={EntitlementStatus}",
@@ -90,29 +124,64 @@ public sealed class CompanyJoinHandler
                 "entitlement_not_active",
                 ent.Status);
 
-            throw new InvalidOperationException($"Entitlement status is '{ent.Status}', cannot join.");
+            throw new CompanyJoinException("entitlement_not_active", $"Entitlement status is '{ent.Status}', cannot join.");
         }
 
-        // Create/Upsert seat assignment (idempotent).
-        var seat = new SeatAssignment
+        if (ent.IsOverCapacity)
+            throw new CompanyJoinException("company_over_capacity", "Company is over capacity. No new seats can be assigned.");
+
+        if (!existingSeatAlreadyActive)
         {
-            CompanyId = req.CompanyId,
-            UserId = user.UserId,
-            EntitlementId = ent.EntitlementId,
-            Status = "active",
-            AssignedAtUtc = DateTimeOffset.UtcNow
-        };
+            var reservation = await _entitlementStore.TryReserveSeatAsync(req.CompanyId, ent.EntitlementId, ct);
+            ent = reservation.Entitlement ?? ent;
 
-        var seatWriteWatch = Stopwatch.StartNew();
-        await _seatStore.UpsertAsync(seat, ct);
+            switch (reservation.Outcome)
+            {
+                case SeatReservationOutcome.NotFound:
+                    throw new CompanyJoinException("entitlement_not_found", "Entitlement not found.");
 
-        _logger.LogDebug(
-            "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} SeatStatus={SeatStatus}",
-            "persistence",
-            "seat_assignment.upsert",
-            "Seats",
-            seatWriteWatch.ElapsedMilliseconds,
-            seat.Status);
+                case SeatReservationOutcome.Inactive:
+                    throw new CompanyJoinException("entitlement_not_active", $"Entitlement status is '{ent.Status}', cannot join.");
+
+                case SeatReservationOutcome.OverCapacity:
+                    throw new CompanyJoinException("company_over_capacity", "Company is over capacity. No new seats can be assigned.");
+
+                case SeatReservationOutcome.NoCapacity:
+                    throw new CompanyJoinException("no_seats_available", "No seats available for this company entitlement.");
+            }
+
+            var seat = new SeatAssignment
+            {
+                CompanyId = req.CompanyId,
+                UserId = user.UserId,
+                EntitlementId = ent.EntitlementId,
+                Status = "active",
+                AssignedAtUtc = _clock.UtcNow
+            };
+
+            var seatWriteWatch = Stopwatch.StartNew();
+            var activation = await _seatStore.EnsureActiveAsync(seat, ct);
+
+            _logger.LogDebug(
+                "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} ActivationOutcome={ActivationOutcome}",
+                "persistence",
+                "seat_assignment.ensure_active",
+                "Seats",
+                seatWriteWatch.ElapsedMilliseconds,
+                activation.Outcome);
+
+            if (activation.Outcome == SeatActivationOutcome.AlreadyActive)
+            {
+                await _entitlementStore.ReleaseSeatReservationAsync(req.CompanyId, ent.EntitlementId, ct);
+            }
+            else if (activation.Outcome != SeatActivationOutcome.Activated)
+            {
+                await _entitlementStore.ReleaseSeatReservationAsync(req.CompanyId, ent.EntitlementId, ct);
+                throw new CompanyJoinException("seat_assignment_conflict", "Unable to assign company seat at this time.");
+            }
+
+            ent = await _entitlementStore.GetAsync(req.CompanyId, ent.EntitlementId, ct) ?? ent;
+        }
 
         // Update user company facts.
         user.CompanyId = req.CompanyId;
@@ -143,6 +212,3 @@ public sealed class CompanyJoinHandler
             opWatch.ElapsedMilliseconds);
     }
 }
-
-
-

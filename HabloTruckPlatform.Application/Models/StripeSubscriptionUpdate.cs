@@ -11,4 +11,5 @@ public sealed record StripeSubscriptionUpdate(
     bool? CancelAtPeriodEnd,
     DateTimeOffset? CurrentPeriodEndUtc,
     DateTimeOffset? CanceledAtUtc,
-    DateTimeOffset? EndedAtUtc);
+    DateTimeOffset? EndedAtUtc,
+    int? Quantity = null);

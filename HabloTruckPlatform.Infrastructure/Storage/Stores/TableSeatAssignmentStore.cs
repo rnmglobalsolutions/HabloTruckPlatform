@@ -1,5 +1,7 @@
-﻿using Azure.Data.Tables;
+﻿using Azure;
+using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Entities;
@@ -52,6 +54,76 @@ public sealed class TableSeatAssignmentStore : ISeatAssignmentStore
         await _repo.UpsertAsync(SeatsTable, entity, TableUpdateMode.Replace, ct);
     }
 
+    public async Task<SeatActivationResult> EnsureActiveAsync(SeatAssignment seat, CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var pk = SeatAssignmentMapper.Pk(seat.CompanyId.Trim());
+        var rk = seat.UserId.Trim();
+
+        if (seat.AssignedAtUtc == default)
+            seat.AssignedAtUtc = now;
+
+        seat.Status = "active";
+        seat.UpdatedAtUtc = now;
+        seat.RevokedAtUtc = null;
+
+        var createEntity = SeatAssignmentMapper.ToEntity(seat);
+
+        try
+        {
+            await SeatsTable.AddEntityAsync(createEntity, ct);
+            return new SeatActivationResult(SeatActivationOutcome.Activated);
+        }
+        catch (RequestFailedException ex) when (ex.Status == 409)
+        {
+            // Fall through to optimistic update/read path.
+        }
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var existing = await _repo.GetOrNullAsync<SeatAssignmentEntity>(SeatsTable, pk, rk, ct);
+            if (existing is null)
+            {
+                try
+                {
+                    await SeatsTable.AddEntityAsync(createEntity, ct);
+                    return new SeatActivationResult(SeatActivationOutcome.Activated);
+                }
+                catch (RequestFailedException ex) when (ex.Status == 409)
+                {
+                    continue;
+                }
+            }
+
+            if (string.Equals(existing.Status, "active", StringComparison.OrdinalIgnoreCase)
+                && existing.RevokedAtUtc is null
+                && string.Equals(existing.EntitlementId, seat.EntitlementId, StringComparison.OrdinalIgnoreCase))
+            {
+                return new SeatActivationResult(SeatActivationOutcome.AlreadyActive);
+            }
+
+            existing.CompanyId = seat.CompanyId;
+            existing.UserId = seat.UserId;
+            existing.EntitlementId = seat.EntitlementId;
+            existing.Status = "active";
+            existing.AssignedAtUtc = existing.AssignedAtUtc == default ? seat.AssignedAtUtc : existing.AssignedAtUtc;
+            existing.UpdatedAtUtc = now;
+            existing.RevokedAtUtc = null;
+
+            try
+            {
+                await SeatsTable.UpdateEntityAsync(existing, existing.ETag, TableUpdateMode.Replace, ct);
+                return new SeatActivationResult(SeatActivationOutcome.Activated);
+            }
+            catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+            {
+                // Retry on optimistic concurrency conflict.
+            }
+        }
+
+        return new SeatActivationResult(SeatActivationOutcome.Conflict, "seat_assignment_conflict");
+    }
+
     public async Task RevokeAsync(string companyId, string userId, CancellationToken ct = default)
     {
         var seat = await GetAsync(companyId, userId, ct);
@@ -59,6 +131,7 @@ public sealed class TableSeatAssignmentStore : ISeatAssignmentStore
 
         seat.Status = "revoked";
         seat.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        seat.RevokedAtUtc = seat.UpdatedAtUtc;
 
         await UpsertAsync(seat, ct);
     }

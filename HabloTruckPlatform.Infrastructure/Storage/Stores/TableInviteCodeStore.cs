@@ -113,6 +113,33 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
         return false;
     }
 
+    public async Task ReleaseConsumptionAsync(string code, CancellationToken ct = default)
+    {
+        var c = Normalize(code);
+        if (string.IsNullOrWhiteSpace(c)) return;
+
+        var pk = Pk(c);
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var entity = await _repo.GetOrNullAsync<InviteCodeEntity>(InvitesTable, pk, c, ct);
+            if (entity is null || entity.Uses <= 0)
+                return;
+
+            entity.Uses -= 1;
+
+            try
+            {
+                await InvitesTable.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+                return;
+            }
+            catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+            {
+                // concurrency conflict -> retry
+            }
+        }
+    }
+
     public async Task UpsertAsync(InviteCode invite, CancellationToken ct = default)
     {
         invite.Code = Normalize(invite.Code) ?? throw new ArgumentException("Code required");

@@ -97,6 +97,7 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
             Status: sub.Status,
             PriceId: item?.Price?.Id,
             Interval: item?.Price?.Recurring?.Interval,
+            Quantity: item?.Quantity is long quantity ? checked((int)quantity) : null,
             CancelAtPeriodEnd: sub.CancelAtPeriodEnd,
             CurrentPeriodEndUtc: ComputeEffectivePeriodEndUtc(sub.Items?.Data),
             CanceledAtUtc: ToDateTimeOffsetUtc(sub.CanceledAt),
@@ -137,4 +138,3 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
     internal static DateTimeOffset? ToDateTimeOffsetUtc(DateTime value)
         => value == default ? null : ToDateTimeOffsetUtc((DateTime?)value);
 }
-

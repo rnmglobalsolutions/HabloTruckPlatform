@@ -9,23 +9,23 @@ namespace HabloTruckPlatform.Functions.Timers;
 
 public sealed class EntitlementRecountTimerFunction
 {
-    private readonly IEntitlementExpiryIndexStore _expiryIndex;
+    private readonly IEntitlementStore _entitlements;
     private readonly EntitlementRecountService _recount;
     private readonly ILogger<EntitlementRecountTimerFunction> _logger;
 
     public EntitlementRecountTimerFunction(
-        IEntitlementExpiryIndexStore expiryIndex,
+        IEntitlementStore entitlements,
         EntitlementRecountService recount,
         ILogger<EntitlementRecountTimerFunction> logger)
     {
-        _expiryIndex = expiryIndex;
+        _entitlements = entitlements;
         _recount = recount;
         _logger = logger;
     }
 
-    // Daily at 05:00 UTC
+    // Hourly at minute 0 UTC
     [Function("EntitlementRecountTimer")]
-    public async Task Run([TimerTrigger("0 0 5 * * *")] TimerInfo timer)
+    public async Task Run([TimerTrigger("0 0 * * * *")] TimerInfo timer)
     {
         var correlationId = LogContext.ResolveCorrelationId(null);
         var opWatch = Stopwatch.StartNew();
@@ -43,18 +43,14 @@ public sealed class EntitlementRecountTimerFunction
 
         var nowUtc = DateTimeOffset.UtcNow;
 
-        // Today's expiry partition (yyyyMMdd).
-        var pk = $"{TablePrefixes.EntitlementExpiry}_{nowUtc:yyyyMMdd}";
-
         var queryWatch = Stopwatch.StartNew();
-        var items = await _expiryIndex.QueryExpiringAsync(pk, nowUtc, take: 500);
+        var items = await _entitlements.QueryForRecountAsync(ct: default);
 
         _logger.LogDebug(
-            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} PartitionKey={PartitionKey} DurationMs={DurationMs} Count={Count}",
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Count={Count}",
             LogContext.Categories.Persistence,
-            "entitlement_expiry_index.query_expiring",
-            "EntitlementExpiryIndex",
-            pk,
+            "entitlement.query_for_recount",
+            "Entitlements",
             queryWatch.ElapsedMilliseconds,
             items.Count);
 
@@ -62,6 +58,13 @@ public sealed class EntitlementRecountTimerFunction
 
         foreach (var it in items)
         {
+            if (string.Equals(it.Status, "expired", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(it.Status, "refunded", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(it.Status, "disabled", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             await _recount.RecountSeatsAsync(it.CompanyId, it.EntitlementId);
             recounted++;
         }
@@ -75,4 +78,3 @@ public sealed class EntitlementRecountTimerFunction
             opWatch.ElapsedMilliseconds);
     }
 }
-

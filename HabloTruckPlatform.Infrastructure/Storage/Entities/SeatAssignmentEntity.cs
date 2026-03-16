@@ -21,4 +21,5 @@ public sealed class SeatAssignmentEntity : ITableEntity
 
     public DateTimeOffset AssignedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
+    public DateTimeOffset? RevokedAtUtc { get; set; }
 }

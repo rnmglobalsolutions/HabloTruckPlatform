@@ -60,6 +60,7 @@ public sealed class StripeEventParser
         // Best-effort: price info from invoice lines if expanded
         var (priceId, interval) = TryGetInvoicePrice(raw);
         var currentPeriodEndUtc = TryGetInvoiceCurrentPeriodEnd(raw);
+        var quantity = TryGetInvoiceQuantity(raw);
 
         return new StripeParsedEvent(
             e.Type,
@@ -69,7 +70,8 @@ public sealed class StripeEventParser
                 SubscriptionId = subscriptionId,
                 PriceId = priceId,
                 Interval = interval,
-                CurrentPeriodEndUtc = currentPeriodEndUtc
+                CurrentPeriodEndUtc = currentPeriodEndUtc,
+                Quantity = quantity
             }));
     }
 
@@ -85,6 +87,7 @@ public sealed class StripeEventParser
             ?? raw?["parent"]?["subscription_details"]?["subscription"]?.ToString();
 
         var (priceId, interval) = TryGetInvoicePrice(raw);
+        var quantity = TryGetInvoiceQuantity(raw);
 
         return new StripeParsedEvent(
             e.Type,
@@ -94,6 +97,7 @@ public sealed class StripeEventParser
                 SubscriptionId = subscriptionId,
                 PriceId = priceId,
                 Interval = interval,
+                Quantity = quantity,
                 // Status optional here; handler can treat invoice.payment_failed as past_due signal
                 Status = "payment_failed"
             }));
@@ -116,6 +120,7 @@ public sealed class StripeEventParser
 
         // Best-effort: pull the subscription's primary price id + interval
         var (priceId, interval) = TryGetSubscriptionPrice(raw);
+        var quantity = TryGetSubscriptionQuantity(raw);
 
         return new StripeParsedEvent(
             e.Type,
@@ -130,6 +135,7 @@ public sealed class StripeEventParser
                 EndedAtUtc = endedAtUtc,
                 PriceId = priceId,
                 Interval = interval,
+                Quantity = quantity,
                 Metadata = sub.Metadata
             }));
     }
@@ -165,6 +171,7 @@ public sealed class StripeEventParser
         var endedAtUtc = ToDateTimeOffsetUtc(raw?["ended_at"]);
 
         var (priceId, interval) = TryGetSubscriptionPrice(raw);
+        var quantity = TryGetSubscriptionQuantity(raw);
 
         return new StripeParsedEvent(
             e.Type,
@@ -179,6 +186,7 @@ public sealed class StripeEventParser
                 EndedAtUtc = endedAtUtc,
                 PriceId = priceId,
                 Interval = interval,
+                Quantity = quantity,
                 Metadata = sub.Metadata
             }));
     }
@@ -258,6 +266,13 @@ public sealed class StripeEventParser
         return (NullIfBlank(priceId), NullIfBlank(interval));
     }
 
+    private static int? TryGetSubscriptionQuantity(JObject? raw)
+    {
+        var arr = raw?["items"]?["data"] as JArray;
+        var item = arr?.FirstOrDefault() as JObject;
+        return item?["quantity"]?.Value<int?>();
+    }
+
     private static (string? priceId, string? interval) TryGetInvoicePrice(JObject? raw)
     {
         // invoice.items.data[0] or invoice.lines.data[0].price.id and recurring.interval
@@ -313,11 +328,17 @@ public sealed class StripeEventParser
         return (NullIfBlank(priceId), NullIfBlank(interval));
     }
 
-    private static int TryGetCheckoutQuantity(JObject? raw)
+    private static int? TryGetCheckoutQuantity(JObject? raw)
     {
         var li = raw?["line_items"]?["data"]?.First;
-        var q = li?["quantity"]?.Value<int?>();
-        return q ?? 0;
+        return li?["quantity"]?.Value<int?>();
+    }
+
+    private static int? TryGetInvoiceQuantity(JObject? raw)
+    {
+        var lines = raw?["lines"]?["data"] as JArray;
+        var line = lines?.FirstOrDefault() as JObject;
+        return line?["quantity"]?.Value<int?>();
     }
 
     private static string? NullIfBlank(string? s)
@@ -364,9 +385,7 @@ public sealed class StripeEventData
 
     // Checkout extras
     public string? CustomerEmail { get; set; }
-    public int Quantity { get; set; }
+    public int? Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
     public bool? PaymentMethodUpdated { get; set; }
 }
-
-

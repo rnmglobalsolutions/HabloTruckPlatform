@@ -16,6 +16,9 @@ public interface IInviteCodeStore
     /// </summary>
     Task<bool> TryConsumeAsync(string code, DateTimeOffset nowUtc, CancellationToken ct = default);
 
+    Task ReleaseConsumptionAsync(string code, CancellationToken ct = default)
+        => Task.CompletedTask;
+
     Task UpsertAsync(InviteCode invite, CancellationToken ct = default);
 
     Task<IReadOnlyList<InviteCode>> ListForCompanyAsync(

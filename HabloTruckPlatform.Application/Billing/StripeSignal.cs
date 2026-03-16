@@ -15,6 +15,7 @@ public sealed record StripeSignal(
     string? Status,
     string? PriceId,
     string? Interval,                 // "month" / "year" (best-effort)
+    int? Quantity,
     bool? CancelAtPeriodEnd,
     DateTimeOffset? CurrentPeriodEndUtc,
     DateTimeOffset? CanceledAtUtc,

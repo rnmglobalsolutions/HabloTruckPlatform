@@ -15,6 +15,526 @@ namespace HabloTruckPlatform.Domain.Tests.Application;
 public sealed class StripeSubscriptionHandlerProjectionTests
 {
     [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_InitializeFleetSeatsTotal_FromCheckoutQuantity()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_checkout_fleet_1",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_fleet_checkout_1",
+            SubscriptionId = "sub_fleet_checkout_1",
+            CustomerEmail = "admin@fleet.com",
+            Quantity = 20,
+            PriceId = fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval = "month",
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "company_seat",
+                ["companyId"] = "C_FLEET_1",
+                ["companyName"] = "Fleet One"
+            }
+        });
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_1", "ent_sub_fleet_checkout_1");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(20, entitlement!.SeatsTotal);
+        Assert.Equal(0, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_UpdateFleetSeatsTotal_WhenQuantityIncreases()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_qty_up",
+            StripeCustomerId = "cus_fleet_qty_up",
+            StripeSubscriptionId = "sub_fleet_qty_up",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_QTY_UP",
+            PlanType = "company_seat",
+            ManyChatSubscriberId = "sid_fleet_qty_up"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_qty_up", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_QTY_UP",
+            EntitlementId = "ent_sub_fleet_qty_up",
+            SeatsTotal = 10,
+            SeatsUsed = 4,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_qty_up",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_qty_up",
+            StripeSubscriptionId: "sub_fleet_qty_up",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 15));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_QTY_UP", "ent_sub_fleet_qty_up");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(15, entitlement!.SeatsTotal);
+        Assert.Equal(4, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_DetectOverCapacity_WhenQuantityDropsBelowUsage()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_qty_down",
+            StripeCustomerId = "cus_fleet_qty_down",
+            StripeSubscriptionId = "sub_fleet_qty_down",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_QTY_DOWN",
+            PlanType = "company_seat",
+            ManyChatSubscriberId = "sid_fleet_qty_down"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_qty_down", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_QTY_DOWN",
+            EntitlementId = "ent_sub_fleet_qty_down",
+            SeatsTotal = 8,
+            SeatsUsed = 5,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_qty_down",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_qty_down",
+            StripeSubscriptionId: "sub_fleet_qty_down",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 3));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_QTY_DOWN", "ent_sub_fleet_qty_down");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(3, entitlement!.SeatsTotal);
+        Assert.Equal(5, entitlement.SeatsUsed);
+        Assert.True(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_SetFleetSeatsTotal_ToZero_WhenStripeQuantityIsZero()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_qty_zero",
+            StripeCustomerId = "cus_fleet_qty_zero",
+            StripeSubscriptionId = "sub_fleet_qty_zero",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_QTY_ZERO",
+            PlanType = "company_seat"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_qty_zero", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_QTY_ZERO",
+            EntitlementId = "ent_sub_fleet_qty_zero",
+            SeatsTotal = 6,
+            SeatsUsed = 2,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_qty_zero",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_qty_zero",
+            StripeSubscriptionId: "sub_fleet_qty_zero",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 0));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_QTY_ZERO", "ent_sub_fleet_qty_zero");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(0, entitlement!.SeatsTotal);
+        Assert.Equal(2, entitlement.SeatsUsed);
+        Assert.True(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_PreserveFleetSeatsTotal_WhenQuantityIsMissing()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_qty_missing",
+            StripeCustomerId = "cus_fleet_qty_missing",
+            StripeSubscriptionId = "sub_fleet_qty_missing",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_QTY_MISSING",
+            PlanType = "company_seat"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_qty_missing", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_QTY_MISSING",
+            EntitlementId = "ent_sub_fleet_qty_missing",
+            SeatsTotal = 11,
+            SeatsUsed = 4,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_qty_missing",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_qty_missing",
+            StripeSubscriptionId: "sub_fleet_qty_missing",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: null,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: null));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_QTY_MISSING", "ent_sub_fleet_qty_missing");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(11, entitlement!.SeatsTotal);
+        Assert.Equal(4, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+        Assert.Equal("active", entitlement.Status);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_BeIdempotent_ForRepeatedFleetQuantityEvent()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_idempotent",
+            StripeCustomerId = "cus_fleet_idempotent",
+            StripeSubscriptionId = "sub_fleet_idempotent",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_IDEMPOTENT",
+            PlanType = "company_seat",
+            ManyChatSubscriberId = "sid_fleet_idempotent"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_idempotent", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_IDEMPOTENT",
+            EntitlementId = "ent_sub_fleet_idempotent",
+            SeatsTotal = 6,
+            SeatsUsed = 2,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_idempotent",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_idempotent",
+            StripeSubscriptionId: "sub_fleet_idempotent",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 9));
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_idempotent",
+            StripeEventCreatedUtc: now.AddMinutes(1),
+            StripeCustomerId: "cus_fleet_idempotent",
+            StripeSubscriptionId: "sub_fleet_idempotent",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 12));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_IDEMPOTENT", "ent_sub_fleet_idempotent");
+        var saved = fixture.UserStore.GetById("U_fleet_idempotent");
+
+        Assert.NotNull(entitlement);
+        Assert.NotNull(saved);
+        Assert.Equal(9, entitlement!.SeatsTotal);
+        Assert.Equal("evt_fleet_idempotent", saved!.LastStripeEventId);
+    }
+
+    [Fact]
+    public async Task HandleInvoicePaymentFailedAsync_Should_ProjectFleetEntitlementPastDue_AndSyncQuantity()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_failed",
+            StripeCustomerId = "cus_fleet_failed",
+            StripeSubscriptionId = "sub_fleet_failed",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_FAILED",
+            PlanType = "company_seat"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_failed", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_FAILED",
+            EntitlementId = "ent_sub_fleet_failed",
+            SeatsTotal = 8,
+            SeatsUsed = 3,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleInvoicePaymentFailedAsync(new StripeInvoicePaymentFailed(
+            StripeEventId: "evt_fleet_failed",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_failed",
+            StripeSubscriptionId: "sub_fleet_failed",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            Quantity: 5));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_FAILED", "ent_sub_fleet_failed");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal("past_due", entitlement!.Status);
+        Assert.Equal(5, entitlement.SeatsTotal);
+        Assert.Equal(3, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleInvoicePaidAsync_Should_ProjectFleetEntitlementActive_AndSyncQuantity()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_paid",
+            StripeCustomerId = "cus_fleet_paid",
+            StripeSubscriptionId = "sub_fleet_paid",
+            SubscriptionStatus = "past_due",
+            CompanyId = "C_FLEET_PAID",
+            PlanType = "company_seat"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_paid", user);
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_PAID",
+            EntitlementId = "ent_sub_fleet_paid",
+            SeatsTotal = 4,
+            SeatsUsed = 3,
+            IsOverCapacity = false,
+            Status = "past_due",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleInvoicePaidAsync(new StripeInvoicePaid(
+            StripeEventId: "evt_fleet_paid",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_paid",
+            StripeSubscriptionId: "sub_fleet_paid",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CurrentPeriodEndUtc: now.AddDays(30),
+            Quantity: 6));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_PAID", "ent_sub_fleet_paid");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal("active", entitlement!.Status);
+        Assert.Equal(6, entitlement.SeatsTotal);
+        Assert.Equal(3, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_Fallback_ToStripeSnapshot_When_WebhookQuantityIsMissing()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_fleet_snapshot",
+            StripeCustomerId = "cus_fleet_snapshot",
+            StripeSubscriptionId = "sub_fleet_snapshot",
+            SubscriptionStatus = "active",
+            CompanyId = "C_FLEET_SNAPSHOT",
+            PlanType = "company_seat"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_fleet_snapshot", user);
+        fixture.StripeAdmin.SubscriptionSnapshots["sub_fleet_snapshot"] = new StripeSubscriptionSnapshot(
+            SubscriptionId: "sub_fleet_snapshot",
+            CustomerId: "cus_fleet_snapshot",
+            Status: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            Quantity: 12,
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null);
+
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_SNAPSHOT",
+            EntitlementId = "ent_sub_fleet_snapshot",
+            SeatsTotal = 5,
+            SeatsUsed = 2,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_fleet_snapshot",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_fleet_snapshot",
+            StripeSubscriptionId: "sub_fleet_snapshot",
+            SubscriptionStatus: "",
+            PriceId: null,
+            Interval: null,
+            CancelAtPeriodEnd: null,
+            CurrentPeriodEndUtc: null,
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: null));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_SNAPSHOT", "ent_sub_fleet_snapshot");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(12, entitlement!.SeatsTotal);
+        Assert.Equal("active", entitlement.Status);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_ProjectFleetEntitlement_When_UserProjectionIsMissing_ButCompanyExists()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        await fixture.CompanyStore.UpsertAsync(new Company
+        {
+            CompanyId = "C_FLEET_COMPANY_ONLY",
+            StripeCustomerId = "cus_company_only",
+            Status = "active",
+            CreatedAtUtc = now.AddDays(-10),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_FLEET_COMPANY_ONLY",
+            EntitlementId = "ent_sub_company_only",
+            SeatsTotal = 4,
+            SeatsUsed = 1,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_company_only",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_company_only",
+            StripeSubscriptionId: "sub_company_only",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(30),
+            CanceledAtUtc: null,
+            EndedAtUtc: null,
+            Quantity: 9));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_FLEET_COMPANY_ONLY", "ent_sub_company_only");
+
+        Assert.NotNull(entitlement);
+        Assert.Equal(9, entitlement!.SeatsTotal);
+        Assert.Equal(1, entitlement.SeatsUsed);
+        Assert.False(entitlement.IsOverCapacity);
+    }
+
+    [Fact]
     public async Task HandleSubscriptionUpdatedAsync_Should_UpdateProjectionFields_ForCancelScheduledSubscription()
     {
         var now = Utc(2026, 3, 10, 12);
@@ -425,7 +945,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
-        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin);
+        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin, entitlementStore, companyStore);
     }
 
     private sealed record HandlerFixture(
@@ -435,7 +955,9 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         RecordingManyChatSync ManyChatSync,
         global::HabloTruckPlatform.Application.Integrations.Stripex.StripeOptions PriceCatalog,
         NoopFailedActionStore FailedActions,
-        NoopStripeAdminClient StripeAdmin);
+        NoopStripeAdminClient StripeAdmin,
+        InMemoryEntitlementStore EntitlementStore,
+        InMemoryCompanyStore CompanyStore);
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -486,7 +1008,26 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         }
 
         public Task<User> GetOrCreateAsync(string? emailNormalized, string? manyChatSubscriberId, string? phoneE164, CancellationToken ct = default)
-            => throw new NotImplementedException();
+        {
+            var existing = _users.Values.FirstOrDefault(user =>
+                (!string.IsNullOrWhiteSpace(manyChatSubscriberId) && string.Equals(user.ManyChatSubscriberId, manyChatSubscriberId, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(emailNormalized) && string.Equals(user.EmailNormalized, emailNormalized, StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrWhiteSpace(phoneE164) && string.Equals(user.PhoneE164, phoneE164, StringComparison.OrdinalIgnoreCase)));
+
+            if (existing is not null)
+                return Task.FromResult(existing);
+
+            var user = new User
+            {
+                UserId = UlidIds.NewUserId(),
+                EmailNormalized = emailNormalized,
+                ManyChatSubscriberId = manyChatSubscriberId,
+                PhoneE164 = phoneE164
+            };
+
+            _users[(Buckets.UserBucketPk(user.UserId), user.UserId)] = user;
+            return Task.FromResult(user);
+        }
 
         public Task UpsertLookupsAsync(User user, CancellationToken ct = default)
             => Task.CompletedTask;
@@ -590,32 +1131,63 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
     private sealed class InMemoryCompanyStore : ICompanyStore
     {
+        private readonly Dictionary<string, Company> _companies = new(StringComparer.OrdinalIgnoreCase);
+
         public Task<Company?> GetAsync(string companyId, CancellationToken ct = default)
-            => Task.FromResult<Company?>(null);
+            => Task.FromResult(_companies.TryGetValue(companyId, out var company) ? company : null);
 
         public Task<Company?> GetByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
-            => Task.FromResult<Company?>(null);
+            => Task.FromResult(_companies.Values.FirstOrDefault(c => string.Equals(c.StripeCustomerId, stripeCustomerId, StringComparison.OrdinalIgnoreCase)));
 
         public Task UpsertAsync(Company company, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            _companies[company.CompanyId] = company;
+            return Task.CompletedTask;
+        }
 
         public Task UpsertFromCheckoutAsync(string companyId, string? companyName, string? adminEmailNormalized, string? stripeCustomerId, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            _companies[companyId] = new Company
+            {
+                CompanyId = companyId,
+                Name = companyName,
+                AdminEmailNormalized = adminEmailNormalized,
+                StripeCustomerId = stripeCustomerId,
+                Status = "active"
+            };
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemoryEntitlementStore : IEntitlementStore
     {
+        private readonly Dictionary<(string CompanyId, string EntitlementId), Entitlement> _rows = new();
+
         public Task<Entitlement?> GetAsync(string companyId, string entitlementId, CancellationToken ct = default)
-            => Task.FromResult<Entitlement?>(null);
+            => Task.FromResult(_rows.TryGetValue((companyId, entitlementId), out var entitlement) ? entitlement : null);
 
         public Task CreateAsync(Entitlement entitlement, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            _rows[(entitlement.CompanyId, entitlement.EntitlementId)] = entitlement;
+            return Task.CompletedTask;
+        }
 
         public Task UpsertAsync(Entitlement entitlement, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            _rows[(entitlement.CompanyId, entitlement.EntitlementId)] = entitlement;
+            return Task.CompletedTask;
+        }
 
         public Task SetStatusAsync(string companyId, string entitlementId, string status, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            if (_rows.TryGetValue((companyId, entitlementId), out var entitlement))
+            {
+                entitlement.Status = status;
+                _rows[(companyId, entitlementId)] = entitlement;
+            }
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemoryEntitlementExpiryIndexStore : IEntitlementExpiryIndexStore
@@ -667,6 +1239,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
     private sealed class NoopStripeAdminClient : IStripeAdminClient
     {
+        public Dictionary<string, StripeSubscriptionSnapshot> SubscriptionSnapshots { get; } = new(StringComparer.OrdinalIgnoreCase);
         public StripeOpenInvoiceRetryAttempt RetryAttempt { get; set; } = new(
             CustomerId: "cus_default",
             SubscriptionId: "sub_default",
@@ -681,7 +1254,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         public string? LastRetrySubscriptionId { get; private set; }
 
         public Task<StripeSubscriptionSnapshot?> GetSubscriptionAsync(string subscriptionId, CancellationToken ct = default)
-            => Task.FromResult<StripeSubscriptionSnapshot?>(null);
+            => Task.FromResult(SubscriptionSnapshots.TryGetValue(subscriptionId, out var snapshot) ? snapshot : null);
 
         public Task<StripeEventData?> GetEventDataAsync(string eventId, CancellationToken ct = default)
             => Task.FromResult<StripeEventData?>(null);

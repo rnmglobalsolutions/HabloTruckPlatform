@@ -7,4 +7,5 @@ public sealed record StripeInvoicePaid(
     string StripeCustomerId,
     string? PriceId,
     string? Interval,
-    DateTimeOffset? CurrentPeriodEndUtc = null);
+    DateTimeOffset? CurrentPeriodEndUtc = null,
+    int? Quantity = null);

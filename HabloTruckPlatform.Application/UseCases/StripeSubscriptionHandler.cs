@@ -274,7 +274,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     if (string.IsNullOrWhiteSpace(companyId))
                         throw new InvalidOperationException("fleet checkout requires metadata companyId.");
 
-                    var seats = data.Quantity > 0 ? data.Quantity : ParseInt(seatsMeta, 0);
+                    var seats = data.Quantity is > 0 ? data.Quantity.Value : ParseInt(seatsMeta, 0);
                     if (seats <= 0)
                         throw new InvalidOperationException("fleet checkout requires seats quantity > 0.");
 
@@ -303,7 +303,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                         EntitlementId = ent.EntitlementId,
                         CompanyId = ent.CompanyId,
                         SeatsUsed = ent.SeatsUsed,
-                        SeatsTotal = ent.SeatsTotal,
+                        SeatsTotal = seats,
+                        IsOverCapacity = ent.SeatsUsed > seats,
                         StartUtc = (ent.StartUtc == default) ? nowUtc : nowUtc,
                         Status = "active",
                         UpdatedAtUtc = nowUtc,
@@ -328,7 +329,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     if (string.IsNullOrWhiteSpace(companyId))
                         throw new InvalidOperationException("cdl_cohort checkout requires metadata companyId.");
 
-                    var seats = ParseInt(seatsMeta, data.Quantity);
+                    var seats = ParseInt(seatsMeta, data.Quantity ?? 0);
                     if (seats <= 0)
                         throw new InvalidOperationException("cdl_cohort checkout requires seats > 0.");
 
@@ -449,6 +450,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (userRef is null)
         {
+            await TryProjectCompanyEntitlementWithoutUserAsync(signal, _clock.UtcNow, ct);
+
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
                 "decision",
@@ -471,6 +474,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (user is null)
         {
+            await TryProjectCompanyEntitlementWithoutUserAsync(signal, _clock.UtcNow, ct);
+
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserPk={UserPk} UserId={UserId}",
                 "decision",
@@ -847,20 +852,51 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             "project_company_entitlement",
             signal.Kind);
 
-        if (signal.Kind is not (StripeSignalKind.SubscriptionUpdated or StripeSignalKind.SubscriptionDeleted))
+        if (signal.Kind is not (StripeSignalKind.SubscriptionUpdated
+            or StripeSignalKind.SubscriptionDeleted
+            or StripeSignalKind.InvoicePaid
+            or StripeSignalKind.InvoicePaymentFailed))
             return;
 
         if (string.IsNullOrWhiteSpace(signal.StripeSubscriptionId))
             return;
 
-        var companyId = NullIfBlank(user.CompanyId);
+        signal = await EnrichCompanySignalFromStripeAsync(signal, ct);
 
-        if (companyId is null && !string.IsNullOrWhiteSpace(user.StripeCustomerId))
+        var companyId = await ResolveCompanyIdForSignalAsync(signal, user, ct);
+        await ProjectCompanyEntitlementCoreAsync(companyId, signal, nowUtc, user.PlanType, ct);
+    }
+
+    private async Task TryProjectCompanyEntitlementWithoutUserAsync(
+        StripeSignal signal,
+        DateTimeOffset nowUtc,
+        CancellationToken ct)
+    {
+        var companyId = await ResolveCompanyIdForSignalAsync(signal, user: null, ct);
+        await ProjectCompanyEntitlementCoreAsync(companyId, signal, nowUtc, fallbackPlanType: null, ct);
+    }
+
+    private async Task<string?> ResolveCompanyIdForSignalAsync(StripeSignal signal, User? user, CancellationToken ct)
+    {
+        var companyId = NullIfBlank(user?.CompanyId);
+        var customerId = NullIfBlank(user?.StripeCustomerId) ?? NullIfBlank(signal.StripeCustomerId);
+
+        if (companyId is null && customerId is not null)
         {
-            var company = await _companyStore.GetByStripeCustomerIdAsync(user.StripeCustomerId!, ct);
+            var company = await _companyStore.GetByStripeCustomerIdAsync(customerId, ct);
             companyId = company?.CompanyId;
         }
 
+        return companyId;
+    }
+
+    private async Task ProjectCompanyEntitlementCoreAsync(
+        string? companyId,
+        StripeSignal signal,
+        DateTimeOffset nowUtc,
+        string? fallbackPlanType,
+        CancellationToken ct)
+    {
         if (companyId is null)
         {
             _logger.LogInformation(
@@ -875,7 +911,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         var entitlementId = ResolveEntitlementIdForFleet(companyId, signal.StripeSubscriptionId);
         var entitlement = await _entitlementStore.GetAsync(companyId, entitlementId, ct);
 
-        var plan = DerivePlanTypeFromPriceId(signal.PriceId) ?? user.PlanType;
+        var plan = DerivePlanTypeFromPriceId(signal.PriceId) ?? fallbackPlanType;
         var isFleetPlan = string.Equals(plan, "company_seat", StringComparison.OrdinalIgnoreCase)
                           || string.Equals(plan, "fleet", StringComparison.OrdinalIgnoreCase)
                           || string.Equals(plan, "fleet_seat", StringComparison.OrdinalIgnoreCase);
@@ -904,64 +940,131 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         }
 
         var previousEndUtc = entitlement.EndUtc;
+        var seatsTotal = ResolveSeatsTotal(entitlement.SeatsTotal, signal.Quantity);
+
+        if (signal.Kind == StripeSignalKind.InvoicePaymentFailed)
+        {
+            var projected = CreateProjectedEntitlement(
+                entitlement,
+                seatsTotal,
+                "past_due",
+                nowUtc,
+                entitlement.EndUtc);
+
+            await _entitlementStore.UpsertAsync(projected, ct);
+
+            _logger.LogInformation(
+                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity}",
+                "outcome",
+                "applied",
+                "company_entitlement_marked_past_due",
+                entitlementId,
+                projected.SeatsTotal,
+                projected.SeatsUsed,
+                projected.IsOverCapacity);
+            return;
+        }
+
+        if (signal.Kind == StripeSignalKind.InvoicePaid)
+        {
+            var projected = CreateProjectedEntitlement(
+                entitlement,
+                seatsTotal,
+                "active",
+                nowUtc,
+                entitlement.EndUtc);
+
+            await _entitlementStore.UpsertAsync(projected, ct);
+
+            _logger.LogInformation(
+                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity}",
+                "outcome",
+                "applied",
+                "company_entitlement_marked_active",
+                entitlementId,
+                projected.SeatsTotal,
+                projected.SeatsUsed,
+                projected.IsOverCapacity);
+            return;
+        }
 
         if (signal.Kind == StripeSignalKind.SubscriptionUpdated)
         {
+            var projectedStatus = ResolveProjectedCompanyEntitlementStatus(signal.Status);
+
             if (signal.CancelAtPeriodEnd == true && signal.CurrentPeriodEndUtc is not null)
             {
                 var projectedEndUtc = signal.CurrentPeriodEndUtc.Value;
 
-                var projected = new Entitlement
-                {
-                    EntitlementId = entitlement.EntitlementId,
-                    CompanyId = entitlement.CompanyId,
-                    SeatsUsed = entitlement.SeatsUsed,
-                    SeatsTotal = entitlement.SeatsTotal,
-                    StartUtc = entitlement.StartUtc,
-                    Status = "active",
-                    UpdatedAtUtc = nowUtc,
-                    EndUtc = projectedEndUtc
-                };
+                var projected = CreateProjectedEntitlement(
+                    entitlement,
+                    seatsTotal,
+                    projectedStatus,
+                    nowUtc,
+                    projectedEndUtc);
 
                 await _entitlementStore.UpsertAsync(projected, ct);
                 await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
                 await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), projectedEndUtc, ct);
 
                 _logger.LogInformation(
-                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity} Status={Status}",
                     "outcome",
                     "applied",
                     "projected_paid_through_end",
                     entitlementId,
-                    projectedEndUtc);
+                    projectedEndUtc,
+                    projected.SeatsTotal,
+                    projected.SeatsUsed,
+                    projected.IsOverCapacity,
+                    projected.Status);
                 return;
             }
 
             if (signal.CancelAtPeriodEnd == false)
             {
-                var projected = new Entitlement
-                {
-                    EntitlementId = entitlement.EntitlementId,
-                    CompanyId = entitlement.CompanyId,
-                    SeatsUsed = entitlement.SeatsUsed,
-                    SeatsTotal = entitlement.SeatsTotal,
-                    StartUtc = entitlement.StartUtc,
-                    Status = "active",
-                    UpdatedAtUtc = nowUtc,
-                    EndUtc = null
-                };
+                var projected = CreateProjectedEntitlement(
+                    entitlement,
+                    seatsTotal,
+                    projectedStatus,
+                    nowUtc,
+                    endUtc: null);
 
                 await _entitlementStore.UpsertAsync(projected, ct);
                 await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
 
                 _logger.LogInformation(
-                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId}",
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity} Status={Status}",
                     "outcome",
                     "applied",
                     "cancel_at_period_end_removed",
-                    entitlementId);
+                    entitlementId,
+                    projected.SeatsTotal,
+                    projected.SeatsUsed,
+                    projected.IsOverCapacity,
+                    projected.Status);
+                return;
             }
 
+            var updated = CreateProjectedEntitlement(
+                entitlement,
+                seatsTotal,
+                projectedStatus,
+                nowUtc,
+                entitlement.EndUtc);
+
+            await _entitlementStore.UpsertAsync(updated, ct);
+
+            _logger.LogInformation(
+                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity} Status={Status}",
+                "outcome",
+                "applied",
+                "subscription_updated_projected_without_cancel_change",
+                entitlementId,
+                updated.SeatsTotal,
+                updated.SeatsUsed,
+                updated.IsOverCapacity,
+                updated.Status);
             return;
         }
 
@@ -969,54 +1072,50 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (endedUtc > nowUtc)
         {
-            var paidThrough = new Entitlement
-            {
-                EntitlementId = entitlement.EntitlementId,
-                CompanyId = entitlement.CompanyId,
-                SeatsUsed = entitlement.SeatsUsed,
-                SeatsTotal = entitlement.SeatsTotal,
-                StartUtc = entitlement.StartUtc,
-                Status = "active",
-                UpdatedAtUtc = nowUtc,
-                EndUtc = endedUtc
-            };
+            var paidThrough = CreateProjectedEntitlement(
+                entitlement,
+                seatsTotal,
+                "active",
+                nowUtc,
+                endedUtc);
 
             await _entitlementStore.UpsertAsync(paidThrough, ct);
             await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
             await _expiryIndex.UpsertAsync(new EntitlementRef(companyId, entitlementId), endedUtc, ct);
 
             _logger.LogInformation(
-                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+                "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity}",
                 "outcome",
                 "applied",
                 "subscription_deleted_but_paid_through",
                 entitlementId,
-                endedUtc);
+                endedUtc,
+                paidThrough.SeatsTotal,
+                paidThrough.SeatsUsed,
+                paidThrough.IsOverCapacity);
             return;
         }
 
-        var expired = new Entitlement
-        {
-            EntitlementId = entitlement.EntitlementId,
-            CompanyId = entitlement.CompanyId,
-            SeatsUsed = entitlement.SeatsUsed,
-            SeatsTotal = entitlement.SeatsTotal,
-            StartUtc = entitlement.StartUtc,
-            Status = "expired",
-            UpdatedAtUtc = nowUtc,
-            EndUtc = endedUtc
-        };
+        var expired = CreateProjectedEntitlement(
+            entitlement,
+            seatsTotal,
+            "expired",
+            nowUtc,
+            endedUtc);
 
         await _entitlementStore.UpsertAsync(expired, ct);
         await DeleteExpiryIndexIfPresent(companyId, entitlementId, previousEndUtc, ct);
 
         _logger.LogInformation(
-            "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc}",
+            "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} EntitlementId={EntitlementId} EndUtc={EndUtc} SeatsTotal={SeatsTotal} SeatsUsed={SeatsUsed} IsOverCapacity={IsOverCapacity}",
             "outcome",
             "expired",
             "company_entitlement_expired",
             entitlementId,
-            endedUtc);
+            endedUtc,
+            expired.SeatsTotal,
+            expired.SeatsUsed,
+            expired.IsOverCapacity);
     }
 
     private async Task DeleteExpiryIndexIfPresent(
@@ -1106,8 +1205,70 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         return normalized is "past_due" or "payment_failed" or "unpaid" or "incomplete" or "incomplete_expired";
     }
 
+    private static string ResolveProjectedCompanyEntitlementStatus(string? status)
+        => IsDelinquentStatus(status) ? "past_due" : "active";
+
+    private static int ResolveSeatsTotal(int existingSeatsTotal, int? quantity)
+        => quantity.HasValue ? Math.Max(quantity.Value, 0) : existingSeatsTotal;
+
+    private static Entitlement CreateProjectedEntitlement(
+        Entitlement entitlement,
+        int seatsTotal,
+        string status,
+        DateTimeOffset updatedAtUtc,
+        DateTimeOffset? endUtc)
+    {
+        var normalizedSeatsTotal = Math.Max(seatsTotal, 0);
+
+        return new Entitlement
+        {
+            EntitlementId = entitlement.EntitlementId,
+            CompanyId = entitlement.CompanyId,
+            SeatsUsed = entitlement.SeatsUsed,
+            SeatsTotal = normalizedSeatsTotal,
+            IsOverCapacity = entitlement.SeatsUsed > normalizedSeatsTotal,
+            StartUtc = entitlement.StartUtc,
+            Status = status,
+            UpdatedAtUtc = updatedAtUtc,
+            EndUtc = endUtc
+        };
+    }
+
     private static bool IsActivePaymentRecovery(User user)
         => user.PaymentRecoveryStartedAtUtc is not null && IsDelinquentStatus(user.SubscriptionStatus);
+
+    private async Task<StripeSignal> EnrichCompanySignalFromStripeAsync(StripeSignal signal, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(signal.StripeSubscriptionId))
+            return signal;
+
+        var needsSnapshot =
+            signal.Quantity is null
+            || string.IsNullOrWhiteSpace(signal.PriceId)
+            || string.IsNullOrWhiteSpace(signal.Interval)
+            || (signal.Kind == StripeSignalKind.SubscriptionUpdated && signal.CancelAtPeriodEnd is null)
+            || (signal.Kind is StripeSignalKind.SubscriptionUpdated or StripeSignalKind.SubscriptionDeleted && string.IsNullOrWhiteSpace(signal.Status));
+
+        if (!needsSnapshot)
+            return signal;
+
+        var snapshot = await _stripeAdminClient.GetSubscriptionAsync(signal.StripeSubscriptionId!, ct);
+        if (snapshot is null)
+            return signal;
+
+        return signal with
+        {
+            StripeCustomerId = string.IsNullOrWhiteSpace(signal.StripeCustomerId) ? snapshot.CustomerId : signal.StripeCustomerId,
+            Status = string.IsNullOrWhiteSpace(signal.Status) ? snapshot.Status : signal.Status,
+            PriceId = string.IsNullOrWhiteSpace(signal.PriceId) ? snapshot.PriceId : signal.PriceId,
+            Interval = string.IsNullOrWhiteSpace(signal.Interval) ? snapshot.Interval : signal.Interval,
+            Quantity = signal.Quantity ?? snapshot.Quantity,
+            CancelAtPeriodEnd = signal.CancelAtPeriodEnd ?? snapshot.CancelAtPeriodEnd,
+            CurrentPeriodEndUtc = signal.CurrentPeriodEndUtc ?? snapshot.CurrentPeriodEndUtc,
+            CanceledAtUtc = signal.CanceledAtUtc ?? snapshot.CanceledAtUtc,
+            EndedAtUtc = signal.EndedAtUtc ?? snapshot.EndedAtUtc
+        };
+    }
 
     private static string NormalizeCheckoutPlan(string? planType)
     {
@@ -1200,6 +1361,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Status: i.SubscriptionStatus,
         PriceId: i.PriceId,
         Interval: i.Interval,
+        Quantity: i.Quantity,
         CancelAtPeriodEnd: i.CancelAtPeriodEnd,
         CurrentPeriodEndUtc: i.CurrentPeriodEndUtc,
         CanceledAtUtc: i.CanceledAtUtc,
@@ -1215,6 +1377,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Status: "deleted",
         PriceId: i.PriceId,
         Interval: i.Interval,
+        Quantity: i.Quantity,
         CancelAtPeriodEnd: i.CancelAtPeriodEnd,
         CurrentPeriodEndUtc: i.CurrentPeriodEndUtc,
         CanceledAtUtc: i.CanceledAtUtc,
@@ -1230,6 +1393,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Status: "active",
         PriceId: i.PriceId,
         Interval: i.Interval,
+        Quantity: i.Quantity,
         CancelAtPeriodEnd: null,
         CurrentPeriodEndUtc: i.CurrentPeriodEndUtc,
         CanceledAtUtc: null,
@@ -1245,6 +1409,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         Status: "past_due",
         PriceId: i.PriceId,
         Interval: i.Interval,
+        Quantity: i.Quantity,
         CancelAtPeriodEnd: null,
         CurrentPeriodEndUtc: null,
         CanceledAtUtc: null,
@@ -1262,7 +1427,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         CanceledAtUtc: d.CanceledAtUtc,
         EndedAtUtc: d.EndedAtUtc,
         PriceId: d.PriceId,
-        Interval: d.Interval
+        Interval: d.Interval,
+        Quantity: d.Quantity
     );
 
     private static StripeSubscriptionDeleted ToSubDeletedDto(StripeEventData d) => new(
@@ -1275,7 +1441,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         CanceledAtUtc: d.CanceledAtUtc,
         EndedAtUtc: d.EndedAtUtc,
         PriceId: d.PriceId,
-        Interval: d.Interval
+        Interval: d.Interval,
+        Quantity: d.Quantity
     );
 
     private static StripeInvoicePaid ToInvoicePaidDto(StripeEventData d) => new(
@@ -1285,7 +1452,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         StripeSubscriptionId: d.SubscriptionId ?? "",
         PriceId: d.PriceId,
         Interval: d.Interval,
-        CurrentPeriodEndUtc: d.CurrentPeriodEndUtc
+        CurrentPeriodEndUtc: d.CurrentPeriodEndUtc,
+        Quantity: d.Quantity
     );
 
     private static StripeInvoicePaymentFailed ToInvoiceFailedDto(StripeEventData d) => new(
@@ -1294,6 +1462,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         StripeCustomerId: d.CustomerId ?? "",
         StripeSubscriptionId: d.SubscriptionId ?? "",
         PriceId: d.PriceId,
-        Interval: d.Interval
+        Interval: d.Interval,
+        Quantity: d.Quantity
     );
 }

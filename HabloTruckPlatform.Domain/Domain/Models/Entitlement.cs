@@ -7,8 +7,9 @@ public sealed class Entitlement
 
     public required int SeatsTotal { get; init; }
     public required int SeatsUsed { get; set; }
+    public bool IsOverCapacity { get; set; }
 
-    public required string Status { get; set; } // "active", "expired", "refunded"
+    public required string Status { get; set; } // "active", "past_due", "expired", "refunded", "disabled"
 
     public required DateTimeOffset StartUtc { get; init; }
     public DateTimeOffset? EndUtc { get; init; } // null = lifetime

@@ -19,6 +19,7 @@ public sealed class JoinCompanyFunction
 {
     private readonly IUserStore _users;
     private readonly IInviteCodeStore _invites;
+    private readonly ISeatAssignmentStore _seats;
     private readonly CompanyJoinHandler _join;
     private readonly ILogger<JoinCompanyFunction> _logger;
     private readonly IApiKeyValidator _apiKeyValidator;
@@ -26,12 +27,14 @@ public sealed class JoinCompanyFunction
     public JoinCompanyFunction(
         IUserStore users,
         IInviteCodeStore invites,
+        ISeatAssignmentStore seats,
         CompanyJoinHandler join,
         IApiKeyValidator apiKeyValidator,
         ILogger<JoinCompanyFunction>? logger = null)
     {
         _users = users;
         _invites = invites;
+        _seats = seats;
         _join = join;
         _apiKeyValidator = apiKeyValidator;
         _logger = logger ?? NullLogger<JoinCompanyFunction>.Instance;
@@ -152,6 +155,44 @@ public sealed class JoinCompanyFunction
             }, LogContext.Outcomes.Denied, "user_in_another_company", opWatch.ElapsedMilliseconds);
         }
 
+        var existingSeat = await _seats.GetAsync(invite.CompanyId, user.UserId, ct);
+        var alreadyAssignedForInvite = existingSeat is not null
+            && existingSeat.IsActive()
+            && string.Equals(existingSeat.EntitlementId, invite.EntitlementId, StringComparison.OrdinalIgnoreCase);
+
+        if (alreadyAssignedForInvite)
+        {
+            try
+            {
+                await _join.HandleJoinAsync(
+                    new JoinCompanyRequest(
+                        UserPk: Buckets.UserBucketPk(user.UserId),
+                        UserId: user.UserId,
+                        CompanyId: invite.CompanyId,
+                        EntitlementId: invite.EntitlementId,
+                        InviteCode: invite.Code),
+                    ct);
+            }
+            catch (CompanyJoinException ex)
+            {
+                return await OutcomeJson(
+                    req,
+                    HttpStatusCode.Conflict,
+                    new { ok = false, error = ex.Code, message = ex.Message },
+                    LogContext.Outcomes.Denied,
+                    ex.Code,
+                    opWatch.ElapsedMilliseconds);
+            }
+
+            return await OutcomeJson(req, HttpStatusCode.OK, new
+            {
+                ok = true,
+                alreadyJoined = true,
+                companyId = invite.CompanyId,
+                entitlementId = invite.EntitlementId
+            }, LogContext.Outcomes.NoActionNeeded, "already_assigned_active_seat", opWatch.ElapsedMilliseconds);
+        }
+
         // 5) Consume invite use (only now).
         var consumeWatch = Stopwatch.StartNew();
         var consumed = await _invites.TryConsumeAsync(inviteCode, DateTimeOffset.UtcNow, ct);
@@ -170,14 +211,40 @@ public sealed class JoinCompanyFunction
         // 6) Join company.
         var userPk = Buckets.UserBucketPk(user.UserId);
 
-        await _join.HandleJoinAsync(
-            new JoinCompanyRequest(
-                UserPk: userPk,
-                UserId: user.UserId,
-                CompanyId: invite.CompanyId,
-                EntitlementId: invite.EntitlementId,
-                InviteCode: invite.Code),
-            ct);
+        try
+        {
+            await _join.HandleJoinAsync(
+                new JoinCompanyRequest(
+                    UserPk: userPk,
+                    UserId: user.UserId,
+                    CompanyId: invite.CompanyId,
+                    EntitlementId: invite.EntitlementId,
+                    InviteCode: invite.Code),
+                ct);
+        }
+        catch (CompanyJoinException ex)
+        {
+            await _invites.ReleaseConsumptionAsync(inviteCode, ct);
+
+            var statusCode = ex.Code switch
+            {
+                "user_not_found" => HttpStatusCode.NotFound,
+                "entitlement_not_found" => HttpStatusCode.NotFound,
+                "entitlement_not_active" => HttpStatusCode.Conflict,
+                "no_seats_available" => HttpStatusCode.Conflict,
+                "company_over_capacity" => HttpStatusCode.Conflict,
+                "seat_assignment_conflict" => HttpStatusCode.Conflict,
+                _ => HttpStatusCode.Conflict
+            };
+
+            return await OutcomeJson(
+                req,
+                statusCode,
+                new { ok = false, error = ex.Code, message = ex.Message },
+                statusCode == HttpStatusCode.NotFound ? LogContext.Outcomes.ValidationFailed : LogContext.Outcomes.Denied,
+                ex.Code,
+                opWatch.ElapsedMilliseconds);
+        }
 
         return await OutcomeJson(req, HttpStatusCode.OK, new
         {
@@ -230,5 +297,3 @@ public sealed class JoinCompanyFunction
         return null;
     }
 }
-
-

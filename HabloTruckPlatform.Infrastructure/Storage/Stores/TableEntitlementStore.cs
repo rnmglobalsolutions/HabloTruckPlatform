@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Entities;
@@ -68,5 +69,154 @@ public sealed class TableEntitlementStore : IEntitlementStore
 
         ent.Status = status;
         await UpsertAsync(ent, ct);
+    }
+
+    public async Task<IReadOnlyList<Entitlement>> QueryForRecountAsync(int take = int.MaxValue, CancellationToken ct = default)
+    {
+        if (take <= 0)
+            return Array.Empty<Entitlement>();
+
+        var results = new List<Entitlement>(take is > 0 and < 1024 ? take : 1024);
+
+        await foreach (var entity in EntitlementsTable.QueryAsync<EntitlementEntity>(
+                           maxPerPage: 1000,
+                           cancellationToken: ct))
+        {
+            results.Add(EntitlementMapper.FromEntity(entity));
+            if (results.Count >= take)
+                break;
+        }
+
+        return results;
+    }
+
+    public async Task<SeatReservationResult> TryReserveSeatAsync(string companyId, string entitlementId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(companyId) || string.IsNullOrWhiteSpace(entitlementId))
+            return new SeatReservationResult(SeatReservationOutcome.NotFound, null, "entitlement_not_found");
+
+        var pk = EntitlementMapper.Pk(companyId.Trim());
+        var rk = entitlementId.Trim();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
+            if (entity is null)
+                return new SeatReservationResult(SeatReservationOutcome.NotFound, null, "entitlement_not_found");
+
+            var nowUtc = DateTimeOffset.UtcNow;
+            var isActive = string.Equals(entity.Status, "active", StringComparison.OrdinalIgnoreCase)
+                           && (entity.EndUtc is null || entity.EndUtc > nowUtc);
+
+            if (!isActive)
+                return new SeatReservationResult(SeatReservationOutcome.Inactive, EntitlementMapper.FromEntity(entity), "entitlement_not_active");
+
+            entity.SeatsTotal = Math.Max(entity.SeatsTotal, 0);
+            entity.SeatsUsed = Math.Max(entity.SeatsUsed, 0);
+            entity.IsOverCapacity = entity.SeatsUsed > entity.SeatsTotal;
+
+            if (entity.IsOverCapacity)
+            {
+                try
+                {
+                    await EntitlementsTable.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+                    return new SeatReservationResult(SeatReservationOutcome.OverCapacity, EntitlementMapper.FromEntity(entity), "company_over_capacity");
+                }
+                catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+                {
+                    continue;
+                }
+            }
+
+            if (entity.SeatsUsed >= entity.SeatsTotal)
+                return new SeatReservationResult(SeatReservationOutcome.NoCapacity, EntitlementMapper.FromEntity(entity), "no_seats_available");
+
+            entity.SeatsUsed += 1;
+            entity.IsOverCapacity = entity.SeatsUsed > entity.SeatsTotal;
+
+            try
+            {
+                await EntitlementsTable.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+                return new SeatReservationResult(SeatReservationOutcome.Reserved, EntitlementMapper.FromEntity(entity));
+            }
+            catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+            {
+                // optimistic concurrency conflict -> retry
+            }
+        }
+
+        return new SeatReservationResult(SeatReservationOutcome.NoCapacity, null, "seat_reservation_conflict");
+    }
+
+    public async Task<Entitlement?> SyncSeatsUsedAsync(string companyId, string entitlementId, int seatsUsedFloor, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(companyId) || string.IsNullOrWhiteSpace(entitlementId))
+            return null;
+
+        var pk = EntitlementMapper.Pk(companyId.Trim());
+        var rk = entitlementId.Trim();
+        var normalizedFloor = Math.Max(seatsUsedFloor, 0);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
+            if (entity is null)
+                return null;
+
+            var nextSeatsUsed = Math.Max(Math.Max(entity.SeatsUsed, 0), normalizedFloor);
+            var nextIsOverCapacity = nextSeatsUsed > Math.Max(entity.SeatsTotal, 0);
+
+            if (nextSeatsUsed == entity.SeatsUsed && nextIsOverCapacity == entity.IsOverCapacity)
+                return EntitlementMapper.FromEntity(entity);
+
+            entity.SeatsUsed = nextSeatsUsed;
+            entity.IsOverCapacity = nextIsOverCapacity;
+
+            try
+            {
+                await EntitlementsTable.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+                return EntitlementMapper.FromEntity(entity);
+            }
+            catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+            {
+                // optimistic concurrency conflict -> retry
+            }
+        }
+
+        return await GetAsync(companyId, entitlementId, ct);
+    }
+
+    public async Task ReleaseSeatReservationAsync(string companyId, string entitlementId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(companyId) || string.IsNullOrWhiteSpace(entitlementId))
+            return;
+
+        var pk = EntitlementMapper.Pk(companyId.Trim());
+        var rk = entitlementId.Trim();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
+            if (entity is null)
+                return;
+
+            entity.SeatsTotal = Math.Max(entity.SeatsTotal, 0);
+            entity.SeatsUsed = Math.Max(entity.SeatsUsed, 0);
+
+            if (entity.SeatsUsed > 0)
+                entity.SeatsUsed -= 1;
+
+            entity.IsOverCapacity = entity.SeatsUsed > entity.SeatsTotal;
+
+            try
+            {
+                await EntitlementsTable.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct);
+                return;
+            }
+            catch (RequestFailedException ex) when (ex.Status is 412 or 409)
+            {
+                // optimistic concurrency conflict -> retry
+            }
+        }
     }
 }

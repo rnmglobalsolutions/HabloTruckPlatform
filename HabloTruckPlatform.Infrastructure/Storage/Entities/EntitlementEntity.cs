@@ -18,8 +18,9 @@ public sealed class EntitlementEntity : ITableEntity
 
     public int SeatsTotal { get; set; }
     public int SeatsUsed { get; set; }
+    public bool IsOverCapacity { get; set; }
 
-    public string Status { get; set; } = "active"; // active/expired/refunded/disabled
+    public string Status { get; set; } = "active"; // active/past_due/expired/refunded/disabled
 
     public DateTimeOffset StartUtc { get; set; }
     public DateTimeOffset? EndUtc { get; set; }

@@ -17,6 +17,7 @@ public static class EntitlementMapper
             EntitlementId = e.EntitlementId,
             SeatsTotal = e.SeatsTotal,
             SeatsUsed = e.SeatsUsed,
+            IsOverCapacity = e.IsOverCapacity,
             Status = e.Status ?? "active",
             StartUtc = e.StartUtc,
             EndUtc = e.EndUtc
@@ -29,6 +30,7 @@ public static class EntitlementMapper
             EntitlementId = e.EntitlementId,
             SeatsTotal = e.SeatsTotal,
             SeatsUsed = e.SeatsUsed,
+            IsOverCapacity = e.IsOverCapacity,
             Status = e.Status,
             StartUtc = e.StartUtc,
             EndUtc = e.EndUtc

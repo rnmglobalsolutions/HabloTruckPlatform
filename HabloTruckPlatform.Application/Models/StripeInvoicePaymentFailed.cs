@@ -6,4 +6,5 @@ public sealed record StripeInvoicePaymentFailed(
     DateTimeOffset StripeEventCreatedUtc,
     string StripeCustomerId,
     string? PriceId,
-    string? Interval);
+    string? Interval,
+    int? Quantity = null);

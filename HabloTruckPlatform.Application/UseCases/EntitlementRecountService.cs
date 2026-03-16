@@ -75,6 +75,7 @@ public sealed class EntitlementRecountService
 
         // Soft enforcement: just update SeatsUsed for accurate reporting.
         ent.SeatsUsed = used;
+        ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
 
         var writeWatch = Stopwatch.StartNew();
         await _entitlementStore.UpsertAsync(ent, ct);
@@ -88,6 +89,5 @@ public sealed class EntitlementRecountService
             opWatch.ElapsedMilliseconds);
     }
 }
-
 
 

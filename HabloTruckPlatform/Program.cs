@@ -4,6 +4,7 @@ using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Domain.Domain.Abstractions;
 using HabloTruckPlatform.Security;
 using HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 using HabloTruckPlatform.Infrastructure.Storage;

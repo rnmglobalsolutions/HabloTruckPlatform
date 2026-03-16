@@ -18,7 +18,8 @@ public static class SeatAssignmentMapper
             EntitlementId = s.EntitlementId,
             Status = s.Status ?? "active",
             AssignedAtUtc = s.AssignedAtUtc,
-            UpdatedAtUtc = s.UpdatedAtUtc
+            UpdatedAtUtc = s.UpdatedAtUtc,
+            RevokedAtUtc = s.RevokedAtUtc
         };
 
     public static SeatAssignment FromEntity(SeatAssignmentEntity e)
@@ -29,6 +30,7 @@ public static class SeatAssignmentMapper
             EntitlementId = e.EntitlementId,
             Status = e.Status,
             AssignedAtUtc = e.AssignedAtUtc,
-            UpdatedAtUtc = e.UpdatedAtUtc
+            UpdatedAtUtc = e.UpdatedAtUtc,
+            RevokedAtUtc = e.RevokedAtUtc
         };
 }
