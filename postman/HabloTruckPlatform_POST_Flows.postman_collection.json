@@ -5,53 +5,220 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "functionHost", "value": "https://<your-func-app>.azurewebsites.net" },
-    { "key": "functionKey", "value": "<FUNCTION_KEY>" },
-    { "key": "manychatBaseUrl", "value": "https://api.manychat.com" },
-    { "key": "manychatApiKey", "value": "<MANYCHAT_API_KEY>" },
-    { "key": "stripeSignature", "value": "t=<timestamp>,v1=<signature>" },
-    { "key": "companyId", "value": "C1" },
-    { "key": "entitlementId", "value": "E1" },
-    { "key": "inviteCode", "value": "HT-AB12CD" },
-    { "key": "manyChatSubscriberId", "value": "mc_12345" },
-    { "key": "email", "value": "driver@example.com" },
-    { "key": "phoneE164", "value": "+15551234567" },
-    { "key": "actorUserPk", "value": "HT_U_001" },
-    { "key": "actorUserId", "value": "U1" },
-    { "key": "subscriptionId", "value": "sub_123" },
-    { "key": "stripeEventId", "value": "evt_123" },
-    { "key": "failedPk", "value": "HT_FA_2026031012" },
-    { "key": "failedRk", "value": "638455000000000000_01HV..." },
-    { "key": "manychatFlowNs", "value": "flow_ns_here" }
+    {
+      "key": "functionHost",
+      "value": "https://<your-func-app>.azurewebsites.net"
+    },
+    {
+      "key": "functionKey",
+      "value": "<FUNCTION_KEY>"
+    },
+    {
+      "key": "manychatBaseUrl",
+      "value": "https://api.manychat.com"
+    },
+    {
+      "key": "manychatApiKey",
+      "value": "<MANYCHAT_API_KEY>"
+    },
+    {
+      "key": "stripeSignature",
+      "value": "t=<timestamp>,v1=<signature>"
+    },
+    {
+      "key": "companyId",
+      "value": "C1"
+    },
+    {
+      "key": "entitlementId",
+      "value": "E1"
+    },
+    {
+      "key": "inviteCode",
+      "value": "HT-AB12CD"
+    },
+    {
+      "key": "manyChatSubscriberId",
+      "value": "mc_12345"
+    },
+    {
+      "key": "email",
+      "value": "driver@example.com"
+    },
+    {
+      "key": "phoneE164",
+      "value": "+15551234567"
+    },
+    {
+      "key": "actorUserPk",
+      "value": "HT_U_001"
+    },
+    {
+      "key": "actorUserId",
+      "value": "U1"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "sub_123"
+    },
+    {
+      "key": "stripeEventId",
+      "value": "evt_123"
+    },
+    {
+      "key": "failedPk",
+      "value": "HT_FA_2026031012"
+    },
+    {
+      "key": "failedRk",
+      "value": "638455000000000000_01HV..."
+    },
+    {
+      "key": "manychatFlowNs",
+      "value": "flow_ns_here"
+    },
+    {
+      "key": "returnUrl",
+      "value": "https://manageapp.example/billing/recovery-return"
+    },
+    {
+      "key": "companyName",
+      "value": "Fleet Co"
+    },
+    {
+      "key": "seatQuantity",
+      "value": "20"
+    },
+    {
+      "key": "stripeCustomerId",
+      "value": "cus_123"
+    },
+    {
+      "key": "invoiceId",
+      "value": "in_123"
+    },
+    {
+      "key": "billingRecoveryStatus",
+      "value": "recovery_active"
+    }
   ],
   "item": [
     {
       "name": "01 - ManageApp Core",
       "item": [
         {
-          "name": "01.1 Create Stripe Payment Link",
+          "name": "01.1 Create Stripe Payment Link (Individual)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planType\": \"individual_monthly\",\n  \"quantity\": 1,\n  \"successUrl\": \"https://manageapp.example/success\",\n  \"cancelUrl\": \"https://manageapp.example/cancel\",\n  \"email\": \"{{email}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"companyName\": \"Fleet Co\",\n  \"seats\": 1\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"planType\": \"individual_monthly\",\n  \"quantity\": 1,\n  \"successUrl\": \"https://manageapp.example/success\",\n  \"cancelUrl\": \"https://manageapp.example/cancel\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/stripe/payment-link?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "stripe", "payment-link"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "payment-link"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.2 Create Company Invite",
+          "name": "01.2 Create Stripe Payment Link (Company Seats)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planType\": \"company_seat\",\n  \"quantity\": {{seatQuantity}},\n  \"successUrl\": \"https://manageapp.example/company/success\",\n  \"cancelUrl\": \"https://manageapp.example/company/cancel\",\n  \"email\": \"{{email}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"companyName\": \"{{companyName}}\",\n  \"seats\": {{seatQuantity}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/payment-link?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "payment-link"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.3 Create Company Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"entitlementId\": \"{{entitlementId}}\",\n  \"maxUses\": 25,\n  \"expiresInDays\": 30,\n  \"createdBy\": \"admin@company.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -65,155 +232,315 @@
                 ]
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"entitlementId\": \"{{entitlementId}}\",\n  \"maxUses\": 25,\n  \"expiresInDays\": 30,\n  \"createdBy\": \"admin@company.com\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{functionHost}}/api/company/invite?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "company", "invite"],
-              "query": [
-                { "key": "code", "value": "{{functionKey}}" }
-              ]
-            }
-          }
+          ]
         },
         {
-          "name": "01.3 Get Invite Info",
+          "name": "01.4 Get Invite Info",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/company/invite/info?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "company", "invite", "info"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "info"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.4 Join Company",
+          "name": "01.5 Join Company",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/company/join?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "company", "join"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "join"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.5 List Invites (POST)",
+          "name": "01.6 List Invites (POST)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"take\": 50\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/company/invite/list?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "company", "invite", "list"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "list"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.6 Disable Invite",
+          "name": "01.7 Disable Invite",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/company/invite/disable?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "company", "invite", "disable"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "disable"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.7 Cancel Subscription At Period End (Individual)",
+          "name": "01.8 Cancel Subscription At Period End (Individual)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"scope\": \"individual\",\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/stripe/subscription/cancel-at-period-end?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "stripe", "subscription", "cancel-at-period-end"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "cancel-at-period-end"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
         },
         {
-          "name": "01.8 Cancel Subscription At Period End (Company)",
+          "name": "01.9 Cancel Subscription At Period End (Company)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"scope\": \"company\",\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/stripe/subscription/cancel-at-period-end?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "stripe", "subscription", "cancel-at-period-end"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "cancel-at-period-end"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.10 Get Payment Method Update Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"returnUrl\": \"{{returnUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/payment-method-update-link?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "payment-method-update-link"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.11 Retry Open Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/retry-payment?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "retry-payment"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
@@ -228,20 +555,207 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Stripe-Signature", "value": "{{stripeSignature}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id\": \"evt_test_123\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"invoice.paid\",\n  \"created\": 1770000000,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": { \"id\": \"req_test\", \"idempotency_key\": null },\n  \"data\": {\n    \"object\": {\n      \"id\": \"in_test_1\",\n      \"object\": \"invoice\",\n      \"customer\": \"cus_test\",\n      \"subscription\": \"sub_test\",\n      \"items\": {\n        \"data\": [\n          {\n            \"price\": {\n              \"id\": \"price_ind_monthly\",\n              \"recurring\": { \"interval\": \"month\" }\n            },\n            \"period\": { \"end\": 1772600000 }\n          }\n        ]\n      }\n    }\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"id\": \"evt_test_invoice_paid\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"invoice.paid\",\n  \"created\": 1770000000,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{invoiceId}}\",\n      \"object\": \"invoice\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"subscription\": \"{{subscriptionId}}\",\n      \"lines\": {\n        \"data\": [\n          {\n            \"quantity\": 1,\n            \"price\": {\n              \"id\": \"price_ind_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"period\": {\n              \"end\": 1772600000\n            }\n          }\n        ]\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "stripe", "webhook"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.2 Stripe Webhook (invoice.payment_failed sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_invoice_failed\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"invoice.payment_failed\",\n  \"created\": 1770000100,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{invoiceId}}\",\n      \"object\": \"invoice\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"subscription\": \"{{subscriptionId}}\",\n      \"lines\": {\n        \"data\": [\n          {\n            \"quantity\": {{seatQuantity}},\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"period\": {\n              \"end\": 1772600000\n            }\n          }\n        ]\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.3 Stripe Webhook (customer.updated - payment method update sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_customer_updated\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.updated\",\n  \"created\": 1770000200,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{stripeCustomerId}}\",\n      \"object\": \"customer\",\n      \"invoice_settings\": {\n        \"default_payment_method\": \"pm_new_123\"\n      }\n    },\n    \"previous_attributes\": {\n      \"invoice_settings\": {\n        \"default_payment_method\": \"pm_old_123\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.4 Stripe Webhook (customer.subscription.updated sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_sub_updated\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.subscription.updated\",\n  \"created\": 1770000300,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{subscriptionId}}\",\n      \"object\": \"subscription\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"status\": \"active\",\n      \"cancel_at_period_end\": false,\n      \"current_period_end\": 1772600000,\n      \"items\": {\n        \"data\": [\n          {\n            \"quantity\": {{seatQuantity}},\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"current_period_end\": \"2026-04-15T00:00:00Z\"\n          }\n        ]\n      },\n      \"metadata\": {\n        \"planType\": \"fleet\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.5 Stripe Webhook (customer.subscription.deleted sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_sub_deleted\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.subscription.deleted\",\n  \"created\": 1770000400,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{subscriptionId}}\",\n      \"object\": \"subscription\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"status\": \"canceled\",\n      \"cancel_at_period_end\": false,\n      \"ended_at\": 1770000400,\n      \"items\": {\n        \"data\": [\n          {\n            \"quantity\": 0,\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"current_period_end\": \"2026-04-15T00:00:00Z\"\n          }\n        ]\n      },\n      \"metadata\": {\n        \"planType\": \"fleet\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
@@ -256,19 +770,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"eventId\": \"{{stripeEventId}}\",\n  \"eventType\": \"invoice.paid\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"eventId\": \"{{stripeEventId}}\",\n  \"eventType\": \"customer.updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/admin/stripe/replay?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "admin", "stripe", "replay"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stripe",
+                "replay"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
@@ -278,19 +809,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"pk\": \"{{failedPk}}\",\n  \"rk\": \"{{failedRk}}\",\n  \"delayMinutes\": 5\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{functionHost}}/api/admin/failed-actions/requeue?code={{functionKey}}",
-              "host": ["{{functionHost}}"],
-              "path": ["api", "admin", "failed-actions", "requeue"],
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "failed-actions",
+                "requeue"
+              ],
               "query": [
-                { "key": "code", "value": "{{functionKey}}" }
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
               ]
             }
           }
@@ -305,18 +853,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{manychatApiKey}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"access_full\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"HT_ACCESS_FULL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{manychatBaseUrl}}/fb/subscriber/addTagByName",
-              "host": ["{{manychatBaseUrl}}"],
-              "path": ["fb", "subscriber", "addTagByName"]
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "addTagByName"
+              ]
             }
           }
         },
@@ -325,78 +889,178 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{manychatApiKey}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"access_grace\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"HT_ACCESS_GRACE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{manychatBaseUrl}}/fb/subscriber/removeTagByName",
-              "host": ["{{manychatBaseUrl}}"],
-              "path": ["fb", "subscriber", "removeTagByName"]
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "removeTagByName"
+              ]
             }
           }
         },
         {
-          "name": "04.3 setCustomFieldByName",
+          "name": "04.3 setCustomFieldByName (Access Mode)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{manychatApiKey}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"field_name\": \"access_mode\",\n  \"field_value\": \"Full\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"field_name\": \"ht_access_mode\",\n  \"field_value\": \"Full\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{manychatBaseUrl}}/fb/subscriber/setCustomFieldByName",
-              "host": ["{{manychatBaseUrl}}"],
-              "path": ["fb", "subscriber", "setCustomFieldByName"]
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "setCustomFieldByName"
+              ]
             }
           }
         },
         {
-          "name": "04.4 sendFlow (Payment Failed)",
+          "name": "04.4 setCustomFieldByName (Billing Recovery Status)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{manychatApiKey}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"field_name\": \"ht_billing_recovery_status\",\n  \"field_value\": \"{{billingRecoveryStatus}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/subscriber/setCustomFieldByName",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "setCustomFieldByName"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.5 sendFlow (Payment Failed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"flow_ns\": \"{{manychatFlowNs}}\",\n  \"payload\": {}\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{manychatBaseUrl}}/fb/sending/sendFlow",
-              "host": ["{{manychatBaseUrl}}"],
-              "path": ["fb", "sending", "sendFlow"]
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "sending",
+                "sendFlow"
+              ]
             }
           }
         },
         {
-          "name": "04.5 sendFlow (Renewal / Save-before-churn Reminder)",
+          "name": "04.6 sendFlow (Renewal / Save-before-churn Reminder)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{manychatApiKey}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"flow_ns\": \"{{manychatFlowNs}}\",\n  \"payload\": {\n    \"reminder_type\": \"renewal_reminder_1d\",\n    \"journey\": \"auto_renew\",\n    \"days_until_period_end\": 1,\n    \"period_end_utc\": \"2026-04-01T00:00:00.0000000Z\",\n    \"positive_continuity\": true,\n    \"reminder_tone\": \"RenewalTransparencyValue\",\n    \"template_key\": \"renewal.auto_renew.1d.positive_continuity\",\n    \"audience_segment\": \"active\",\n    \"subscription_id\": \"{{subscriptionId}}\",\n    \"user_id\": \"{{actorUserId}}\",\n    \"company_id\": \"{{companyId}}\",\n    \"is_company_reminder\": false,\n    \"plan_term\": \"monthly\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"flow_ns\": \"{{manychatFlowNs}}\",\n  \"payload\": {\n    \"reminder_type\": \"renewal_reminder_1d\",\n    \"journey\": \"auto_renew\",\n    \"days_until_period_end\": 1,\n    \"period_end_utc\": \"2026-04-01T00:00:00.0000000Z\",\n    \"positive_continuity\": true,\n    \"reminder_tone\": \"RenewalTransparencyValue\",\n    \"template_key\": \"renewal.auto_renew.1d.positive_continuity\",\n    \"audience_segment\": \"active\",\n    \"subscription_id\": \"{{subscriptionId}}\",\n    \"user_id\": \"{{actorUserId}}\",\n    \"company_id\": \"{{companyId}}\",\n    \"is_company_reminder\": false,\n    \"plan_term\": \"monthly\",\n    \"journey_day\": 1,\n    \"journey_anchor_utc\": \"2026-03-31T00:00:00.0000000Z\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{manychatBaseUrl}}/fb/sending/sendFlow",
-              "host": ["{{manychatBaseUrl}}"],
-              "path": ["fb", "sending", "sendFlow"]
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "sending",
+                "sendFlow"
+              ]
             }
           }
         }
