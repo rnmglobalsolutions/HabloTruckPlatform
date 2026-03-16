@@ -65,11 +65,11 @@ HT_App_Settings.json
 # dotnet
 .dotnet/
 
-# postman calls
-postman/
-
 # KQL Queries
 HabloTruck - KQL.txt
 
 # Azure Functions Guide
 Guide/
+
+# Documentation
+exports/
