@@ -32,6 +32,7 @@ public sealed class UserEntity : ITableEntity
     public string? PlanType { get; set; }           // "individual"|"fleet"|"cdl_cohort"
     public string? CohortId { get; set; }
     public string? SchoolId { get; set; }
+    public DateTimeOffset? CohortAccessGrantedAtUtc { get; set; }
 
     // Individual grace
     public DateTimeOffset? IndividualGraceEndsAtUtc { get; set; }

@@ -24,4 +24,48 @@ public sealed class StripeCheckoutServiceTests
         Assert.Equal(new[] { "card", "link" }, options.PaymentMethodTypes);
         Assert.DoesNotContain("us_bank_account", options.PaymentMethodTypes);
     }
+
+    [Fact]
+    public void BuildSessionCreateOptions_Should_UsePaymentMode_ForCdlEnglishCohort()
+    {
+        var request = new StripeCheckoutSessionRequest
+        {
+            PriceId = "price_cdl_english",
+            Quantity = 1,
+            SuccessUrl = "https://app.hablotruck.com/success",
+            CancelUrl = "https://app.hablotruck.com/cancel",
+            PlanType = "cdl_english_cohort",
+            Email = "driver@hablotruck.com",
+            ManyChatSubscriberId = "sid_123",
+            CohortId = "CDL_EN_2026_01"
+        };
+
+        var options = StripeCheckoutService.BuildSessionCreateOptions(request);
+
+        Assert.Equal("payment", options.Mode);
+        Assert.Equal("always", options.CustomerCreation);
+        Assert.Null(options.SubscriptionData);
+    }
+
+    [Fact]
+    public void BuildSessionCreateOptions_Should_UsePaymentMode_ForCdlCohortPack()
+    {
+        var request = new StripeCheckoutSessionRequest
+        {
+            PriceId = "price_cdl_25",
+            Quantity = 25,
+            SuccessUrl = "https://app.hablotruck.com/success",
+            CancelUrl = "https://app.hablotruck.com/cancel",
+            PlanType = "cdl_cohort_25",
+            CompanyId = "SCH_001",
+            CompanyName = "Roadmaster",
+            Seats = 25
+        };
+
+        var options = StripeCheckoutService.BuildSessionCreateOptions(request);
+
+        Assert.Equal("payment", options.Mode);
+        Assert.Equal("always", options.CustomerCreation);
+        Assert.Null(options.SubscriptionData);
+    }
 }

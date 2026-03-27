@@ -50,7 +50,8 @@ public static class UserMapper
 
             PlanType = u.PlanType,
             CohortId = u.CohortId,
-            SchoolId = u.SchoolId
+            SchoolId = u.SchoolId,
+            CohortAccessGrantedAtUtc = u.CohortAccessGrantedAtUtc
         };
     }
 
@@ -108,7 +109,8 @@ public static class UserMapper
 
             PlanType = e.PlanType,
             CohortId = e.CohortId,
-            SchoolId = e.SchoolId
+            SchoolId = e.SchoolId,
+            CohortAccessGrantedAtUtc = e.CohortAccessGrantedAtUtc
         };
     }
 }

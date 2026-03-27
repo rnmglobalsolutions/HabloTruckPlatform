@@ -47,6 +47,121 @@ public sealed class StripeSubscriptionHandlerProjectionTests
     }
 
     [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_GrantDirectAccess_ForCdlEnglishCohortPayment()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_checkout_cdl_english_1",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_cdl_english_1",
+            CustomerEmail = "student@cohort.com",
+            CheckoutMode = "payment",
+            Quantity = 1,
+            PriceId = fixture.PriceCatalog.CdlEnglishCohortPriceId,
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "cdl_english_cohort",
+                ["manychatSubscriberId"] = "sid_cdl_english_1",
+                ["ht_cohort"] = "CDL_EN_2026_01"
+            }
+        });
+
+        var user = fixture.UserStore.GetByEmailNormalized("student@cohort.com");
+
+        Assert.NotNull(user);
+        Assert.Equal("cdl_english_cohort", user!.PlanType);
+        Assert.Equal("CDL_EN_2026_01", user.CohortId);
+        Assert.Equal(now, user.CohortAccessGrantedAtUtc);
+        Assert.Equal(AccessMode.Full, user.EffectiveAccess?.Mode);
+    }
+
+    [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_BeIdempotent_ForCdlEnglishCohortPayment()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var checkout = new StripeEventData
+        {
+            StripeEventId = "evt_checkout_cdl_english_2",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_cdl_english_2",
+            CustomerEmail = "student2@cohort.com",
+            CheckoutMode = "payment",
+            Quantity = 1,
+            PriceId = fixture.PriceCatalog.CdlEnglishCohortPriceId,
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "cdl_english_cohort",
+                ["manychatSubscriberId"] = "sid_cdl_english_2",
+                ["ht_cohort"] = "CDL_EN_2026_02"
+            }
+        };
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(checkout);
+        var first = fixture.UserStore.GetByEmailNormalized("student2@cohort.com");
+        var grantedAt = first?.CohortAccessGrantedAtUtc;
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(checkout);
+        var second = fixture.UserStore.GetByEmailNormalized("student2@cohort.com");
+
+        Assert.NotNull(second);
+        Assert.Equal(grantedAt, second!.CohortAccessGrantedAtUtc);
+        Assert.Equal(AccessMode.Full, second.EffectiveAccess?.Mode);
+    }
+
+    [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_NotOverwriteRecurringSubscriptionFacts_ForCdlEnglishCohortPayment()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_cdl_english_existing_sub",
+            EmailNormalized = "subscriber@cohort.com",
+            StripeCustomerId = "cus_existing_subscriber",
+            StripeSubscriptionId = "sub_existing_active",
+            StripePriceId = fixture.PriceCatalog.IndividualMonthlyPriceId,
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            PlanType = "individual_monthly",
+            ManyChatSubscriberId = "sid_existing_subscriber"
+        };
+
+        fixture.UserStore.Add(user);
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_checkout_cdl_english_existing_sub",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_existing_subscriber",
+            CustomerEmail = "subscriber@cohort.com",
+            CheckoutMode = "payment",
+            Quantity = 1,
+            PriceId = fixture.PriceCatalog.CdlEnglishCohortPriceId,
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "cdl_english_cohort",
+                ["ht_cohort"] = "CDL_EN_2026_03"
+            }
+        });
+
+        var updated = fixture.UserStore.GetByEmailNormalized("subscriber@cohort.com");
+
+        Assert.NotNull(updated);
+        Assert.Equal("sub_existing_active", updated!.StripeSubscriptionId);
+        Assert.Equal(fixture.PriceCatalog.IndividualMonthlyPriceId, updated.StripePriceId);
+        Assert.Equal("individual_monthly", updated.PlanType);
+        Assert.Equal("monthly", updated.IndividualPlanTerm);
+        Assert.Equal("CDL_EN_2026_03", updated.CohortId);
+        Assert.Equal(now, updated.CohortAccessGrantedAtUtc);
+    }
+
+    [Fact]
     public async Task HandleSubscriptionUpdatedAsync_Should_UpdateFleetSeatsTotal_WhenQuantityIncreases()
     {
         var now = Utc(2026, 3, 10, 12);
@@ -925,7 +1040,8 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             StripeSecretKey = "sk_test",
             IndividualMonthlyPriceId = "price_ind_monthly",
             IndividualYearlyPriceId = "price_ind_yearly",
-            FleetSeatMonthlyPriceId = "price_fleet_monthly"
+            FleetSeatMonthlyPriceId = "price_fleet_monthly",
+            CdlEnglishCohortPriceId = "price_cdl_english"
         };
 
         var handler = new StripeSubscriptionHandler(
@@ -997,6 +1113,10 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             _users.TryGetValue((Buckets.UserBucketPk(userId), userId), out var user);
             return user;
         }
+
+        public User? GetByEmailNormalized(string emailNormalized)
+            => _users.Values.FirstOrDefault(user =>
+                string.Equals(user.EmailNormalized, emailNormalized, StringComparison.OrdinalIgnoreCase));
 
         public Task<User?> GetAsync(string userPk, string userId, CancellationToken ct = default)
             => Task.FromResult(_users.TryGetValue((userPk, userId), out var user) ? user : null);
