@@ -20,6 +20,11 @@ param httpPerInstanceConcurrency = 16
 param gracePolicyHours = 72
 param companyGracePolicyDays = 7
 
+param httpApiKey = ''
+param manyChatApiKey = ''
+param stripeSecretKey = ''
+param stripeWebhookSecret = ''
+
 param manyChatBaseUrl = 'https://api.manychat.com'
 param manyChatAddTagByNamePath = 'fb/subscriber/addTagByName'
 param manyChatRemoveTagByNamePath = 'fb/subscriber/removeTagByName'
