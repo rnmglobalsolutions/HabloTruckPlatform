@@ -151,7 +151,7 @@ var normalizedApp = toLower(replace(applicationName, '-', ''))
 var generatedStorageAccountName = take('${normalizedApp}${environmentName}${uniqueString(resourceGroup().id, applicationName, environmentName)}', 24)
 var resolvedStorageAccountName = empty(storageAccountName) ? generatedStorageAccountName : toLower(storageAccountName)
 var tenantId = subscription().tenantId
-var storageAccountKey = listKeys(storage.id, '2023-05-01').keys[0].value
+var storageAccountKey = storage.listKeys().keys[0].value
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageAccountKey};EndpointSuffix=${environment().suffixes.storage}'
 var commonTags = union({
   app: applicationName
@@ -310,7 +310,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   location: location
   kind: 'functionapp,linux'
   identity: {
-    type: 'SystemAssigned,UserAssigned'
+    type: 'SystemAssigned, UserAssigned'
     userAssignedIdentities: {
       '${keyVaultIdentity.id}': {}
     }
