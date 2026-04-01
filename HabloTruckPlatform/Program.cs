@@ -107,6 +107,8 @@ var host = new HostBuilder()
         services.AddSingleton<EntitlementExpirySweeperService>();
         services.AddSingleton<StripeReconciliationService>();
         services.AddSingleton<StripeCheckoutHandler>();
+        services.AddSingleton<StartFleetCheckoutUseCase>();
+        services.AddSingleton<CompanyAdminInviteService>();
         services.AddSingleton<BillingRecoveryManyChatNotifier>();
         services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
         services.AddSingleton<CreateStripePaymentMethodUpdateLinkUseCase>();

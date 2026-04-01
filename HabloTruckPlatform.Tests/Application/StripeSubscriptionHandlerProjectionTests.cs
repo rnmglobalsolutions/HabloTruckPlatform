@@ -47,6 +47,76 @@ public sealed class StripeSubscriptionHandlerProjectionTests
     }
 
     [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_AutoCreateInvite_ForFleetEntitlement()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_checkout_fleet_invite_1",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_fleet_invite_1",
+            SubscriptionId = "sub_fleet_invite_1",
+            CustomerEmail = "admin@fleetinvite.com",
+            Quantity = 12,
+            PriceId = fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval = "month",
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "company_seat",
+                ["companyId"] = "C_FLEET_INVITE_1",
+                ["companyName"] = "Fleet Invite One"
+            }
+        });
+
+        var invites = await fixture.InviteStore.ListForCompanyAsync("C_FLEET_INVITE_1", take: 50);
+        var invite = Assert.Single(invites);
+
+        Assert.Equal("C_FLEET_INVITE_1", invite.CompanyId);
+        Assert.Equal("ent_sub_fleet_invite_1", invite.EntitlementId);
+        Assert.Equal("active", invite.Status);
+        Assert.Equal(12, invite.MaxUses);
+        Assert.Equal(0, invite.Uses);
+        Assert.Equal("system:fleet_checkout_auto", invite.CreatedBy);
+        Assert.StartsWith("HT-", invite.Code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_NotCreateDuplicateInvite_ForRepeatedFleetCheckout()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var checkout = new StripeEventData
+        {
+            StripeEventId = "evt_checkout_fleet_invite_2",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_fleet_invite_2",
+            SubscriptionId = "sub_fleet_invite_2",
+            CustomerEmail = "admin2@fleetinvite.com",
+            Quantity = 8,
+            PriceId = fixture.PriceCatalog.FleetSeatMonthlyPriceId,
+            Interval = "month",
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "company_seat",
+                ["companyId"] = "C_FLEET_INVITE_2",
+                ["companyName"] = "Fleet Invite Two"
+            }
+        };
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(checkout);
+        await fixture.Handler.HandleCheckoutCompletedAsync(checkout);
+
+        var invites = await fixture.InviteStore.ListForCompanyAsync("C_FLEET_INVITE_2", take: 50);
+        var invite = Assert.Single(invites);
+
+        Assert.Equal("ent_sub_fleet_invite_2", invite.EntitlementId);
+        Assert.Equal(8, invite.MaxUses);
+    }
+
+    [Fact]
     public async Task HandleCheckoutCompletedAsync_Should_GrantDirectAccess_ForCdlEnglishCohortPayment()
     {
         var now = Utc(2026, 3, 10, 12);
@@ -1018,6 +1088,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         var failedActions = new NoopFailedActionStore();
         var seatStore = new NoopSeatAssignmentStore();
         var companyStore = new InMemoryCompanyStore();
+        var inviteStore = new InMemoryInviteCodeStore();
         var expiryIndexStore = new InMemoryEntitlementExpiryIndexStore();
         var stripeAdmin = new NoopStripeAdminClient();
         var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
@@ -1043,6 +1114,11 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             FleetSeatMonthlyPriceId = "price_fleet_monthly",
             CdlEnglishCohortPriceId = "price_cdl_english"
         };
+        var companyAdminInviteService = new CompanyAdminInviteService(
+            companyStore,
+            entitlementStore,
+            inviteStore,
+            NullLogger<CompanyAdminInviteService>.Instance);
 
         var handler = new StripeSubscriptionHandler(
             userResolver,
@@ -1055,13 +1131,14 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             priceCatalog,
             companyStore,
             entitlementStore,
+            companyAdminInviteService,
             expiryIndexStore,
             failedActions,
             stripeAdmin,
             billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
-        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin, entitlementStore, companyStore);
+        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin, entitlementStore, companyStore, inviteStore);
     }
 
     private sealed record HandlerFixture(
@@ -1073,7 +1150,8 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         NoopFailedActionStore FailedActions,
         NoopStripeAdminClient StripeAdmin,
         InMemoryEntitlementStore EntitlementStore,
-        InMemoryCompanyStore CompanyStore);
+        InMemoryCompanyStore CompanyStore,
+        InMemoryInviteCodeStore InviteStore);
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -1276,6 +1354,45 @@ public sealed class StripeSubscriptionHandlerProjectionTests
                 Status = "active"
             };
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class InMemoryInviteCodeStore : IInviteCodeStore
+    {
+        private readonly Dictionary<string, InviteCode> _invites = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task EnsureTableAsync(CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<InviteCode?> GetAsync(string code, CancellationToken ct = default)
+            => Task.FromResult(_invites.TryGetValue(code, out var invite) ? invite : null);
+
+        public Task CreateAsync(InviteCode invite, CancellationToken ct = default)
+        {
+            if (_invites.ContainsKey(invite.Code))
+                throw new InvalidOperationException($"Invite code already exists: {invite.Code}");
+
+            _invites[invite.Code] = invite;
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> TryConsumeAsync(string code, DateTimeOffset nowUtc, CancellationToken ct = default)
+            => Task.FromResult(false);
+
+        public Task UpsertAsync(InviteCode invite, CancellationToken ct = default)
+        {
+            _invites[invite.Code] = invite;
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<InviteCode>> ListForCompanyAsync(string companyId, int take = 100, CancellationToken ct = default)
+        {
+            var invites = _invites.Values
+                .Where(invite => string.Equals(invite.CompanyId, companyId, StringComparison.OrdinalIgnoreCase))
+                .Take(take)
+                .ToList();
+
+            return Task.FromResult<IReadOnlyList<InviteCode>>(invites);
         }
     }
 

@@ -28,6 +28,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly StripeOptions _priceCatalog;
     private readonly ICompanyStore _companyStore;
     private readonly IEntitlementStore _entitlementStore;
+    private readonly CompanyAdminInviteService _companyAdminInviteService;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
     private readonly IFailedActionStore _failedActionStore;
     private readonly IStripeAdminClient _stripeAdminClient;
@@ -46,6 +47,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         StripeOptions priceCatalog,
         ICompanyStore companyStore,
         IEntitlementStore entitlementStore,
+        CompanyAdminInviteService companyAdminInviteService,
         IEntitlementExpiryIndexStore expiryIndex,
         IFailedActionStore failedActionStore,
         IStripeAdminClient stripeAdminClient,
@@ -62,6 +64,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _priceCatalog = priceCatalog;
         _companyStore = companyStore;
         _entitlementStore = entitlementStore;
+        _companyAdminInviteService = companyAdminInviteService;
         _expiryIndex = expiryIndex;
         _failedActionStore = failedActionStore;
         _stripeAdminClient = stripeAdminClient;
@@ -326,6 +329,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     };
 
                     await _entitlementStore.UpsertAsync(entitlement, ct);
+                    await _companyAdminInviteService.EnsureActiveInviteAsync(
+                        companyId!,
+                        entitlement.EntitlementId,
+                        seats,
+                        entitlement.SeatsUsed,
+                        "system:fleet_checkout_auto",
+                        nowUtc,
+                        ct);
 
                     _logger.LogInformation(
                         "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} CompanyId={CompanyId} EntitlementId={EntitlementId} Seats={Seats}",
