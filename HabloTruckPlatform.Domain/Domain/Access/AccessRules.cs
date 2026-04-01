@@ -29,16 +29,17 @@ public static class AccessRules
         // Individual states
         bool individualFull = string.Equals(ctx.User.SubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase);
         bool individualGrace = ctx.User.IndividualGraceEndsAtUtc is not null && ctx.User.IndividualGraceEndsAtUtc > nowUtc;
+        bool cohortFull = ctx.User.CohortAccessGrantedAtUtc is not null;
 
         // Decision priority
-        if (companyFull && individualFull)
-            return new AccessDecision(AccessMode.Full, AccessSource.Both, null, "Individual active + company ctx.Entitlement active");
+        if (companyFull && (individualFull || cohortFull))
+            return new AccessDecision(AccessMode.Full, AccessSource.Both, null, "User-owned access + company ctx.Entitlement active");
 
         if (companyFull)
             return new AccessDecision(AccessMode.Full, AccessSource.Company, null, "Company ctx.Entitlement active");
 
-        if (individualFull)
-            return new AccessDecision(AccessMode.Full, AccessSource.Individual, null, "Individual subscription active");
+        if (individualFull || cohortFull)
+            return new AccessDecision(AccessMode.Full, AccessSource.Individual, null, "User-owned access active");
 
         // Grace (either source)
         if (individualGrace && companyGrace)

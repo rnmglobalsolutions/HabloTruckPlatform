@@ -74,6 +74,7 @@ public sealed class User
     public string? PlanType { get; set; } // individual_monthly, individual_yearly, company_seat
     public string? CohortId { get; set; } // CDL_A_2026_01
     public string? SchoolId { get; set; } // roadmaster_houston
+    public DateTimeOffset? CohortAccessGrantedAtUtc { get; set; }
 
     // Convenience helpers (optional)
     public bool HasActiveSeat()
@@ -84,4 +85,7 @@ public sealed class User
 
     public bool IsIndividualGraceActive(DateTimeOffset nowUtc)
         => IndividualGraceEndsAtUtc is not null && IndividualGraceEndsAtUtc > nowUtc;
+
+    public bool HasDirectCohortAccess()
+        => CohortAccessGrantedAtUtc is not null;
 }

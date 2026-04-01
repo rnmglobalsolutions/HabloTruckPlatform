@@ -856,6 +856,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
         var seats = new NoopSeatAssignmentStore();
         var entitlements = new NoopEntitlementStore();
         var companies = new NoopCompanyStore();
+        var invites = new NoopInviteCodeStore();
         var expiryIndex = new NoopEntitlementExpiryIndexStore();
         var reminders = new InMemoryReminderStore();
         var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
@@ -880,6 +881,11 @@ public sealed class SubscriptionLifecycleEndToEndTests
             IndividualYearlyPriceId = "price_ind_yearly",
             FleetSeatMonthlyPriceId = "price_fleet_monthly"
         };
+        var companyAdminInviteService = new CompanyAdminInviteService(
+            companies,
+            entitlements,
+            invites,
+            NullLogger<CompanyAdminInviteService>.Instance);
 
         var handler = new StripeSubscriptionHandler(
             resolver,
@@ -892,6 +898,7 @@ public sealed class SubscriptionLifecycleEndToEndTests
             priceCatalog,
             companies,
             entitlements,
+            companyAdminInviteService,
             expiryIndex,
             failedActions,
             new NoopStripeAdminClient(),
@@ -949,6 +956,17 @@ public sealed class SubscriptionLifecycleEndToEndTests
 
         public Task<StripeOpenInvoiceRetryAttempt> RetryOpenInvoiceAsync(string customerId, string subscriptionId, CancellationToken ct = default)
             => Task.FromResult(new StripeOpenInvoiceRetryAttempt(customerId, subscriptionId, null, null, null, false, false, false));
+    }
+
+    private sealed class NoopInviteCodeStore : IInviteCodeStore
+    {
+        public Task EnsureTableAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<InviteCode?> GetAsync(string code, CancellationToken ct = default) => Task.FromResult<InviteCode?>(null);
+        public Task CreateAsync(InviteCode invite, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> TryConsumeAsync(string code, DateTimeOffset nowUtc, CancellationToken ct = default) => Task.FromResult(false);
+        public Task UpsertAsync(InviteCode invite, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<InviteCode>> ListForCompanyAsync(string companyId, int take = 100, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<InviteCode>>(Array.Empty<InviteCode>());
     }
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
@@ -1215,8 +1233,6 @@ public sealed class SubscriptionLifecycleEndToEndTests
             => Task.CompletedTask;
     }
 }
-
-
 
 
 

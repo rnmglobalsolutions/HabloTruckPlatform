@@ -74,7 +74,10 @@ var host = new HostBuilder()
         services.AddSingleton(new CompanyGracePolicy(companyGraceDays));
 
         // ---- Table Storage (Azure Tables)
-        var tableConn = cfg["TableStorageConnection"] ?? cfg["AzureWebJobsStorage"] ?? "UseDevelopmentStorage=true";
+        var tableConn = cfg["TableStorageConnection"]
+            ?? cfg["TableConnectionString"]
+            ?? cfg["AzureWebJobsStorage"]
+            ?? "UseDevelopmentStorage=true";
         services.AddSingleton(_ => new TableServiceClient(tableConn));
 
         services.AddSingleton<ITableClientFactory, TableClientFactory>();
@@ -107,6 +110,8 @@ var host = new HostBuilder()
         services.AddSingleton<EntitlementExpirySweeperService>();
         services.AddSingleton<StripeReconciliationService>();
         services.AddSingleton<StripeCheckoutHandler>();
+        services.AddSingleton<StartFleetCheckoutUseCase>();
+        services.AddSingleton<CompanyAdminInviteService>();
         services.AddSingleton<BillingRecoveryManyChatNotifier>();
         services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
         services.AddSingleton<CreateStripePaymentMethodUpdateLinkUseCase>();

@@ -1,0 +1,110 @@
+name: Build and deploy dotnet core project to Azure Function App - HabloTruckPlatform-production
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions.csproj'
+  OUTPUT_PATH: './published'
+  BICEP_TEMPLATE_PATH: './infra/bootstrap.bicep'
+  BICEP_PARAMETERS_PATH: './infra/environments/prod.bicepparam'
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION_PROD }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP_PROD }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout GitHub Action
+        uses: actions/checkout@v4
+
+      - name: Setup DotNet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.FUNCTIONS_PROJECT_PATH }}
+
+      - name: Publish
+        run: dotnet publish ${{ env.FUNCTIONS_PROJECT_PATH }} --configuration Release --output ${{ env.OUTPUT_PATH }}
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure with Bicep
+        id: deploy_infra
+        env:
+          HTTP_API_KEY_PROD: ${{ secrets.HTTP_API_KEY_PROD }}
+          MANYCHAT_API_KEY_PROD: ${{ secrets.MANYCHAT_API_KEY_PROD }}
+          STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+          STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+          STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD: ${{ vars.STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD }}
+          STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD: ${{ vars.STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD }}
+          STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD: ${{ vars.STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD }}
+          STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID_PROD: ${{ vars.STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID_PROD }}
+          STRIPE_CDL_COHORT_25_PRICE_ID_PROD: ${{ vars.STRIPE_CDL_COHORT_25_PRICE_ID_PROD }}
+          STRIPE_CDL_COHORT_50_PRICE_ID_PROD: ${{ vars.STRIPE_CDL_COHORT_50_PRICE_ID_PROD }}
+          STRIPE_CDL_COHORT_100_PRICE_ID_PROD: ${{ vars.STRIPE_CDL_COHORT_100_PRICE_ID_PROD }}
+          STRIPE_CDL_ENGLISH_COHORT_PRICE_ID_PROD: ${{ vars.STRIPE_CDL_ENGLISH_COHORT_PRICE_ID_PROD }}
+          STRIPE_TESTING_PRICE_ID_PROD: ${{ vars.STRIPE_TESTING_PRICE_ID_PROD }}
+          MANYCHAT_PAYMENT_FAILED_FLOW_NS_PROD: ${{ vars.MANYCHAT_PAYMENT_FAILED_FLOW_NS_PROD }}
+          MANYCHAT_PAYMENT_RECOVERY_REMINDER_FLOW_NS_PROD: ${{ vars.MANYCHAT_PAYMENT_RECOVERY_REMINDER_FLOW_NS_PROD }}
+          MANYCHAT_RENEWAL_REMINDER_FLOW_NS_PROD: ${{ vars.MANYCHAT_RENEWAL_REMINDER_FLOW_NS_PROD }}
+          MANYCHAT_SAVE_BEFORE_CHURN_FLOW_NS_PROD: ${{ vars.MANYCHAT_SAVE_BEFORE_CHURN_FLOW_NS_PROD }}
+        run: |
+          set -euo pipefail
+
+          LOCATION_NAME="${AZURE_LOCATION:-Central US}"
+
+          FUNCTION_APP_NAME="$(
+            az deployment sub create \
+              --location "$LOCATION_NAME" \
+              --template-file "${BICEP_TEMPLATE_PATH}" \
+              --parameters "${BICEP_PARAMETERS_PATH}" \
+              --parameters \
+                location="$LOCATION_NAME" \
+                resourceGroupName="${AZURE_RESOURCE_GROUP:-hablotruck-prod-rg}" \
+                httpApiKey="$HTTP_API_KEY_PROD" \
+                manyChatApiKey="$MANYCHAT_API_KEY_PROD" \
+                stripeSecretKey="$STRIPE_SECRET_KEY_PROD" \
+                stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_PROD" \
+                stripeIndividualMonthlyPriceId="$STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD" \
+                stripeIndividualYearlyPriceId="$STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD" \
+                stripeFleetSeatMonthlyPriceId="$STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD" \
+                stripeCustomerPortalConfigurationId="$STRIPE_CUSTOMER_PORTAL_CONFIGURATION_ID_PROD" \
+                stripeCdlCohort25PriceId="$STRIPE_CDL_COHORT_25_PRICE_ID_PROD" \
+                stripeCdlCohort50PriceId="$STRIPE_CDL_COHORT_50_PRICE_ID_PROD" \
+                stripeCdlCohort100PriceId="$STRIPE_CDL_COHORT_100_PRICE_ID_PROD" \
+                stripeCdlEnglishCohortPriceId="$STRIPE_CDL_ENGLISH_COHORT_PRICE_ID_PROD" \
+                stripeTestingPriceId="$STRIPE_TESTING_PRICE_ID_PROD" \
+                manyChatPaymentFailedFlowNs="$MANYCHAT_PAYMENT_FAILED_FLOW_NS_PROD" \
+                manyChatPaymentRecoveryReminderFlowNs="$MANYCHAT_PAYMENT_RECOVERY_REMINDER_FLOW_NS_PROD" \
+                manyChatRenewalReminderFlowNs="$MANYCHAT_RENEWAL_REMINDER_FLOW_NS_PROD" \
+                manyChatSaveBeforeChurnFlowNs="$MANYCHAT_SAVE_BEFORE_CHURN_FLOW_NS_PROD" \
+              --query "properties.outputs.functionAppName.value" \
+              --output tsv
+          )"
+
+          echo "function_app_name=$FUNCTION_APP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.deploy_infra.outputs.function_app_name }}
+          package: '${{ env.OUTPUT_PATH }}'
+          sku: 'flexconsumption'

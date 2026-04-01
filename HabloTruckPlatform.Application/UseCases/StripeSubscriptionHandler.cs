@@ -28,6 +28,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly StripeOptions _priceCatalog;
     private readonly ICompanyStore _companyStore;
     private readonly IEntitlementStore _entitlementStore;
+    private readonly CompanyAdminInviteService _companyAdminInviteService;
     private readonly IEntitlementExpiryIndexStore _expiryIndex;
     private readonly IFailedActionStore _failedActionStore;
     private readonly IStripeAdminClient _stripeAdminClient;
@@ -46,6 +47,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         StripeOptions priceCatalog,
         ICompanyStore companyStore,
         IEntitlementStore entitlementStore,
+        CompanyAdminInviteService companyAdminInviteService,
         IEntitlementExpiryIndexStore expiryIndex,
         IFailedActionStore failedActionStore,
         IStripeAdminClient stripeAdminClient,
@@ -62,6 +64,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _priceCatalog = priceCatalog;
         _companyStore = companyStore;
         _entitlementStore = entitlementStore;
+        _companyAdminInviteService = companyAdminInviteService;
         _expiryIndex = expiryIndex;
         _failedActionStore = failedActionStore;
         _stripeAdminClient = stripeAdminClient;
@@ -194,11 +197,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         });
 
         _logger.LogInformation(
-            "Operation started. LogCategory={LogCategory} OperationName={OperationName} PlanType={PlanType} Quantity={Quantity}",
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} PlanType={PlanType} Quantity={Quantity} CheckoutMode={CheckoutMode}",
             "entry",
             "stripe_checkout_completed",
             data.Metadata is not null && data.Metadata.TryGetValue("planType", out var planTypeRaw) ? planTypeRaw : null,
-            data.Quantity);
+            data.Quantity,
+            data.CheckoutMode);
 
         var nowUtc = _clock.UtcNow;
 
@@ -218,35 +222,49 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         var user = await _userStore.GetOrCreateAsync(emailNormalized, manyChatSubscriberId, phoneE164, ct);
 
         user.StripeCustomerId = data.CustomerId!.Trim();
-        if (!string.IsNullOrWhiteSpace(data.SubscriptionId))
-            user.StripeSubscriptionId = data.SubscriptionId!.Trim();
 
         user.CohortId = string.IsNullOrWhiteSpace(cohortId) ? user.CohortId : cohortId;
         user.SchoolId = string.IsNullOrWhiteSpace(schoolId) ? user.SchoolId : schoolId;
 
         var priceId = NullIfBlank(data.PriceId);
         var interval = NullIfBlank(data.Interval);
+        var planFromPrice = DerivePlanTypeFromPriceId(priceId);
+        var planFromMeta = DerivePlanTypeFromMeta(planTypeMeta);
+        var checkoutPlan = NormalizeCheckoutPlan(planFromPrice ?? planFromMeta ?? user.PlanType ?? "individual_monthly");
+        var isOneTimeCheckout =
+            string.Equals(data.CheckoutMode, "payment", StringComparison.OrdinalIgnoreCase)
+            || checkoutPlan is "cdl_cohort" or "cdl_english_cohort";
 
-        if (priceId is not null)
+        if (!isOneTimeCheckout)
         {
-            user.StripePriceId = priceId;
-            user.IndividualPlanTerm = DeriveTermFromPriceId(priceId) ?? DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
-            user.PlanType = DerivePlanTypeFromPriceId(priceId) ?? user.PlanType;
-        }
-        else
-        {
-            user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
-        }
+            if (!string.IsNullOrWhiteSpace(data.SubscriptionId))
+                user.StripeSubscriptionId = data.SubscriptionId!.Trim();
 
-        if (string.IsNullOrWhiteSpace(user.PlanType))
-            user.PlanType = DerivePlanTypeFromMeta(planTypeMeta) ?? "individual_monthly";
+            if (priceId is not null)
+            {
+                user.StripePriceId = priceId;
+                user.IndividualPlanTerm = DeriveTermFromPriceId(priceId) ?? DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
+                user.PlanType = planFromPrice ?? user.PlanType;
+            }
+            else
+            {
+                user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
+            }
+
+            if (string.IsNullOrWhiteSpace(user.PlanType))
+                user.PlanType = planFromMeta ?? "individual_monthly";
+        }
+        else if (string.IsNullOrWhiteSpace(user.PlanType))
+        {
+            user.PlanType = planFromPrice ?? planFromMeta ?? user.PlanType;
+        }
 
         user.UpdatedAtUtc = nowUtc;
 
         await _userStore.UpsertAsync(user, ct);
         await _userStore.UpsertLookupsAsync(user, ct);
 
-        switch (NormalizeCheckoutPlan(user.PlanType))
+        switch (checkoutPlan)
         {
             case "individual":
                 {
@@ -311,6 +329,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     };
 
                     await _entitlementStore.UpsertAsync(entitlement, ct);
+                    await _companyAdminInviteService.EnsureActiveInviteAsync(
+                        companyId!,
+                        entitlement.EntitlementId,
+                        seats,
+                        entitlement.SeatsUsed,
+                        "system:fleet_checkout_auto",
+                        nowUtc,
+                        ct);
 
                     _logger.LogInformation(
                         "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} CompanyId={CompanyId} EntitlementId={EntitlementId} Seats={Seats}",
@@ -369,6 +395,26 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                         entitlementId,
                         seats,
                         ent.EndUtc);
+
+                    break;
+                }
+
+            case "cdl_english_cohort":
+                {
+                    user.CohortAccessGrantedAtUtc ??= nowUtc;
+                    user.UpdatedAtUtc = nowUtc;
+
+                    await _userStore.UpsertAsync(user, ct);
+                    await _userStore.UpsertLookupsAsync(user, ct);
+                    await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: true, ct);
+
+                    _logger.LogInformation(
+                        "Operation step completed. LogCategory={LogCategory} Step={Step} Outcome={Outcome} UserId={UserId} CohortId={CohortId}",
+                        "step",
+                        "checkout_cdl_english_cohort",
+                        "applied",
+                        user.UserId,
+                        user.CohortId);
 
                     break;
                 }
@@ -1279,6 +1325,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             "individual" or "individual_monthly" or "individual_yearly" => "individual",
             "fleet" or "fleet_seat" or "company_seat" => "fleet",
             "cdl_cohort" => "cdl_cohort",
+            "cdl_english_cohort" => "cdl_english_cohort",
             _ => p
         };
     }
@@ -1320,6 +1367,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             || priceId == _priceCatalog.CdlCohort50PriceId
             || priceId == _priceCatalog.CdlCohort100PriceId)
             return "cdl_cohort";
+        if (priceId == _priceCatalog.CdlEnglishCohortPriceId)
+            return "cdl_english_cohort";
 
         return null;
     }
@@ -1339,6 +1388,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             "fleet_seat" => "company_seat",
             "company_seat" => "company_seat",
             "cdl_cohort" => "cdl_cohort",
+            "cdl_english_cohort" => "cdl_english_cohort",
             _ => null
         };
     }

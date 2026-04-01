@@ -16,6 +16,7 @@ public sealed class StripeOptions
     public string? CdlCohort25PriceId { get; set; }
     public string? CdlCohort50PriceId { get; set; }
     public string? CdlCohort100PriceId { get; set; }
+    public string? CdlEnglishCohortPriceId { get; set; }
 
     // Testing
     public string? TestingPriceId { get; set; }

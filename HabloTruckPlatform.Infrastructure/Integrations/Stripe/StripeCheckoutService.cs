@@ -49,10 +49,12 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
     internal static SessionCreateOptions BuildSessionCreateOptions(StripeCheckoutSessionRequest request)
     {
         var metadata = BuildMetadata(request);
+        var isOneTimeCheckout = IsOneTimeCheckoutPlan(request.PlanType);
 
         return new SessionCreateOptions
         {
-            Mode = "subscription",
+            Mode = isOneTimeCheckout ? "payment" : "subscription",
+            CustomerCreation = isOneTimeCheckout ? "always" : null,
             ClientReferenceId = request.ManyChatSubscriberId,
             SuccessUrl = request.SuccessUrl,
             CancelUrl = request.CancelUrl,
@@ -75,10 +77,12 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
                 }
             },
             Metadata = metadata,
-            SubscriptionData = new SessionSubscriptionDataOptions
-            {
-                Metadata = metadata
-            }
+            SubscriptionData = isOneTimeCheckout
+                ? null
+                : new SessionSubscriptionDataOptions
+                {
+                    Metadata = metadata
+                }
         };
     }
 
@@ -109,5 +113,16 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
     {
         if (!string.IsNullOrWhiteSpace(value))
             metadata[key] = value.Trim();
+    }
+
+    private static bool IsOneTimeCheckoutPlan(string? planType)
+    {
+        var normalized = (planType ?? string.Empty).Trim().ToLowerInvariant();
+
+        return normalized is
+            "cdl_cohort_25" or
+            "cdl_cohort_50" or
+            "cdl_cohort_100" or
+            "cdl_english_cohort";
     }
 }

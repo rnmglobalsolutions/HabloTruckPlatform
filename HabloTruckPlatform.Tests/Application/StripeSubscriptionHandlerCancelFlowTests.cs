@@ -461,6 +461,7 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
         var failedActions = new NoopFailedActionStore();
         var seatStore = new NoopSeatAssignmentStore();
         var companyStore = new InMemoryCompanyStore();
+        var inviteStore = new NoopInviteCodeStore();
         var expiryIndexStore = new InMemoryEntitlementExpiryIndexStore();
         var billingRecoveryNotifier = new BillingRecoveryManyChatNotifier(
             manyChat,
@@ -484,6 +485,11 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             IndividualYearlyPriceId = "price_ind_yearly",
             FleetSeatMonthlyPriceId = "price_fleet_monthly"
         };
+        var companyAdminInviteService = new CompanyAdminInviteService(
+            companyStore,
+            entitlementStore,
+            inviteStore,
+            NullLogger<CompanyAdminInviteService>.Instance);
 
         var handler = new StripeSubscriptionHandler(
             userResolver,
@@ -496,6 +502,7 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
             priceCatalog,
             companyStore,
             entitlementStore,
+            companyAdminInviteService,
             expiryIndexStore,
             failedActions,
             new NoopStripeAdminClient(),
@@ -616,6 +623,17 @@ public sealed class StripeSubscriptionHandlerCancelFlowTests
 
         public Task UpsertFromCheckoutAsync(string companyId, string? companyName, string? adminEmailNormalized, string? stripeCustomerId, CancellationToken ct = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class NoopInviteCodeStore : IInviteCodeStore
+    {
+        public Task EnsureTableAsync(CancellationToken ct = default) => Task.CompletedTask;
+        public Task<InviteCode?> GetAsync(string code, CancellationToken ct = default) => Task.FromResult<InviteCode?>(null);
+        public Task CreateAsync(InviteCode invite, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> TryConsumeAsync(string code, DateTimeOffset nowUtc, CancellationToken ct = default) => Task.FromResult(false);
+        public Task UpsertAsync(InviteCode invite, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<InviteCode>> ListForCompanyAsync(string companyId, int take = 100, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<InviteCode>>(Array.Empty<InviteCode>());
     }
 
     private sealed class InMemoryEntitlementStore : IEntitlementStore

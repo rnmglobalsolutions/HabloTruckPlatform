@@ -37,6 +37,7 @@ public sealed class StripeEventParser
                 CustomerId = session.CustomerId,
                 SubscriptionId = session.SubscriptionId,
                 CustomerEmail = session.CustomerDetails?.Email,
+                CheckoutMode = session.Mode,
                 Metadata = session.Metadata,
                 PriceId = priceId,
                 Interval = interval,
@@ -385,6 +386,7 @@ public sealed class StripeEventData
 
     // Checkout extras
     public string? CustomerEmail { get; set; }
+    public string? CheckoutMode { get; set; }
     public int? Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
     public bool? PaymentMethodUpdated { get; set; }

@@ -112,6 +112,7 @@ public sealed class StripeCheckoutHandler
             "fleet_seat" => "fleet",
             "company_seat" => "fleet",
             "cdl_cohort" => "cdl_cohort",
+            "cdl_english_cohort" => "cdl_english_cohort",
             _ => InferPlanTypeFromPriceId(_stripeOptions, p)
         };
     }
@@ -144,6 +145,9 @@ public sealed class StripeCheckoutHandler
             case "cdl_cohort_100":
                 priceId = _stripeOptions.CdlCohort100PriceId ?? string.Empty;
                 break;
+            case "cdl_english_cohort":
+                priceId = _stripeOptions.CdlEnglishCohortPriceId ?? string.Empty;
+                break;
             case "testing":
                 priceId = _stripeOptions.TestingPriceId ?? string.Empty;
                 break;
@@ -159,7 +163,8 @@ public sealed class StripeCheckoutHandler
             || priceId == _stripeOptions.FleetSeatMonthlyPriceId
             || priceId == _stripeOptions.CdlCohort25PriceId
             || priceId == _stripeOptions.CdlCohort50PriceId
-            || priceId == _stripeOptions.CdlCohort100PriceId;
+            || priceId == _stripeOptions.CdlCohort100PriceId
+            || priceId == _stripeOptions.CdlEnglishCohortPriceId;
     }
 
     private static string InferPlanTypeFromPriceId(StripeOptions options, string ignored)
