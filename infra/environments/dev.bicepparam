@@ -7,7 +7,7 @@ param resourceGroupName = 'hablotruck-dev-rg'
 
 param functionAppName = 'HabloTruckPlatform-development'
 param appServicePlanName = 'hablotruck-dev-plan'
-param keyVaultName = 'hablotruck-dev-kv'
+param keyVaultName = 'hablotruck-dev-kv-rnmgs'
 param userAssignedIdentityName = 'hablotruck-dev-kvref-mi'
 param logAnalyticsWorkspaceName = 'hablotruck-dev-law'
 param applicationInsightsName = 'hablotruck-dev-ai'
