@@ -1,0 +1,30 @@
+name: Validate pull requests for HabloTruckPlatform
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - prod
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SOLUTION_PATH: './HabloTruckPlatformAPI.sln'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GitHub Action
+        uses: actions/checkout@v4
+
+      - name: Setup DotNet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore solution
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Run all tests
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --no-restore --verbosity minimal

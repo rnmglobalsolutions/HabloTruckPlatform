@@ -10,6 +10,14 @@ env:
   DOTNET_VERSION: '10.0.x'
   FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions.csproj'
   OUTPUT_PATH: './published'
+  BICEP_TEMPLATE_PATH: './infra/bootstrap.bicep'
+  BICEP_PARAMETERS_PATH: './infra/environments/dev.bicepparam'
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION_DEV }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP_DEV }}
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build-and-deploy:
@@ -33,10 +41,46 @@ jobs:
       - name: List published files
         run: ls -R ${{ env.OUTPUT_PATH }}
 
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure with Bicep
+        id: deploy_infra
+        env:
+          HTTP_API_KEY_DEV: ${{ secrets.HTTP_API_KEY_DEV }}
+          MANYCHAT_API_KEY_DEV: ${{ secrets.MANYCHAT_API_KEY_DEV }}
+          STRIPE_SECRET_KEY_DEV: ${{ secrets.STRIPE_SECRET_KEY_DEV }}
+          STRIPE_WEBHOOK_SECRET_DEV: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEV }}
+        run: |
+          set -euo pipefail
+
+          LOCATION_NAME="${AZURE_LOCATION:-Central US}"
+
+          FUNCTION_APP_NAME="$(
+            az deployment sub create \
+              --location "$LOCATION_NAME" \
+              --template-file "${BICEP_TEMPLATE_PATH}" \
+              --parameters "${BICEP_PARAMETERS_PATH}" \
+              --parameters \
+                location="$LOCATION_NAME" \
+                resourceGroupName="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}" \
+                httpApiKey="$HTTP_API_KEY_DEV" \
+                manyChatApiKey="$MANYCHAT_API_KEY_DEV" \
+                stripeSecretKey="$STRIPE_SECRET_KEY_DEV" \
+                stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_DEV" \
+              --query "properties.outputs.functionAppName.value" \
+              --output tsv
+          )"
+
+          echo "function_app_name=$FUNCTION_APP_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
-          app-name: 'HabloTruckPlatform-development'
+          app-name: ${{ steps.deploy_infra.outputs.function_app_name }}
           package: '${{ env.OUTPUT_PATH }}'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3C73A59C14BF4AA887A420E35D2B0889 }}
           sku: 'flexconsumption'
