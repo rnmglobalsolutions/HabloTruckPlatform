@@ -78,6 +78,26 @@ jobs:
 
           echo "function_app_name=$FUNCTION_APP_NAME" >> "$GITHUB_OUTPUT"
 
+      - name: Dump Azure deployment operations on failure
+        if: failure()
+        run: |
+          LOCATION_NAME="${AZURE_LOCATION:-Central US}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+
+          echo "=== Subscription deployment operations ==="
+          az deployment operation sub list \
+            --location "$LOCATION_NAME" \
+            --name bootstrap \
+            --query "[].properties.{target:targetResource.resourceName,provisioningState:provisioningState,statusMessage:statusMessage}" \
+            --output jsonc || true
+
+          echo "=== Resource group deployment operations ==="
+          az deployment operation group list \
+            --resource-group "$RG_NAME" \
+            --name hablotruck-dev-environment \
+            --query "[].properties.{target:targetResource.resourceName,provisioningState:provisioningState,statusMessage:statusMessage}" \
+            --output jsonc || true
+
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
