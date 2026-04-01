@@ -441,14 +441,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'Stripe__WebhookSecret'
           value: '@Microsoft.KeyVault(SecretUri=${stripeWebhookSecretSecret.properties.secretUriWithVersion})'
         }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~4'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet-isolated'
-        }
       ]
       ftpsState: 'Disabled'
       http20Enabled: true
