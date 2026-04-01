@@ -30,7 +30,7 @@ public class HealthFunction
             return unauthorized;
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.WriteString("OK");
+        await response.WriteStringAsync("OK", ctx.CancellationToken);
         return response;
     }
 }
