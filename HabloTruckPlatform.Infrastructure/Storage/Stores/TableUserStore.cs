@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Infrastructure.Storage.Entities;
@@ -288,27 +289,50 @@ public sealed class TableUserStore : IUserStore
     public async Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(
         int take = 500, CancellationToken ct = default)
     {
-        var results = new List<User>(take);
+        var page = await QueryUsersWithStripePageAsync(take, 0, ct);
+        return page.Users;
+    }
 
-        for (var bucket = 0; bucket < 256 && results.Count < take; bucket++)
+    public async Task<StripeUserScanPage> QueryUsersWithStripePageAsync(
+        int take = 500,
+        int startBucket = 0,
+        CancellationToken ct = default)
+    {
+        if (take <= 0)
+            return new StripeUserScanPage(Array.Empty<User>(), 0, 0, 0, false);
+
+        var bucketCount = Buckets.UserBucketCount;
+        var normalizedStartBucket = ((startBucket % bucketCount) + bucketCount) % bucketCount;
+        var results = new List<User>(take);
+        var currentBucket = normalizedStartBucket;
+        var bucketsScanned = 0;
+
+        while (bucketsScanned < bucketCount)
         {
-            var pk = $"{TablePrefixes.User}_{bucket:D3}";
+            var pk = $"{TablePrefixes.User}_{currentBucket:D3}";
 
             await foreach (var entity in UsersTable.QueryAsync<UserEntity>(
-                e => e.PartitionKey == pk,
-                cancellationToken: ct))
+                               e => e.PartitionKey == pk,
+                               cancellationToken: ct))
             {
-                if (!string.IsNullOrWhiteSpace(entity.StripeCustomerId)
-                    || !string.IsNullOrWhiteSpace(entity.StripeSubscriptionId))
+                if (string.IsNullOrWhiteSpace(entity.StripeCustomerId)
+                    && string.IsNullOrWhiteSpace(entity.StripeSubscriptionId))
                 {
-                    results.Add(UserMapper.FromEntity(entity));
-
-                    if (results.Count >= take)
-                        break;
+                    continue;
                 }
+
+                if (results.Count < take)
+                    results.Add(UserMapper.FromEntity(entity));
             }
+
+            currentBucket = (currentBucket + 1) % bucketCount;
+            bucketsScanned++;
+
+            if (results.Count >= take)
+                break;
         }
 
-        return results;
+        var wrapped = normalizedStartBucket + bucketsScanned >= bucketCount;
+        return new StripeUserScanPage(results, normalizedStartBucket, currentBucket, bucketsScanned, wrapped);
     }
 }

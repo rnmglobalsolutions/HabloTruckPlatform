@@ -1,4 +1,4 @@
-﻿
+﻿using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Models;
 
 namespace HabloTruckPlatform.Application.Abstractions;
@@ -26,4 +26,8 @@ public interface IUserStore
     Task UpsertLookupsAsync(User user, CancellationToken ct = default);
     Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(
         int take = 500, CancellationToken ct = default);
+    Task<StripeUserScanPage> QueryUsersWithStripePageAsync(
+        int take = 500,
+        int startBucket = 0,
+        CancellationToken ct = default);
 }

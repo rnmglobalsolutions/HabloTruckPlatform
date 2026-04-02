@@ -1,9 +1,10 @@
-﻿using Microsoft.ApplicationInsights;
+﻿using HabloTruckPlatform.Application.Abstractions;
+using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 
 namespace HabloTruckPlatform.Infrastructure.Telemetry;
 
-public sealed class Metrics
+public sealed class Metrics : IAppMetrics
 {
     private readonly TelemetryClient _telemetry;
 
@@ -33,5 +34,29 @@ public sealed class Metrics
     {
         _telemetry.GetMetric("failed.actions.retried", "actionType")
                   .TrackValue(1, actionType);
+    }
+
+    public void CompanyJoin(string outcome, string reason)
+    {
+        _telemetry.GetMetric("company.join", "outcome", "reason")
+                  .TrackValue(1, outcome, reason);
+    }
+
+    public void CompanyJoinSeatRefresh(bool refreshed, string reason)
+    {
+        _telemetry.GetMetric("company.join.seat_refresh", "refreshed", "reason")
+                  .TrackValue(1, refreshed ? "true" : "false", reason);
+    }
+
+    public void ManyChatDispatchQueued(string actionType)
+    {
+        _telemetry.GetMetric("manychat.dispatch.queued", "actionType")
+                  .TrackValue(1, actionType);
+    }
+
+    public void ManyChatDispatchProcessed(string actionType, string outcome)
+    {
+        _telemetry.GetMetric("manychat.dispatch.processed", "actionType", "outcome")
+                  .TrackValue(1, actionType, outcome);
     }
 }

@@ -368,11 +368,116 @@ public sealed class CompanyJoinHandlerTests
         Assert.Null(seat);
     }
 
-    private static Fixture BuildFixture(ISeatAssignmentStore? seatStore = null)
+    [Fact]
+    public async Task HandleJoinAsync_Should_SkipSeatRecount_WhenCapacityHasHeadroom()
+    {
+        var seatStore = new NoCountAllowedSeatStore();
+        var fixture = BuildFixture(seatStore);
+
+        var joiningUser = new User
+        {
+            UserId = "U_join_headroom"
+        };
+        fixture.UserStore.Add(joiningUser);
+
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_HEADROOM",
+            EntitlementId = "E_HEADROOM",
+            SeatsTotal = 10,
+            SeatsUsed = 2,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = fixture.Clock.UtcNow.AddDays(-2),
+            UpdatedAtUtc = fixture.Clock.UtcNow.AddDays(-1)
+        });
+
+        await fixture.Handler.HandleJoinAsync(new JoinCompanyRequest(
+            UserPk: Buckets.UserBucketPk(joiningUser.UserId),
+            UserId: joiningUser.UserId,
+            CompanyId: "C_HEADROOM",
+            EntitlementId: "E_HEADROOM",
+            InviteCode: "HT-HEADROOM"));
+
+        var entitlement = await fixture.EntitlementStore.GetAsync("C_HEADROOM", "E_HEADROOM");
+        Assert.NotNull(entitlement);
+        Assert.Equal(3, entitlement!.SeatsUsed);
+    }
+
+    [Fact]
+    public async Task HandleJoinAsync_Should_Recount_WhenNearCapacity()
+    {
+        var seatStore = new NearCapacitySeatStore();
+        var fixture = BuildFixture(seatStore);
+
+        var joiningUser = new User
+        {
+            UserId = "U_join_near_capacity"
+        };
+        fixture.UserStore.Add(joiningUser);
+
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_NEAR",
+            EntitlementId = "E_NEAR",
+            SeatsTotal = 2,
+            SeatsUsed = 1,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = fixture.Clock.UtcNow.AddDays(-2),
+            UpdatedAtUtc = fixture.Clock.UtcNow.AddDays(-1)
+        });
+
+        var ex = await Assert.ThrowsAsync<CompanyJoinException>(() => fixture.Handler.HandleJoinAsync(new JoinCompanyRequest(
+            UserPk: Buckets.UserBucketPk(joiningUser.UserId),
+            UserId: joiningUser.UserId,
+            CompanyId: "C_NEAR",
+            EntitlementId: "E_NEAR",
+            InviteCode: "HT-NEARCAP")));
+
+        Assert.Equal("no_seats_available", ex.Code);
+        Assert.Equal(1, seatStore.CountCalls);
+    }
+
+    [Fact]
+    public async Task HandleJoinAsync_Should_Fail_When_SeatReservationHitsConcurrencyConflict()
+    {
+        var entitlementStore = new ConflictEntitlementStore();
+        var fixture = BuildFixture(entitlementStore: entitlementStore);
+
+        var joiningUser = new User
+        {
+            UserId = "U_join_reservation_conflict"
+        };
+        fixture.UserStore.Add(joiningUser);
+
+        await entitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_RES_CONFLICT",
+            EntitlementId = "E_RES_CONFLICT",
+            SeatsTotal = 2,
+            SeatsUsed = 1,
+            IsOverCapacity = false,
+            Status = "active",
+            StartUtc = fixture.Clock.UtcNow.AddDays(-2),
+            UpdatedAtUtc = fixture.Clock.UtcNow.AddDays(-1)
+        });
+
+        var ex = await Assert.ThrowsAsync<CompanyJoinException>(() => fixture.Handler.HandleJoinAsync(new JoinCompanyRequest(
+            UserPk: Buckets.UserBucketPk(joiningUser.UserId),
+            UserId: joiningUser.UserId,
+            CompanyId: "C_RES_CONFLICT",
+            EntitlementId: "E_RES_CONFLICT",
+            InviteCode: "HT-RESCONFLICT")));
+
+        Assert.Equal("seat_reservation_conflict", ex.Code);
+    }
+
+    private static Fixture BuildFixture(ISeatAssignmentStore? seatStore = null, InMemoryEntitlementStore? entitlementStore = null)
     {
         var clock = new FixedClock(new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
         var userStore = new InMemoryUserStore();
-        var entitlementStore = new InMemoryEntitlementStore();
+        entitlementStore ??= new InMemoryEntitlementStore();
         seatStore ??= new InMemorySeatStore();
         var failedActionStore = new NoopFailedActionStore();
         var manyChatSync = new NoopManyChatSync();
@@ -435,10 +540,42 @@ public sealed class CompanyJoinHandlerTests
 
         public Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(int take = 500, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<User>>(Array.Empty<User>());
+
+        public async Task<HabloTruckPlatform.Application.Models.StripeUserScanPage> QueryUsersWithStripePageAsync(int take = 500, int startBucket = 0, CancellationToken ct = default)
+        {
+            var users = await QueryUsersWithStripeAsync(take, ct);
+            return new HabloTruckPlatform.Application.Models.StripeUserScanPage(users, startBucket, startBucket, 0, false);
+        }
     }
 
-    private sealed class InMemoryEntitlementStore : IEntitlementStore
+    private class InMemoryEntitlementStore : IEntitlementStore
     {
+        public virtual Task<SeatReservationResult> TryReserveSeatAsync(string companyId, string entitlementId, CancellationToken ct = default)
+        {
+            if (!_rows.TryGetValue((companyId, entitlementId), out var entitlement))
+                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.NotFound, null, "entitlement_not_found"));
+
+            if (!string.Equals(entitlement.Status, "active", StringComparison.OrdinalIgnoreCase)
+                || (entitlement.EndUtc is not null && entitlement.EndUtc <= DateTimeOffset.UtcNow))
+            {
+                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.Inactive, entitlement, "entitlement_not_active"));
+            }
+
+            entitlement.SeatsUsed = Math.Max(entitlement.SeatsUsed, 0);
+            entitlement.IsOverCapacity = entitlement.SeatsUsed > entitlement.SeatsTotal;
+
+            if (entitlement.IsOverCapacity)
+                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.OverCapacity, entitlement, "company_over_capacity"));
+
+            if (entitlement.SeatsUsed >= entitlement.SeatsTotal)
+                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.NoCapacity, entitlement, "no_seats_available"));
+
+            entitlement.SeatsUsed++;
+            entitlement.IsOverCapacity = entitlement.SeatsUsed > entitlement.SeatsTotal;
+            _rows[(companyId, entitlementId)] = entitlement;
+            return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.Reserved, entitlement));
+        }
+
         private readonly Dictionary<(string CompanyId, string EntitlementId), Entitlement> _rows = new();
 
         public Task<Entitlement?> GetAsync(string companyId, string entitlementId, CancellationToken ct = default)
@@ -465,32 +602,6 @@ public sealed class CompanyJoinHandlerTests
             }
 
             return Task.CompletedTask;
-        }
-
-        public Task<SeatReservationResult> TryReserveSeatAsync(string companyId, string entitlementId, CancellationToken ct = default)
-        {
-            if (!_rows.TryGetValue((companyId, entitlementId), out var entitlement))
-                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.NotFound, null, "entitlement_not_found"));
-
-            if (!string.Equals(entitlement.Status, "active", StringComparison.OrdinalIgnoreCase)
-                || (entitlement.EndUtc is not null && entitlement.EndUtc <= DateTimeOffset.UtcNow))
-            {
-                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.Inactive, entitlement, "entitlement_not_active"));
-            }
-
-            entitlement.SeatsUsed = Math.Max(entitlement.SeatsUsed, 0);
-            entitlement.IsOverCapacity = entitlement.SeatsUsed > entitlement.SeatsTotal;
-
-            if (entitlement.IsOverCapacity)
-                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.OverCapacity, entitlement, "company_over_capacity"));
-
-            if (entitlement.SeatsUsed >= entitlement.SeatsTotal)
-                return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.NoCapacity, entitlement, "no_seats_available"));
-
-            entitlement.SeatsUsed++;
-            entitlement.IsOverCapacity = entitlement.SeatsUsed > entitlement.SeatsTotal;
-            _rows[(companyId, entitlementId)] = entitlement;
-            return Task.FromResult(new SeatReservationResult(SeatReservationOutcome.Reserved, entitlement));
         }
 
         public Task<Entitlement?> SyncSeatsUsedAsync(string companyId, string entitlementId, int seatsUsedFloor, CancellationToken ct = default)
@@ -586,6 +697,65 @@ public sealed class CompanyJoinHandlerTests
 
         public Task<int> CountActiveSeatsAsync(string companyId, string entitlementId, CancellationToken ct = default)
             => Task.FromResult(0);
+    }
+
+    private sealed class NoCountAllowedSeatStore : ISeatAssignmentStore
+    {
+        private readonly Dictionary<(string CompanyId, string UserId), SeatAssignment> _rows = new();
+
+        public Task<SeatAssignment?> GetAsync(string companyId, string userId, CancellationToken ct = default)
+            => Task.FromResult(_rows.TryGetValue((companyId, userId), out var seat) ? seat : null);
+
+        public Task UpsertAsync(SeatAssignment seat, CancellationToken ct = default)
+        {
+            _rows[(seat.CompanyId, seat.UserId)] = seat;
+            return Task.CompletedTask;
+        }
+
+        public Task<SeatActivationResult> EnsureActiveAsync(SeatAssignment seat, CancellationToken ct = default)
+        {
+            seat.Status = "active";
+            _rows[(seat.CompanyId, seat.UserId)] = seat;
+            return Task.FromResult(new SeatActivationResult(SeatActivationOutcome.Activated));
+        }
+
+        public Task RevokeAsync(string companyId, string userId, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<int> CountActiveSeatsAsync(string companyId, string entitlementId, CancellationToken ct = default)
+            => throw new InvalidOperationException("CountActiveSeatsAsync should not be called when capacity has headroom.");
+    }
+
+    private sealed class NearCapacitySeatStore : ISeatAssignmentStore
+    {
+        public int CountCalls { get; private set; }
+
+        public Task<SeatAssignment?> GetAsync(string companyId, string userId, CancellationToken ct = default)
+            => Task.FromResult<SeatAssignment?>(null);
+
+        public Task UpsertAsync(SeatAssignment seat, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<SeatActivationResult> EnsureActiveAsync(SeatAssignment seat, CancellationToken ct = default)
+            => Task.FromResult(new SeatActivationResult(SeatActivationOutcome.Activated));
+
+        public Task RevokeAsync(string companyId, string userId, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<int> CountActiveSeatsAsync(string companyId, string entitlementId, CancellationToken ct = default)
+        {
+            CountCalls++;
+            return Task.FromResult(2);
+        }
+    }
+
+    private sealed class ConflictEntitlementStore : InMemoryEntitlementStore
+    {
+        public override async Task<SeatReservationResult> TryReserveSeatAsync(string companyId, string entitlementId, CancellationToken ct = default)
+        {
+            var entitlement = await GetAsync(companyId, entitlementId, ct);
+            return new SeatReservationResult(SeatReservationOutcome.Conflict, entitlement, "seat_reservation_conflict");
+        }
     }
 
     private sealed class NoopFailedActionStore : IFailedActionStore

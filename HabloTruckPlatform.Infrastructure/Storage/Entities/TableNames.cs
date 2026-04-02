@@ -17,4 +17,5 @@ public static class TableNames
     public const string FailedActions = "HTFailedActions";
     public const string StripeEventAudit = "HTStripeEventAudit";
     public const string SubscriptionReminders = "HTSubscriptionReminders";
+    public const string JobCheckpoints = "HTJobCheckpoints";
 }

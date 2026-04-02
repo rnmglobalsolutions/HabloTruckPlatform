@@ -17,8 +17,11 @@ public sealed class SubscriptionReminderService
     private readonly ICompanyStore _companies;
     private readonly ISubscriptionReminderStore _reminders;
     private readonly IManyChatSync _manyChat;
+    private readonly IManyChatDispatchQueue? _manyChatDispatchQueue;
     private readonly IFailedActionStore _failedActionStore;
+    private readonly IJobCheckpointStore _jobCheckpoints;
     private readonly IClock _clock;
+    private readonly IAppMetrics? _metrics;
     private readonly ILogger<SubscriptionReminderService> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -29,14 +32,20 @@ public sealed class SubscriptionReminderService
         IManyChatSync manyChat,
         IFailedActionStore failedActionStore,
         IClock clock,
-        ILogger<SubscriptionReminderService> logger)
+        ILogger<SubscriptionReminderService> logger,
+        IJobCheckpointStore? jobCheckpoints = null,
+        IManyChatDispatchQueue? manyChatDispatchQueue = null,
+        IAppMetrics? metrics = null)
     {
         _users = users;
         _companies = companies;
         _reminders = reminders;
         _manyChat = manyChat;
+        _manyChatDispatchQueue = manyChatDispatchQueue;
         _failedActionStore = failedActionStore;
+        _jobCheckpoints = jobCheckpoints ?? new NoopJobCheckpointStore();
         _clock = clock;
+        _metrics = metrics;
         _logger = logger;
     }
 
@@ -53,17 +62,24 @@ public sealed class SubscriptionReminderService
             OperationName,
             take);
 
+        var checkpointKey = $"{OperationName}:users_with_stripe";
+        var startBucket = await ReadStartBucketAsync(checkpointKey, ct);
         var queryWatch = Stopwatch.StartNew();
         var nowUtc = _clock.UtcNow;
-        var users = await _users.QueryUsersWithStripeAsync(take, ct);
+        var page = await _users.QueryUsersWithStripePageAsync(take, startBucket, ct);
+        await _jobCheckpoints.UpsertCursorAsync(checkpointKey, page.NextBucket.ToString(), ct);
+        var users = page.Users;
 
         _logger.LogDebug(
-            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount}",
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount} StartBucket={StartBucket} NextBucket={NextBucket} BucketsScanned={BucketsScanned}",
             "persistence",
             "users.query_with_stripe",
             "Users",
             queryWatch.ElapsedMilliseconds,
-            users.Count);
+            users.Count,
+            page.StartBucket,
+            page.NextBucket,
+            page.BucketsScanned);
 
         var scanned = 0;
         var due = 0;
@@ -96,6 +112,14 @@ public sealed class SubscriptionReminderService
             var windowKey = BuildReminderWindowKey(dispatch);
             var idempotencyAnchorUtc = dispatch.JourneyAnchorUtc ?? dispatch.PeriodEndUtc;
             var reminderId = $"{dispatch.SubscriptionId}:{windowKey}:{idempotencyAnchorUtc:yyyyMMdd}";
+            var payload = JsonSerializer.Serialize(
+                new ManyChatSubscriptionReminderFailedActionPayload(
+                    Dispatch: dispatch,
+                    ReminderId: reminderId,
+                    CorrelationId: dispatch.UserId,
+                    Reason: "send_subscription_reminder",
+                    OperationName: "manychat_send_subscription_reminder"),
+                JsonOpts);
 
             using var reminderScope = _logger.BeginScope(new Dictionary<string, object?>
             {
@@ -136,16 +160,32 @@ public sealed class SubscriptionReminderService
             var dependencyWatch = Stopwatch.StartNew();
             try
             {
-                await _manyChat.SendSubscriptionReminderAsync(dispatch, ct);
+                if (_manyChatDispatchQueue is not null)
+                {
+                    await _manyChatDispatchQueue.EnqueueAsync(
+                        new ManyChatDispatchMessage(
+                            FailedActionRetryService.ActionManyChatSubscriptionReminder,
+                            payload,
+                            dispatch.UserId,
+                            _clock.UtcNow),
+                        ct);
+                    _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatSubscriptionReminder);
+                }
+                else
+                {
+                    await _manyChat.SendSubscriptionReminderAsync(dispatch, ct);
+                }
+
                 sent++;
 
                 _logger.LogInformation(
-                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType} Journey={Journey} DurationMs={DurationMs}",
+                    "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} ReminderType={ReminderType} Journey={Journey} DispatchMode={DispatchMode} DurationMs={DurationMs}",
                     "outcome",
-                    "reminder_sent",
-                    "manychat_flow_triggered",
+                    _manyChatDispatchQueue is null ? "reminder_sent" : "reminder_queued",
+                    _manyChatDispatchQueue is null ? "manychat_flow_triggered" : "manychat_dispatch_enqueued",
                     dispatch.ReminderType,
                     dispatch.Journey,
+                    _manyChatDispatchQueue is null ? "direct" : "queue",
                     dependencyWatch.ElapsedMilliseconds);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -167,15 +207,6 @@ public sealed class SubscriptionReminderService
                     ex.IsRetryable,
                     ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
                     ex.FailureCategory);
-
-                var payload = JsonSerializer.Serialize(
-                    new ManyChatSubscriptionReminderFailedActionPayload(
-                        Dispatch: dispatch,
-                        ReminderId: reminderId,
-                        CorrelationId: dispatch.UserId,
-                        Reason: "send_subscription_reminder",
-                        OperationName: "manychat_send_subscription_reminder"),
-                    JsonOpts);
 
                 await _failedActionStore.EnqueueAsync(
                     FailedActionRetryService.ActionManyChatSubscriptionReminder,
@@ -219,6 +250,29 @@ public sealed class SubscriptionReminderService
                     "ManyChat API",
                     dependencyWatch.ElapsedMilliseconds,
                     dispatch.ReminderType);
+
+                if (_manyChatDispatchQueue is not null)
+                {
+                    try
+                    {
+                        await _failedActionStore.EnqueueAsync(
+                            FailedActionRetryService.ActionManyChatSubscriptionReminder,
+                            payload,
+                            _clock.UtcNow.AddMinutes(2),
+                            ct);
+                    }
+                    catch (Exception enqueueEx)
+                    {
+                        _logger.LogError(
+                            enqueueEx,
+                            "Persistence failed. LogCategory={LogCategory} Outcome={Outcome} PersistenceOperation={PersistenceOperation} Target={Target} ReminderType={ReminderType}",
+                            "exception",
+                            "dependency_failed",
+                            "failed_action.enqueue",
+                            "FailedActions",
+                            dispatch.ReminderType);
+                    }
+                }
             }
         }
 
@@ -231,6 +285,21 @@ public sealed class SubscriptionReminderService
             sent,
             skippedDuplicate,
             opWatch.ElapsedMilliseconds);
+    }
+
+    private async Task<int> ReadStartBucketAsync(string checkpointKey, CancellationToken ct)
+    {
+        var raw = await _jobCheckpoints.GetCursorAsync(checkpointKey, ct);
+        return int.TryParse(raw, out var bucket) ? bucket : 0;
+    }
+
+    private sealed class NoopJobCheckpointStore : IJobCheckpointStore
+    {
+        public Task<string?> GetCursorAsync(string jobName, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
+
+        public Task UpsertCursorAsync(string jobName, string cursor, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private static string BuildReminderWindowKey(SubscriptionReminderDispatch dispatch)

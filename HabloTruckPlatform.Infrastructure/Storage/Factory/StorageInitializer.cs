@@ -72,6 +72,11 @@ public sealed class StorageInitializer
         // -----------------------------
         await _factory.EnsureTableAsync(TableNames.SubscriptionReminders, ct);
 
+        // -----------------------------
+        // JOB CHECKPOINTS
+        // -----------------------------
+        await _factory.EnsureTableAsync(TableNames.JobCheckpoints, ct);
+
         _logger.LogInformation("StorageInitializer completed.");
     }
 }

@@ -10,11 +10,14 @@ namespace HabloTruckPlatform.Application.UseCases;
 
 public sealed class CompanyJoinHandler
 {
+    private const int SeatUsageRefreshThreshold = 1;
+
     private readonly IUserStore _userStore;
     private readonly IEntitlementStore _entitlementStore;
     private readonly ISeatAssignmentStore _seatStore;
     private readonly AccessOrchestrator _accessOrchestrator;
     private readonly IClock _clock;
+    private readonly IAppMetrics? _metrics;
     private readonly ILogger<CompanyJoinHandler> _logger;
 
     public CompanyJoinHandler(
@@ -23,13 +26,15 @@ public sealed class CompanyJoinHandler
         ISeatAssignmentStore seatStore,
         AccessOrchestrator accessOrchestrator,
         IClock clock,
-        ILogger<CompanyJoinHandler>? logger = null)
+        ILogger<CompanyJoinHandler>? logger = null,
+        IAppMetrics? metrics = null)
     {
         _userStore = userStore;
         _entitlementStore = entitlementStore;
         _seatStore = seatStore;
         _accessOrchestrator = accessOrchestrator;
         _clock = clock;
+        _metrics = metrics;
         _logger = logger ?? NullLogger<CompanyJoinHandler>.Instance;
     }
 
@@ -98,12 +103,15 @@ public sealed class CompanyJoinHandler
             && existingSeat.IsActive()
             && string.Equals(existingSeat.EntitlementId, ent.EntitlementId, StringComparison.OrdinalIgnoreCase);
 
-        var activeSeatsFloor = await _seatStore.CountActiveSeatsAsync(req.CompanyId, ent.EntitlementId, ct);
-        ent = await _entitlementStore.SyncSeatsUsedAsync(req.CompanyId, ent.EntitlementId, activeSeatsFloor, ct) ?? ent;
-        ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
-
         if (existingSeatAlreadyActive)
         {
+            if (ent.SeatsUsed < 1)
+            {
+                ent.SeatsUsed = 1;
+                ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
+                await _entitlementStore.UpsertAsync(ent, ct);
+            }
+
             user.CompanyId = req.CompanyId;
             user.SeatEntitlementId = ent.EntitlementId;
             user.SeatStatus = "active";
@@ -111,7 +119,20 @@ public sealed class CompanyJoinHandler
             await _accessOrchestrator.RecomputeForUserAsync(user, persistUser: false, ct);
             await _userStore.UpsertAsync(user, ct);
             await _userStore.UpsertLookupsAsync(user, ct);
+            _metrics?.CompanyJoin("no_action_needed", "already_assigned_active_seat");
             return;
+        }
+
+        if (ShouldRefreshSeatUsage(ent))
+        {
+            var activeSeatsFloor = await _seatStore.CountActiveSeatsAsync(req.CompanyId, ent.EntitlementId, ct);
+            ent = await _entitlementStore.SyncSeatsUsedAsync(req.CompanyId, ent.EntitlementId, activeSeatsFloor, ct) ?? ent;
+            ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
+            _metrics?.CompanyJoinSeatRefresh(true, "near_capacity_or_overcapacity");
+        }
+        else
+        {
+            _metrics?.CompanyJoinSeatRefresh(false, "capacity_headroom_available");
         }
 
         if (!ent.IsActive(_clock.UtcNow))
@@ -123,12 +144,16 @@ public sealed class CompanyJoinHandler
                 "denied",
                 "entitlement_not_active",
                 ent.Status);
+            _metrics?.CompanyJoin("denied", "entitlement_not_active");
 
             throw new CompanyJoinException("entitlement_not_active", $"Entitlement status is '{ent.Status}', cannot join.");
         }
 
         if (ent.IsOverCapacity)
+        {
+            _metrics?.CompanyJoin("denied", "company_over_capacity");
             throw new CompanyJoinException("company_over_capacity", "Company is over capacity. No new seats can be assigned.");
+        }
 
         if (!existingSeatAlreadyActive)
         {
@@ -144,10 +169,16 @@ public sealed class CompanyJoinHandler
                     throw new CompanyJoinException("entitlement_not_active", $"Entitlement status is '{ent.Status}', cannot join.");
 
                 case SeatReservationOutcome.OverCapacity:
+                    _metrics?.CompanyJoin("denied", "company_over_capacity");
                     throw new CompanyJoinException("company_over_capacity", "Company is over capacity. No new seats can be assigned.");
 
                 case SeatReservationOutcome.NoCapacity:
+                    _metrics?.CompanyJoin("denied", "no_seats_available");
                     throw new CompanyJoinException("no_seats_available", "No seats available for this company entitlement.");
+
+                case SeatReservationOutcome.Conflict:
+                    _metrics?.CompanyJoin("denied", "seat_reservation_conflict");
+                    throw new CompanyJoinException("seat_reservation_conflict", "Unable to reserve a seat at this time. Please retry.");
             }
 
             var seat = new SeatAssignment
@@ -177,6 +208,7 @@ public sealed class CompanyJoinHandler
             else if (activation.Outcome != SeatActivationOutcome.Activated)
             {
                 await _entitlementStore.ReleaseSeatReservationAsync(req.CompanyId, ent.EntitlementId, ct);
+                _metrics?.CompanyJoin("denied", "seat_assignment_conflict");
                 throw new CompanyJoinException("seat_assignment_conflict", "Unable to assign company seat at this time.");
             }
 
@@ -210,5 +242,15 @@ public sealed class CompanyJoinHandler
             "completed",
             "company_join_applied",
             opWatch.ElapsedMilliseconds);
+        _metrics?.CompanyJoin("completed", "company_join_applied");
+    }
+
+    private static bool ShouldRefreshSeatUsage(Entitlement entitlement)
+    {
+        var seatsTotal = Math.Max(entitlement.SeatsTotal, 0);
+        var seatsUsed = Math.Max(entitlement.SeatsUsed, 0);
+        var remainingCapacity = seatsTotal - seatsUsed;
+
+        return entitlement.IsOverCapacity || remainingCapacity <= SeatUsageRefreshThreshold;
     }
 }

@@ -131,6 +131,12 @@ public sealed class SubscriptionReminderTimerFunctionTests
 
         public Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(int take = 500, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<User>>(Users.Take(take).ToList());
+
+        public async Task<HabloTruckPlatform.Application.Models.StripeUserScanPage> QueryUsersWithStripePageAsync(int take = 500, int startBucket = 0, CancellationToken ct = default)
+        {
+            var users = await QueryUsersWithStripeAsync(take, ct);
+            return new HabloTruckPlatform.Application.Models.StripeUserScanPage(users, startBucket, startBucket, 0, false);
+        }
     }
 
     private sealed class InMemoryCompanyStore : ICompanyStore
@@ -247,4 +253,3 @@ public sealed class SubscriptionReminderTimerFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
-
