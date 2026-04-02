@@ -16,7 +16,7 @@ This document explains:
 - What payloads ManyChat should send.
 - What responses ManyChat should expect.
 - Where the current implementation is complete.
-- Which automation steps are still manual or future work.
+- Which remaining gaps are still product, admin UX, or future work.
 
 ## Domain Model
 
@@ -69,7 +69,7 @@ Related backend files:
 - `HabloTruckPlatform/Functions/ResendAdminInviteFunction.cs`
 - `HabloTruckPlatform/Functions/GetInviteInfoFunction.cs`
 - `HabloTruckPlatform/Functions/JoinCompanyFunction.cs`
-- `HabloTruckPlatform/Application/UseCases/StripeSubscriptionHandler.cs`
+- `HabloTruckPlatform.Application/UseCases/StripeSubscriptionHandler.cs`
 
 ## Flow 1: Individual Monthly
 
@@ -468,12 +468,21 @@ Actions:
 - Call join endpoint.
 - Show outcome.
 
-## Current Manual or Missing Automation
+## Current Manual or Remaining Gaps
 
-The current backend supports the core flows, but these pieces are still partially external:
+The backend already covers the core automation:
 
-- ManyChat still needs to store the returned `companyId` so the admin can fetch the invite later.
+- Fleet checkout creates or updates `Company`.
+- Fleet checkout creates or updates the active `Entitlement`.
+- Fleet checkout auto-creates an active invite for that entitlement.
+- Admin flows can fetch the active invite again through `/api/company/invite/active`.
+- Admin flows can recover or recreate the active invite through `/api/company/invite/resend`.
+
+The remaining gaps are mostly around product UX or convenience:
+
+- ManyChat still needs to store the returned `companyId` so the admin can fetch the invite later without friction.
 - If product wants invite recovery without `companyId`, a lookup by admin identity would still help.
+- If product wants admins to manage multiple active entitlements, listing endpoints would still help.
 - The generic function readme files do not document these product journeys.
 
 ## Recommended Next Backend Improvements
@@ -510,7 +519,10 @@ To make the ManyChat experience fully end-to-end:
 The intended business and technical flow is:
 
 - Individual users buy their own monthly or yearly access.
-- Companies buy seat bundles.
+- Companies buy seat bundles through the dedicated fleet checkout endpoint.
+- Stripe webhook creates or updates the company subscription projection.
+- The backend auto-creates an active invite for the purchased entitlement.
+- Admins can retrieve that code again with `invite/active` or `invite/resend`.
 - Drivers use invite codes to consume those company seats.
 
 That is the current shape of the backend implementation.

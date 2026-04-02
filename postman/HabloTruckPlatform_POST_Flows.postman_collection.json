@@ -14,6 +14,10 @@
       "value": "<FUNCTION_KEY>"
     },
     {
+      "key": "httpApiKey",
+      "value": "<HTTP_API_KEY>"
+    },
+    {
       "key": "manychatBaseUrl",
       "value": "https://api.manychat.com"
     },
@@ -107,10 +111,36 @@
       "name": "01 - ManageApp Core",
       "item": [
         {
+          "name": "01.0 Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{functionHost}}/api/health",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
+          }
+        },
+        {
           "name": "01.1 Create Stripe Payment Link (Individual)",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -150,6 +180,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -183,10 +217,187 @@
           }
         },
         {
-          "name": "01.3 Create Company Invite",
+          "name": "01.3 Start Fleet Checkout",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"seats\": {{seatQuantity}},\n  \"successUrl\": \"https://manageapp.example/company/success\",\n  \"cancelUrl\": \"https://manageapp.example/company/cancel\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/fleet/start-checkout?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "fleet",
+                "start-checkout"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.companyId) pm.collectionVariables.set('companyId', data.companyId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.4 Get Active Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/active?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.code) pm.collectionVariables.set('inviteCode', data.code);",
+                  "  if (data && data.entitlementId) pm.collectionVariables.set('entitlementId', data.entitlementId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.5 Resend Admin Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"entitlementId\": \"{{entitlementId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/resend?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "resend"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.code) pm.collectionVariables.set('inviteCode', data.code);",
+                  "  if (data && data.entitlementId) pm.collectionVariables.set('entitlementId', data.entitlementId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.6 Create Company Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -235,10 +446,14 @@
           ]
         },
         {
-          "name": "01.4 Get Invite Info",
+          "name": "01.7 Get Invite Info",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -274,10 +489,14 @@
           }
         },
         {
-          "name": "01.5 Join Company",
+          "name": "01.8 Join Company",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -312,10 +531,14 @@
           }
         },
         {
-          "name": "01.6 List Invites (POST)",
+          "name": "01.9 List Invites (POST)",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -351,10 +574,14 @@
           }
         },
         {
-          "name": "01.7 Disable Invite",
+          "name": "01.10 Disable Invite",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -390,10 +617,14 @@
           }
         },
         {
-          "name": "01.8 Cancel Subscription At Period End (Individual)",
+          "name": "01.11 Cancel Subscription At Period End (Individual)",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -429,10 +660,14 @@
           }
         },
         {
-          "name": "01.9 Cancel Subscription At Period End (Company)",
+          "name": "01.12 Cancel Subscription At Period End (Company)",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -468,10 +703,14 @@
           }
         },
         {
-          "name": "01.10 Get Payment Method Update Link",
+          "name": "01.13 Get Payment Method Update Link",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -507,10 +746,14 @@
           }
         },
         {
-          "name": "01.11 Retry Open Invoice",
+          "name": "01.14 Retry Open Invoice",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -556,6 +799,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               },
@@ -597,6 +844,10 @@
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -640,6 +891,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               },
@@ -682,6 +937,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               },
@@ -723,6 +982,10 @@
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -771,6 +1034,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -805,10 +1072,55 @@
           }
         },
         {
-          "name": "03.2 Requeue Failed Action",
+          "name": "03.2 List Failed Actions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{functionHost}}/api/admin/failed-actions?status=dead&lookbackHours=48&take=200&code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "failed-actions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "dead"
+                },
+                {
+                  "key": "lookbackHours",
+                  "value": "48"
+                },
+                {
+                  "key": "take",
+                  "value": "200"
+                },
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "03.3 Requeue Failed Action",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"

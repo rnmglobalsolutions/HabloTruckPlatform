@@ -5,8 +5,9 @@ Este documento lista todos los endpoints HTTP encontrados en la solución con fo
 Nota general:
 
 - Base URL sugerida: `https://<func>.azurewebsites.net/api`
+- Ejemplo `dev`: `https://HabloTruckPlatform-development.azurewebsites.net/api`
 - La mayoría de endpoints usan Azure Functions `AuthorizationLevel.Function`, por lo que normalmente se llaman con `?code=<FUNCTION_KEY>` en la URL.
-- Además, casi todos validan `x-api-key` por header.
+- Además, casi todos validan `x-api-key` por header, incluyendo `health`.
 - Header opcional de observabilidad: `x-correlation-id`
 
 ---
@@ -33,6 +34,12 @@ No request body.
 ```text
 OK
 ```
+
+Notas:
+
+- Este endpoint usa ruta anónima, por eso no necesita `?code=<FUNCTION_KEY>`.
+- Aun así, la implementación actual sí valida `x-api-key`.
+- Si el API key falta o es inválido, la respuesta típica será `401` o `403`.
 
 ---
 
@@ -158,6 +165,8 @@ Content-Type: application/json
 
 Para `GET`, los mismos valores pueden ir como query string.
 
+`companyId` es el criterio más común. `stripeCustomerId` y `entitlementId` son opcionales.
+
 **Response Object**  
 ```json
 {
@@ -175,6 +184,16 @@ Para `GET`, los mismos valores pueden ir como query string.
   "remaining": 16,
   "createdAtUtc": "2026-03-31T12:00:00.0000000Z",
   "expiresAtUtc": ""
+}
+```
+
+Respuesta de no encontrado típica:
+```json
+{
+  "ok": false,
+  "found": false,
+  "valid": false,
+  "error": "active_invite_not_found"
 }
 ```
 
@@ -451,6 +470,19 @@ Content-Type: application/json
 }
 ```
 
+Respuesta de no encontrado típica:
+```json
+{
+  "ok": false,
+  "found": false,
+  "created": false,
+  "resent": false,
+  "updated": false,
+  "valid": false,
+  "error": "active_invite_not_found"
+}
+```
+
 ---
 
 ## 12. Start Fleet Checkout
@@ -480,6 +512,8 @@ Content-Type: application/json
   "cancelUrl": "https://tuapp.com/company-cancel"
 }
 ```
+
+`companyId` es opcional. Si no se envía, el backend genera o resuelve uno para el checkout administrativo.
 
 **Response Object**  
 ```json
@@ -737,4 +771,3 @@ x-correlation-id: <optional>
   "error": null
 }
 ```
-
