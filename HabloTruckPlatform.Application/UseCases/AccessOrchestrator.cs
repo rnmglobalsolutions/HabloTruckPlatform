@@ -24,9 +24,11 @@ public sealed class AccessOrchestrator
     private readonly ISeatAssignmentStore _seatStore;
     private readonly IEntitlementStore _entitlementStore;
     private readonly IManyChatSync _manyChatSync;
+    private readonly IManyChatDispatchQueue? _manyChatDispatchQueue;
     private readonly IFailedActionStore _failedActionStore;
     private readonly IClock _clock;
     private readonly CompanyGracePolicy _companyGracePolicy;
+    private readonly IAppMetrics? _metrics;
     private readonly ILogger<AccessOrchestrator> _logger;
 
     private static readonly JsonSerializerOptions JsonOpts =
@@ -40,15 +42,19 @@ public sealed class AccessOrchestrator
         IFailedActionStore failedActionStore,
         IClock clock,
         CompanyGracePolicy companyGracePolicy,
-        ILogger<AccessOrchestrator>? logger = null)
+        ILogger<AccessOrchestrator>? logger = null,
+        IManyChatDispatchQueue? manyChatDispatchQueue = null,
+        IAppMetrics? metrics = null)
     {
         _userStore = userStore;
         _seatStore = seatStore;
         _entitlementStore = entitlementStore;
         _manyChatSync = manyChatSync;
+        _manyChatDispatchQueue = manyChatDispatchQueue;
         _failedActionStore = failedActionStore;
         _clock = clock;
         _companyGracePolicy = companyGracePolicy;
+        _metrics = metrics;
         _logger = logger ?? NullLogger<AccessOrchestrator>.Instance;
     }
 
@@ -241,9 +247,42 @@ public sealed class AccessOrchestrator
         }
 
         var dependencyWatch = Stopwatch.StartNew();
+        var payload = JsonSerializer.Serialize(
+            new ManyChatSyncFailedActionPayload(
+                UserPk: Buckets.UserBucketPk(user.UserId),
+                UserId: user.UserId,
+                SubscriberId: user.ManyChatSubscriberId?.Trim(),
+                CompanyId: user.CompanyId,
+                CorrelationId: user.UserId,
+                Reason: "sync_access",
+                OperationName: "manychat_sync_user_access"),
+            JsonOpts);
 
         try
         {
+            if (_manyChatDispatchQueue is not null)
+            {
+                await _manyChatDispatchQueue.EnqueueAsync(
+                    new ManyChatDispatchMessage(
+                        FailedActionRetryService.ActionManyChatSync,
+                        payload,
+                        user.UserId,
+                        _clock.UtcNow),
+                    ct);
+                _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatSync);
+
+                _logger.LogDebug(
+                    "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                    "dependency",
+                    "manychat_dispatch_queue",
+                    "enqueue_sync_user_access",
+                    "Azure Queue Storage",
+                    dependencyWatch.ElapsedMilliseconds,
+                    true);
+
+                return;
+            }
+
             await _manyChatSync.SyncUserAccessAsync(user, decision, ct);
 
             _logger.LogDebug(
@@ -294,17 +333,6 @@ public sealed class AccessOrchestrator
                 ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
                 ex.FailureCategory);
 
-            var payload = JsonSerializer.Serialize(
-                new ManyChatSyncFailedActionPayload(
-                    UserPk: Buckets.UserBucketPk(user.UserId),
-                    UserId: user.UserId,
-                    SubscriberId: user.ManyChatSubscriberId?.Trim(),
-                    CompanyId: user.CompanyId,
-                    CorrelationId: user.UserId,
-                    Reason: "sync_access",
-                    OperationName: "manychat_sync_user_access"),
-                JsonOpts);
-
             var queueWatch = Stopwatch.StartNew();
             await _failedActionStore.EnqueueAsync(
                 FailedActionRetryService.ActionManyChatSync,
@@ -347,6 +375,28 @@ public sealed class AccessOrchestrator
                 "sync_user_access",
                 "ManyChat API",
                 dependencyWatch.ElapsedMilliseconds);
+
+            if (_manyChatDispatchQueue is not null)
+            {
+                try
+                {
+                    await _failedActionStore.EnqueueAsync(
+                        FailedActionRetryService.ActionManyChatSync,
+                        payload,
+                        nextRetryUtc: _clock.UtcNow.AddMinutes(2),
+                        ct);
+                }
+                catch (Exception enqueueEx)
+                {
+                    _logger.LogError(
+                        enqueueEx,
+                        "Persistence failed. LogCategory={LogCategory} Outcome={Outcome} PersistenceOperation={PersistenceOperation} Target={Target}",
+                        "exception",
+                        "dependency_failed",
+                        "failed_action.enqueue",
+                        "FailedActions");
+                }
+            }
         }
     }
 
@@ -375,4 +425,3 @@ public sealed class AccessOrchestrator
         return false;
     }
 }
-

@@ -22,6 +22,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IUserStore _userStore;
     private readonly IGraceIndexStore _graceIndexStore;
     private readonly IManyChatSync _manyChatSync;
+    private readonly IManyChatDispatchQueue? _manyChatDispatchQueue;
     private readonly AccessOrchestrator _accessOrchestrator;
     private readonly IClock _clock;
     private readonly GracePolicy _individualGracePolicy;
@@ -33,6 +34,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IFailedActionStore _failedActionStore;
     private readonly IStripeAdminClient _stripeAdminClient;
     private readonly BillingRecoveryManyChatNotifier _billingRecoveryNotifier;
+    private readonly IAppMetrics? _metrics;
     private readonly ILogger<StripeSubscriptionHandler> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -52,12 +54,15 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         IFailedActionStore failedActionStore,
         IStripeAdminClient stripeAdminClient,
         BillingRecoveryManyChatNotifier billingRecoveryNotifier,
-        ILogger<StripeSubscriptionHandler> logger)
+        ILogger<StripeSubscriptionHandler> logger,
+        IManyChatDispatchQueue? manyChatDispatchQueue = null,
+        IAppMetrics? metrics = null)
     {
         _userResolver = userResolver;
         _userStore = userStore;
         _graceIndexStore = graceIndexStore;
         _manyChatSync = manyChatSync;
+        _manyChatDispatchQueue = manyChatDispatchQueue;
         _accessOrchestrator = accessOrchestrator;
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
@@ -69,6 +74,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _failedActionStore = failedActionStore;
         _stripeAdminClient = stripeAdminClient;
         _billingRecoveryNotifier = billingRecoveryNotifier;
+        _metrics = metrics;
         _logger = logger;
     }
 
@@ -697,19 +703,45 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             && user.PaymentRecoveryStartedAtUtc is not null)
         {
             var manyChatWatch = Stopwatch.StartNew();
+            var payload = JsonSerializer.Serialize(
+                new ManyChatPaymentFailedFlowFailedActionPayload(
+                    SubscriberId: user.ManyChatSubscriberId?.Trim(),
+                    UserId: user.UserId,
+                    CompanyId: user.CompanyId,
+                    SubscriptionId: user.StripeSubscriptionId,
+                    RecoveryStartedAtUtc: user.PaymentRecoveryStartedAtUtc,
+                    CorrelationId: signal.StripeEventId,
+                    Reason: "trigger_payment_failed_flow",
+                    OperationName: "manychat_trigger_payment_failed"),
+                JsonOpts);
             try
             {
-                await _manyChatSync.TriggerPaymentFailedFlowAsync(user.ManyChatSubscriberId!, ct);
+                if (_manyChatDispatchQueue is not null)
+                {
+                    await _manyChatDispatchQueue.EnqueueAsync(
+                        new ManyChatDispatchMessage(
+                            FailedActionRetryService.ActionManyChatPaymentFailedFlow,
+                            payload,
+                            signal.StripeEventId,
+                            _clock.UtcNow),
+                        ct);
+                    _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatPaymentFailedFlow);
+                }
+                else
+                {
+                    await _manyChatSync.TriggerPaymentFailedFlowAsync(user.ManyChatSubscriberId!, ct);
+                }
 
                 _logger.LogDebug(
-                    "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Outcome={Outcome}",
+                    "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Outcome={Outcome} DispatchMode={DispatchMode}",
                     "dependency",
-                    "manychat",
-                    "trigger_payment_failed_flow",
-                    "ManyChat API",
+                    _manyChatDispatchQueue is null ? "manychat" : "manychat_dispatch_queue",
+                    _manyChatDispatchQueue is null ? "trigger_payment_failed_flow" : "enqueue_payment_failed_flow",
+                    _manyChatDispatchQueue is null ? "ManyChat API" : "Azure Queue Storage",
                     manyChatWatch.ElapsedMilliseconds,
                     true,
-                    "applied");
+                    "applied",
+                    _manyChatDispatchQueue is null ? "direct" : "queue");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -729,18 +761,6 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     ex.IsRetryable,
                     ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
                     ex.FailureCategory);
-
-                var payload = JsonSerializer.Serialize(
-                    new ManyChatPaymentFailedFlowFailedActionPayload(
-                        SubscriberId: user.ManyChatSubscriberId?.Trim(),
-                        UserId: user.UserId,
-                        CompanyId: user.CompanyId,
-                        SubscriptionId: user.StripeSubscriptionId,
-                        RecoveryStartedAtUtc: user.PaymentRecoveryStartedAtUtc,
-                        CorrelationId: signal.StripeEventId,
-                        Reason: "trigger_payment_failed_flow",
-                        OperationName: "manychat_trigger_payment_failed"),
-                    JsonOpts);
 
                 await _failedActionStore.EnqueueAsync(
                     FailedActionRetryService.ActionManyChatPaymentFailedFlow,
@@ -781,6 +801,28 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                     "trigger_payment_failed_flow",
                     "ManyChat API",
                     manyChatWatch.ElapsedMilliseconds);
+
+                if (_manyChatDispatchQueue is not null)
+                {
+                    try
+                    {
+                        await _failedActionStore.EnqueueAsync(
+                            FailedActionRetryService.ActionManyChatPaymentFailedFlow,
+                            payload,
+                            _clock.UtcNow.AddMinutes(2),
+                            ct);
+                    }
+                    catch (Exception enqueueEx)
+                    {
+                        _logger.LogError(
+                            enqueueEx,
+                            "Persistence failed. LogCategory={LogCategory} Outcome={Outcome} PersistenceOperation={PersistenceOperation} Target={Target}",
+                            "exception",
+                            "dependency_failed",
+                            "failed_action.enqueue",
+                            "FailedActions");
+                    }
+                }
             }
         }
 

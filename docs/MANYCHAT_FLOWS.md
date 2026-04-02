@@ -15,8 +15,20 @@ This document explains:
 - Which backend endpoints are involved.
 - What payloads ManyChat should send.
 - What responses ManyChat should expect.
+- How ManyChat-facing side effects are dispatched operationally.
 - Where the current implementation is complete.
 - Which remaining gaps are still product, admin UX, or future work.
+
+## Operational Note
+
+ManyChat-triggered backend requests still use the same HTTP contracts documented below.
+What changed internally is the execution model for outbound ManyChat side effects:
+
+- Access sync updates are now queued before they are sent to ManyChat.
+- Subscription reminders are now queued before they are sent to ManyChat.
+- Payment-failed and billing-recovery ManyChat updates are now queued before they are sent to ManyChat.
+
+In practice, this means the originating request or timer finishes faster and the actual ManyChat call is processed asynchronously in the background. No payload changes are required from ManyChat because this is an internal backend improvement.
 
 ## Domain Model
 

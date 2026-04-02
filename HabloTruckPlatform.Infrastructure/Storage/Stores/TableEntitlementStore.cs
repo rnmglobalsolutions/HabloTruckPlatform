@@ -12,6 +12,8 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Stores;
 
 public sealed class TableEntitlementStore : IEntitlementStore
 {
+    private const int MaxConcurrencyRetries = 6;
+
     private readonly ITableClientFactory _factory;
     private readonly ITableRepository _repo;
 
@@ -98,7 +100,7 @@ public sealed class TableEntitlementStore : IEntitlementStore
         var pk = EntitlementMapper.Pk(companyId.Trim());
         var rk = entitlementId.Trim();
 
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < MaxConcurrencyRetries; attempt++)
         {
             var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
             if (entity is null)
@@ -124,6 +126,7 @@ public sealed class TableEntitlementStore : IEntitlementStore
                 }
                 catch (RequestFailedException ex) when (ex.Status is 412 or 409)
                 {
+                    await BackoffAsync(attempt, ct);
                     continue;
                 }
             }
@@ -141,11 +144,11 @@ public sealed class TableEntitlementStore : IEntitlementStore
             }
             catch (RequestFailedException ex) when (ex.Status is 412 or 409)
             {
-                // optimistic concurrency conflict -> retry
+                await BackoffAsync(attempt, ct);
             }
         }
 
-        return new SeatReservationResult(SeatReservationOutcome.NoCapacity, null, "seat_reservation_conflict");
+        return new SeatReservationResult(SeatReservationOutcome.Conflict, null, "seat_reservation_conflict");
     }
 
     public async Task<Entitlement?> SyncSeatsUsedAsync(string companyId, string entitlementId, int seatsUsedFloor, CancellationToken ct = default)
@@ -157,7 +160,7 @@ public sealed class TableEntitlementStore : IEntitlementStore
         var rk = entitlementId.Trim();
         var normalizedFloor = Math.Max(seatsUsedFloor, 0);
 
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < MaxConcurrencyRetries; attempt++)
         {
             var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
             if (entity is null)
@@ -179,7 +182,7 @@ public sealed class TableEntitlementStore : IEntitlementStore
             }
             catch (RequestFailedException ex) when (ex.Status is 412 or 409)
             {
-                // optimistic concurrency conflict -> retry
+                await BackoffAsync(attempt, ct);
             }
         }
 
@@ -194,7 +197,7 @@ public sealed class TableEntitlementStore : IEntitlementStore
         var pk = EntitlementMapper.Pk(companyId.Trim());
         var rk = entitlementId.Trim();
 
-        for (var attempt = 0; attempt < 5; attempt++)
+        for (var attempt = 0; attempt < MaxConcurrencyRetries; attempt++)
         {
             var entity = await _repo.GetOrNullAsync<EntitlementEntity>(EntitlementsTable, pk, rk, ct);
             if (entity is null)
@@ -215,8 +218,14 @@ public sealed class TableEntitlementStore : IEntitlementStore
             }
             catch (RequestFailedException ex) when (ex.Status is 412 or 409)
             {
-                // optimistic concurrency conflict -> retry
+                await BackoffAsync(attempt, ct);
             }
         }
+    }
+
+    private static Task BackoffAsync(int attempt, CancellationToken ct)
+    {
+        var delayMs = Math.Min(20 * (attempt + 1), 120);
+        return Task.Delay(delayMs, ct);
     }
 }

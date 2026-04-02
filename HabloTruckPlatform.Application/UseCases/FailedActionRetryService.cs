@@ -163,7 +163,21 @@ public sealed class FailedActionRetryService
             opWatch.ElapsedMilliseconds);
     }
 
-    private async Task DispatchAsync(FailedActionItem item, CancellationToken ct)
+    public Task DispatchAsync(string actionType, string payloadJson, CancellationToken ct = default)
+        => DispatchCoreAsync(
+            new FailedActionItem(
+                Pk: "dispatch",
+                Rk: "dispatch",
+                ActionType: actionType,
+                PayloadJson: payloadJson,
+                Attempts: 0,
+                NextRetryUtc: DateTimeOffset.UtcNow),
+            ct);
+
+    private Task DispatchAsync(FailedActionItem item, CancellationToken ct)
+        => DispatchCoreAsync(item, ct);
+
+    private async Task DispatchCoreAsync(FailedActionItem item, CancellationToken ct)
     {
         if (item.ActionType == ActionManyChatSync)
         {
@@ -208,6 +222,12 @@ public sealed class FailedActionRetryService
 
             var dependencyWatch = Stopwatch.StartNew();
             await _manyChat.SyncUserAccessAsync(user, decision, ct);
+
+            user.LastSyncedAccessMode = decision.Mode.ToString();
+            user.LastSyncedAccessSource = (int)decision.Source;
+            user.LastSyncedGraceEndsAtUtc = decision.GraceEndsAtUtc;
+            user.LastManyChatSyncAtUtc = DateTimeOffset.UtcNow;
+            await _users.UpsertAsync(user, ct);
 
             _logger.LogDebug(
                 "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",

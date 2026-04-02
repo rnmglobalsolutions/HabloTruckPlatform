@@ -8,7 +8,8 @@ public enum SeatReservationOutcome
     NotFound,
     Inactive,
     NoCapacity,
-    OverCapacity
+    OverCapacity,
+    Conflict
 }
 
 public sealed record SeatReservationResult(

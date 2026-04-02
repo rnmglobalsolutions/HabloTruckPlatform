@@ -101,6 +101,7 @@ var host = new HostBuilder()
         services.AddSingleton<IStripeAdminClient, StripeAdminClient>();
         services.AddSingleton<IStripeSubscriptionGateway, StripeSubscriptionGateway>();
         services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();
+        services.AddSingleton<IManyChatDispatchQueue>(_ => new AzureQueueManyChatDispatchQueue(tableConn));
 
         // ---- UseCases / Handlers (Application layer)
         services.AddSingleton<AccessOrchestrator>();
@@ -118,6 +119,7 @@ var host = new HostBuilder()
         services.AddSingleton<CreateStripePaymentMethodUpdateLinkUseCase>();
         services.AddSingleton<RetryStripeOpenInvoiceUseCase>();
         services.AddSingleton<SubscriptionReminderService>();
+        services.AddSingleton<ManyChatDispatchQueueProcessorService>();
 
         // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
@@ -137,6 +139,7 @@ var host = new HostBuilder()
 
         // ---- Telemetry
         services.AddSingleton<Metrics>();
+        services.AddSingleton<IAppMetrics>(sp => sp.GetRequiredService<Metrics>());
 
         // ---- ManyChat
         services.Configure<ManyChatOptions>(ctx.Configuration.GetSection("ManyChat"));

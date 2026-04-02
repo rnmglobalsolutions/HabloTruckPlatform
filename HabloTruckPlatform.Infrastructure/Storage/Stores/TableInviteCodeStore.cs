@@ -10,6 +10,8 @@ namespace HabloTruckPlatform.Infrastructure.Storage.Stores;
 
 public sealed class TableInviteCodeStore : IInviteCodeStore
 {
+    private const int MaxConsumeRetries = 4;
+
     private readonly ITableClientFactory _factory;
     private readonly ITableRepository _repo;
 
@@ -82,8 +84,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
 
         var pk = Pk(c);
 
-        // retry once on ETag conflict
-        for (var attempt = 0; attempt < 2; attempt++)
+        for (var attempt = 0; attempt < MaxConsumeRetries; attempt++)
         {
             var entity = await _repo.GetOrNullAsync<InviteCodeEntity>(InvitesTable, pk, c, ct);
             if (entity is null) return false;
@@ -106,7 +107,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
             }
             catch (RequestFailedException ex) when (ex.Status is 412 or 409)
             {
-                // concurrency conflict -> retry
+                await BackoffAsync(attempt, ct);
             }
         }
 
@@ -120,7 +121,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
 
         var pk = Pk(c);
 
-        for (var attempt = 0; attempt < 2; attempt++)
+        for (var attempt = 0; attempt < MaxConsumeRetries; attempt++)
         {
             var entity = await _repo.GetOrNullAsync<InviteCodeEntity>(InvitesTable, pk, c, ct);
             if (entity is null || entity.Uses <= 0)
@@ -135,7 +136,7 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
             }
             catch (RequestFailedException ex) when (ex.Status is 412 or 409)
             {
-                // concurrency conflict -> retry
+                await BackoffAsync(attempt, ct);
             }
         }
     }
@@ -253,5 +254,11 @@ public sealed class TableInviteCodeStore : IInviteCodeStore
     {
         if (string.IsNullOrWhiteSpace(code)) return null;
         return code.Trim().ToUpperInvariant();
+    }
+
+    private static Task BackoffAsync(int attempt, CancellationToken ct)
+    {
+        var delayMs = Math.Min(15 * (attempt + 1), 75);
+        return Task.Delay(delayMs, ct);
     }
 }
