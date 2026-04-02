@@ -97,6 +97,7 @@ var host = new HostBuilder()
         services.AddSingleton<IFailedActionStore, TableFailedActionStore>();
         services.AddSingleton<IStripeEventAuditStore, TableStripeEventAuditStore>();
         services.AddSingleton<ISubscriptionReminderStore, TableSubscriptionReminderStore>();
+        services.AddSingleton<IJobCheckpointStore, TableJobCheckpointStore>();
         services.AddSingleton<IStripeAdminClient, StripeAdminClient>();
         services.AddSingleton<IStripeSubscriptionGateway, StripeSubscriptionGateway>();
         services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();

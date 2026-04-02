@@ -18,6 +18,7 @@ public sealed class SubscriptionReminderService
     private readonly ISubscriptionReminderStore _reminders;
     private readonly IManyChatSync _manyChat;
     private readonly IFailedActionStore _failedActionStore;
+    private readonly IJobCheckpointStore _jobCheckpoints;
     private readonly IClock _clock;
     private readonly ILogger<SubscriptionReminderService> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -29,13 +30,15 @@ public sealed class SubscriptionReminderService
         IManyChatSync manyChat,
         IFailedActionStore failedActionStore,
         IClock clock,
-        ILogger<SubscriptionReminderService> logger)
+        ILogger<SubscriptionReminderService> logger,
+        IJobCheckpointStore? jobCheckpoints = null)
     {
         _users = users;
         _companies = companies;
         _reminders = reminders;
         _manyChat = manyChat;
         _failedActionStore = failedActionStore;
+        _jobCheckpoints = jobCheckpoints ?? new NoopJobCheckpointStore();
         _clock = clock;
         _logger = logger;
     }
@@ -53,17 +56,24 @@ public sealed class SubscriptionReminderService
             OperationName,
             take);
 
+        var checkpointKey = $"{OperationName}:users_with_stripe";
+        var startBucket = await ReadStartBucketAsync(checkpointKey, ct);
         var queryWatch = Stopwatch.StartNew();
         var nowUtc = _clock.UtcNow;
-        var users = await _users.QueryUsersWithStripeAsync(take, ct);
+        var page = await _users.QueryUsersWithStripePageAsync(take, startBucket, ct);
+        await _jobCheckpoints.UpsertCursorAsync(checkpointKey, page.NextBucket.ToString(), ct);
+        var users = page.Users;
 
         _logger.LogDebug(
-            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount}",
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount} StartBucket={StartBucket} NextBucket={NextBucket} BucketsScanned={BucketsScanned}",
             "persistence",
             "users.query_with_stripe",
             "Users",
             queryWatch.ElapsedMilliseconds,
-            users.Count);
+            users.Count,
+            page.StartBucket,
+            page.NextBucket,
+            page.BucketsScanned);
 
         var scanned = 0;
         var due = 0;
@@ -231,6 +241,21 @@ public sealed class SubscriptionReminderService
             sent,
             skippedDuplicate,
             opWatch.ElapsedMilliseconds);
+    }
+
+    private async Task<int> ReadStartBucketAsync(string checkpointKey, CancellationToken ct)
+    {
+        var raw = await _jobCheckpoints.GetCursorAsync(checkpointKey, ct);
+        return int.TryParse(raw, out var bucket) ? bucket : 0;
+    }
+
+    private sealed class NoopJobCheckpointStore : IJobCheckpointStore
+    {
+        public Task<string?> GetCursorAsync(string jobName, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
+
+        public Task UpsertCursorAsync(string jobName, string cursor, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private static string BuildReminderWindowKey(SubscriptionReminderDispatch dispatch)

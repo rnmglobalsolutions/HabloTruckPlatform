@@ -15,6 +15,7 @@ public sealed class StripeReconciliationService
     private readonly IUserStore _userStore;
     private readonly IStripeAdminClient _stripeAdminClient;
     private readonly AccessOrchestrator _accessOrchestrator;
+    private readonly IJobCheckpointStore _jobCheckpoints;
     private readonly IClock _clock;
     private readonly GracePolicy _individualGracePolicy;
     private readonly ILogger<StripeReconciliationService> _logger;
@@ -26,12 +27,14 @@ public sealed class StripeReconciliationService
         AccessOrchestrator accessOrchestrator,
         IClock clock,
         GracePolicy individualGracePolicy,
-        ILogger<StripeReconciliationService>? logger = null)
+        ILogger<StripeReconciliationService>? logger = null,
+        IJobCheckpointStore? jobCheckpoints = null)
     {
         _userStore = userStore;
         _stripeAdminClient = stripeAdminClient;
         _ = graceIndexStore;
         _accessOrchestrator = accessOrchestrator;
+        _jobCheckpoints = jobCheckpoints ?? new NoopJobCheckpointStore();
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
         _logger = logger ?? NullLogger<StripeReconciliationService>.Instance;
@@ -47,17 +50,24 @@ public sealed class StripeReconciliationService
             OperationName,
             take);
 
+        var checkpointKey = $"{OperationName}:users_with_stripe";
+        var startBucket = await ReadStartBucketAsync(checkpointKey, ct);
         var queryWatch = Stopwatch.StartNew();
-        var users = await _userStore.QueryUsersWithStripeAsync(take, ct);
+        var page = await _userStore.QueryUsersWithStripePageAsync(take, startBucket, ct);
+        await _jobCheckpoints.UpsertCursorAsync(checkpointKey, page.NextBucket.ToString(), ct);
+        var users = page.Users;
         var nowUtc = _clock.UtcNow;
 
         _logger.LogDebug(
-            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount}",
+            "Persistence read completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} UserCount={UserCount} StartBucket={StartBucket} NextBucket={NextBucket} BucketsScanned={BucketsScanned}",
             "persistence",
             "users.query_with_stripe",
             "Users",
             queryWatch.ElapsedMilliseconds,
-            users.Count);
+            users.Count,
+            page.StartBucket,
+            page.NextBucket,
+            page.BucketsScanned);
 
         var scanned = 0;
         var reconciled = 0;
@@ -200,5 +210,19 @@ public sealed class StripeReconciliationService
             skippedStale,
             opWatch.ElapsedMilliseconds);
     }
-}
 
+    private async Task<int> ReadStartBucketAsync(string checkpointKey, CancellationToken ct)
+    {
+        var raw = await _jobCheckpoints.GetCursorAsync(checkpointKey, ct);
+        return int.TryParse(raw, out var bucket) ? bucket : 0;
+    }
+
+    private sealed class NoopJobCheckpointStore : IJobCheckpointStore
+    {
+        public Task<string?> GetCursorAsync(string jobName, CancellationToken ct = default)
+            => Task.FromResult<string?>(null);
+
+        public Task UpsertCursorAsync(string jobName, string cursor, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+}

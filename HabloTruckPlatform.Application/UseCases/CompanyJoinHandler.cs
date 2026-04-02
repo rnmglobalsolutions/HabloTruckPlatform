@@ -98,12 +98,15 @@ public sealed class CompanyJoinHandler
             && existingSeat.IsActive()
             && string.Equals(existingSeat.EntitlementId, ent.EntitlementId, StringComparison.OrdinalIgnoreCase);
 
-        var activeSeatsFloor = await _seatStore.CountActiveSeatsAsync(req.CompanyId, ent.EntitlementId, ct);
-        ent = await _entitlementStore.SyncSeatsUsedAsync(req.CompanyId, ent.EntitlementId, activeSeatsFloor, ct) ?? ent;
-        ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
-
         if (existingSeatAlreadyActive)
         {
+            if (ent.SeatsUsed < 1)
+            {
+                ent.SeatsUsed = 1;
+                ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
+                await _entitlementStore.UpsertAsync(ent, ct);
+            }
+
             user.CompanyId = req.CompanyId;
             user.SeatEntitlementId = ent.EntitlementId;
             user.SeatStatus = "active";
@@ -113,6 +116,10 @@ public sealed class CompanyJoinHandler
             await _userStore.UpsertLookupsAsync(user, ct);
             return;
         }
+
+        var activeSeatsFloor = await _seatStore.CountActiveSeatsAsync(req.CompanyId, ent.EntitlementId, ct);
+        ent = await _entitlementStore.SyncSeatsUsedAsync(req.CompanyId, ent.EntitlementId, activeSeatsFloor, ct) ?? ent;
+        ent.IsOverCapacity = ent.SeatsUsed > ent.SeatsTotal;
 
         if (!ent.IsActive(_clock.UtcNow))
         {

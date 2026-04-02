@@ -1040,6 +1040,12 @@ public sealed class SubscriptionLifecycleEndToEndTests
 
             return Task.FromResult<IReadOnlyList<User>>(rows);
         }
+
+        public async Task<HabloTruckPlatform.Application.Models.StripeUserScanPage> QueryUsersWithStripePageAsync(int take = 500, int startBucket = 0, CancellationToken ct = default)
+        {
+            var users = await QueryUsersWithStripeAsync(take, ct);
+            return new HabloTruckPlatform.Application.Models.StripeUserScanPage(users, startBucket, startBucket, 0, false);
+        }
     }
 
     private sealed class DynamicUserResolver : IUserResolver
@@ -1233,7 +1239,6 @@ public sealed class SubscriptionLifecycleEndToEndTests
             => Task.CompletedTask;
     }
 }
-
 
 
 
