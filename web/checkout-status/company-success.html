@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HabloTruck | Company Checkout Received</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <section class="status-card">
+      <p class="eyebrow">HabloTruck</p>
+      <div class="status-chip">Company checkout received</div>
+      <h1>Your company purchase was received.</h1>
+      <p class="lead">
+        Return to ManyChat to retrieve the invite code for your team. The backend will create
+        your entitlement and active invite automatically.
+      </p>
+
+      <div class="action-row">
+        <a class="button" href="./index.html">Back to status home</a>
+      </div>
+
+      <section class="notes">
+        <h2>What happens next</h2>
+        <ul>
+          <li>Stripe sends the checkout event to the backend.</li>
+          <li>HabloTruck creates or updates the company and entitlement.</li>
+          <li>An active invite code is generated for the purchased seats.</li>
+          <li>You can retrieve that code from ManyChat.</li>
+        </ul>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

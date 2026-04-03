@@ -2,6 +2,15 @@
 
 This document describes the three supported user journeys that can start from ManyChat and end in HabloTruck backend flows.
 
+For the detailed end-to-end flow of individual monthly and yearly subscriptions, including happy path, error variants, and the operational ManyChat blueprint, see:
+
+- `docs/MANYCHAT_ENTRY_ROUTER_AND_NAVIGATION.md`
+- `docs/MANYCHAT_INDIVIDUAL_SUBSCRIPTION_FLOWS.md`
+- `docs/MANYCHAT_COMPANY_AND_INVITE_FLOWS.md`
+- `docs/MANYCHAT_BILLING_RECOVERY_AND_RENEWAL_FLOWS.md`
+- `docs/MANYCHAT_MASTER_ARCHITECTURE.md`
+- `docs/MANYCHAT_IMPLEMENTATION_BLUEPRINT_ES.md`
+
 ## Purpose
 
 HabloTruck currently supports three enrollment/commercial journeys:

@@ -180,6 +180,13 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
   parent: storage
   name: 'default'
+  properties: {
+    staticWebsite: {
+      enabled: true
+      indexDocument: 'index.html'
+      errorDocument404Path: '404.html'
+    }
+  }
 }
 
 resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
@@ -480,4 +487,10 @@ output functionAppResourceId string = functionApp.id
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output storageAccountName string = storage.name
+output staticWebsiteUrl string = storage.properties.primaryEndpoints.web
+output checkoutSuccessUrl string = '${storage.properties.primaryEndpoints.web}success.html'
+output checkoutCancelUrl string = '${storage.properties.primaryEndpoints.web}cancel.html'
+output companyCheckoutSuccessUrl string = '${storage.properties.primaryEndpoints.web}company-success.html'
+output companyCheckoutCancelUrl string = '${storage.properties.primaryEndpoints.web}company-cancel.html'
+output billingReturnUrl string = '${storage.properties.primaryEndpoints.web}billing-return.html'
 output applicationInsightsConnectionString string = appInsights.properties.ConnectionString

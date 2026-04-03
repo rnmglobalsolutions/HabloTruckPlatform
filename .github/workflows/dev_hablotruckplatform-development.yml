@@ -10,6 +10,7 @@ env:
   DOTNET_VERSION: '10.0.x'
   FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions.csproj'
   OUTPUT_PATH: './published'
+  CHECKOUT_STATUS_SITE_PATH: './web/checkout-status'
   BICEP_TEMPLATE_PATH: './infra/bootstrap.bicep'
   BICEP_PARAMETERS_PATH: './infra/environments/dev.bicepparam'
   AZURE_LOCATION: ${{ vars.AZURE_LOCATION_DEV }}
@@ -59,8 +60,7 @@ jobs:
           set -euo pipefail
 
           LOCATION_NAME="${AZURE_LOCATION:-Central US}"
-
-          FUNCTION_APP_NAME="$(
+          DEPLOYMENT_OUTPUT="$(
             az deployment sub create \
               --location "$LOCATION_NAME" \
               --template-file "${BICEP_TEMPLATE_PATH}" \
@@ -72,11 +72,50 @@ jobs:
                 manyChatApiKey="$MANYCHAT_API_KEY_DEV" \
                 stripeSecretKey="$STRIPE_SECRET_KEY_DEV" \
                 stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_DEV" \
-              --query "properties.outputs.functionAppName.value" \
+              --query "properties.outputs" \
+              --output json
+          )"
+
+          echo "function_app_name=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "storage_account_name=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.storageAccountName.value')" >> "$GITHUB_OUTPUT"
+          echo "static_website_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.staticWebsiteUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "checkout_success_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.checkoutSuccessUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "checkout_cancel_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.checkoutCancelUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "company_checkout_success_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.companyCheckoutSuccessUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "company_checkout_cancel_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.companyCheckoutCancelUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "billing_return_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.billingReturnUrl.value')" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy checkout status static site
+        run: |
+          set -euo pipefail
+
+          STORAGE_ACCOUNT_NAME="${{ steps.deploy_infra.outputs.storage_account_name }}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+
+          STORAGE_KEY="$(
+            az storage account keys list \
+              --resource-group "$RG_NAME" \
+              --account-name "$STORAGE_ACCOUNT_NAME" \
+              --query '[0].value' \
               --output tsv
           )"
 
-          echo "function_app_name=$FUNCTION_APP_NAME" >> "$GITHUB_OUTPUT"
+          az storage blob upload-batch \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --account-key "$STORAGE_KEY" \
+            --destination '$web' \
+            --source "${CHECKOUT_STATUS_SITE_PATH}" \
+            --overwrite true \
+            --only-show-errors
+
+      - name: Print checkout status URLs
+        run: |
+          echo "Static website: ${{ steps.deploy_infra.outputs.static_website_url }}"
+          echo "Checkout success: ${{ steps.deploy_infra.outputs.checkout_success_url }}"
+          echo "Checkout cancel: ${{ steps.deploy_infra.outputs.checkout_cancel_url }}"
+          echo "Company success: ${{ steps.deploy_infra.outputs.company_checkout_success_url }}"
+          echo "Company cancel: ${{ steps.deploy_infra.outputs.company_checkout_cancel_url }}"
+          echo "Billing return: ${{ steps.deploy_infra.outputs.billing_return_url }}"
 
       - name: Dump Azure deployment operations on failure
         if: failure()
