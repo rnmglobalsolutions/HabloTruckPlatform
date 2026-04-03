@@ -6,6 +6,7 @@ Esta carpeta contiene la infraestructura de Azure para HabloTruck usando Bicep.
 
 - `Storage Account`
 - `Blob container` interno para despliegues de Flex Consumption
+- `Static website` en el mismo Storage Account para páginas de `successUrl` y `cancelUrl`
 - `Log Analytics Workspace`
 - `Application Insights`
 - `User Assigned Managed Identity` para referencias de Key Vault
@@ -20,6 +21,7 @@ Esta carpeta contiene la infraestructura de Azure para HabloTruck usando Bicep.
 - `Key Vault` desde el inicio.
 - Los audios no se hospedan en Azure Blob.
 - El `blob container` que crea el template es solo para el paquete de despliegue de la Function App.
+- El mismo `Storage Account` también hospeda un mini sitio estático para redirects de Stripe (`success`, `cancel`, `company-success`, `company-cancel`, `billing-return`).
 - Las tablas de Azure Table Storage no se crean aquí porque la aplicación ya las inicializa al arrancar.
 - El `Resource Group` ahora se crea desde `bootstrap.bicep`, por lo que el principal de GitHub necesita permisos a nivel suscripción o un alcance equivalente que permita crear resource groups.
 
@@ -78,9 +80,36 @@ El workflow de `dev` ahora:
 3. ese Bicep crea o actualiza el resource group,
 4. despliega la infraestructura del ambiente dentro de ese resource group,
 5. publica el artefacto a la Function App.
+6. publica las páginas estáticas de checkout en el static website del Storage Account.
 
 El workflow de `prod` sigue la misma idea, pero está orientado a la rama `prod` y usa `environment: production`.
 Además, existe un workflow de validación para PRs que solo corre tests y no despliega.
+
+## Static website y URLs de checkout
+
+El despliegue ahora también produce un sitio estático con estas páginas:
+
+- `success.html`
+- `cancel.html`
+- `company-success.html`
+- `company-cancel.html`
+- `billing-return.html`
+
+El Bicep expone outputs para:
+
+- `staticWebsiteUrl`
+- `checkoutSuccessUrl`
+- `checkoutCancelUrl`
+- `companyCheckoutSuccessUrl`
+- `companyCheckoutCancelUrl`
+- `billingReturnUrl`
+
+Estas URLs son las candidatas naturales para usar como:
+
+- `successUrl`
+- `cancelUrl`
+
+en los requests de Stripe checkout y billing portal.
 
 ## Ramas asumidas
 
