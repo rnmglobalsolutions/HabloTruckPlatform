@@ -6,30 +6,39 @@
   <title>HabloTruck | Billing Update Return</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body>
+<body data-title-key="billingTitle">
   <main class="page-shell">
     <section class="status-card">
-      <p class="eyebrow">HabloTruck</p>
-      <div class="status-chip">Billing step completed</div>
-      <h1>Your billing update is being confirmed.</h1>
-      <p class="lead">
-        Return to ManyChat and tap <strong>Ya actualice mi metodo</strong>,
-        <strong>Intentar cobro otra vez</strong>, or <strong>Verificar estado</strong>.
+      <div class="card-header">
+        <p class="eyebrow" data-i18n="indexEyebrow">HabloTruck</p>
+        <div class="lang-picker">
+          <span class="lang-picker-label" data-i18n="languageLabel">Language</span>
+          <div class="lang-picker-buttons">
+            <button class="lang-button" type="button" data-lang-option="en" aria-pressed="false" data-i18n="languageEnglish">English</button>
+            <button class="lang-button" type="button" data-lang-option="es" aria-pressed="false" data-i18n="languageSpanish">Spanish</button>
+          </div>
+        </div>
+      </div>
+      <div class="status-chip" data-i18n="billingChip">Billing step completed</div>
+      <h1 data-i18n="billingHeading">Your billing update is being confirmed.</h1>
+      <p class="lead" data-i18n="billingLead">
+        Return to ManyChat and tap Ya actualice mi metodo, Intentar cobro otra vez, or Verificar estado.
       </p>
 
       <div class="action-row">
-        <a class="button" href="./index.html">Back to status home</a>
+        <a class="button" href="./index.html" data-i18n="billingButton">Back to status home</a>
       </div>
 
       <section class="notes">
-        <h2>What happens next</h2>
+        <h2 data-i18n="billingNotesHeading">What happens next</h2>
         <ul>
-          <li>Stripe confirms the billing portal changes.</li>
-          <li>The HabloTruck backend receives new subscription or invoice updates by webhook.</li>
-          <li>ManyChat receives updated billing recovery state.</li>
+          <li data-i18n="billingNote1">Stripe confirms the billing portal changes.</li>
+          <li data-i18n="billingNote2">The HabloTruck backend receives new subscription or invoice updates by webhook.</li>
+          <li data-i18n="billingNote3">ManyChat receives updated billing recovery state.</li>
         </ul>
       </section>
     </section>
   </main>
+  <script src="./app.js"></script>
 </body>
 </html>
