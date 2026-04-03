@@ -173,9 +173,7 @@ function resolveLanguage() {
     return saved;
   }
 
-  return navigator.language && navigator.language.toLowerCase().startsWith("es")
-    ? "es"
-    : "en";
+  return "es";
 }
 
 function translateDocument(language) {
