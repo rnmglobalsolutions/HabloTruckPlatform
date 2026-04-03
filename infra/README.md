@@ -22,6 +22,7 @@ Esta carpeta contiene la infraestructura de Azure para HabloTruck usando Bicep.
 - Los audios no se hospedan en Azure Blob.
 - El `blob container` que crea el template es solo para el paquete de despliegue de la Function App.
 - El mismo `Storage Account` también hospeda un mini sitio estático para redirects de Stripe (`success`, `cancel`, `company-success`, `company-cancel`, `billing-return`).
+- La habilitación del static website se hace desde el workflow de GitHub con Azure CLI antes de publicar los archivos en `$web`.
 - Las tablas de Azure Table Storage no se crean aquí porque la aplicación ya las inicializa al arrancar.
 - El `Resource Group` ahora se crea desde `bootstrap.bicep`, por lo que el principal de GitHub necesita permisos a nivel suscripción o un alcance equivalente que permita crear resource groups.
 

@@ -124,6 +124,14 @@ jobs:
               --output tsv
           )"
 
+          az storage blob service-properties update \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --account-key "$STORAGE_KEY" \
+            --static-website \
+            --index-document index.html \
+            --404-document 404.html \
+            --only-show-errors
+
           az storage blob upload-batch \
             --account-name "$STORAGE_ACCOUNT_NAME" \
             --account-key "$STORAGE_KEY" \
