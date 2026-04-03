@@ -8,6 +8,8 @@ This folder contains the static pages used as Stripe redirect targets for:
 - company checkout cancel
 - billing portal return
 
+The site is bilingual and lets the user switch between English and Spanish on every page.
+
 ## Pages
 
 - `index.html`

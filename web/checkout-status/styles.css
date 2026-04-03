@@ -46,8 +46,54 @@ body {
   padding: 32px 28px;
 }
 
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.lang-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.lang-picker-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.lang-picker-buttons {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f6f1e4;
+  padding: 4px;
+}
+
+.lang-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lang-button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .eyebrow {
-  margin: 0 0 8px;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 12px;
@@ -154,6 +200,14 @@ h1 {
   .status-card {
     padding: 26px 20px;
     border-radius: 22px;
+  }
+
+  .card-header {
+    flex-direction: column;
+  }
+
+  .lang-picker {
+    justify-content: flex-start;
   }
 
   .lead {

@@ -6,20 +6,30 @@
   <title>HabloTruck | Page Not Found</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body>
+<body data-title-key="notFoundTitle">
   <main class="page-shell">
     <section class="status-card">
-      <p class="eyebrow">HabloTruck</p>
-      <div class="status-chip warn">Page not found</div>
-      <h1>We could not find that page.</h1>
-      <p class="lead">
+      <div class="card-header">
+        <p class="eyebrow" data-i18n="indexEyebrow">HabloTruck</p>
+        <div class="lang-picker">
+          <span class="lang-picker-label" data-i18n="languageLabel">Language</span>
+          <div class="lang-picker-buttons">
+            <button class="lang-button" type="button" data-lang-option="en" aria-pressed="false" data-i18n="languageEnglish">English</button>
+            <button class="lang-button" type="button" data-lang-option="es" aria-pressed="false" data-i18n="languageSpanish">Spanish</button>
+          </div>
+        </div>
+      </div>
+      <div class="status-chip warn" data-i18n="notFoundChip">Page not found</div>
+      <h1 data-i18n="notFoundHeading">We could not find that page.</h1>
+      <p class="lead" data-i18n="notFoundLead">
         Use the status home page or go back to the HabloTruck chat to continue.
       </p>
 
       <div class="action-row">
-        <a class="button" href="./index.html">Go to status home</a>
+        <a class="button" href="./index.html" data-i18n="notFoundButton">Go to status home</a>
       </div>
     </section>
   </main>
+  <script src="./app.js"></script>
 </body>
 </html>

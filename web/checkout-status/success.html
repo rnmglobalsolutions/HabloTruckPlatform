@@ -6,31 +6,40 @@
   <title>HabloTruck | Payment Received</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body>
+<body data-title-key="successTitle">
   <main class="page-shell">
     <section class="status-card">
-      <p class="eyebrow">HabloTruck</p>
-      <div class="status-chip">Payment received</div>
-      <h1>Your payment was received.</h1>
-      <p class="lead">
-        Your HabloTruck subscription is now being confirmed. Return to ManyChat and tap
-        <strong>Ya pague</strong> or <strong>Verificar mi acceso</strong>.
+      <div class="card-header">
+        <p class="eyebrow" data-i18n="indexEyebrow">HabloTruck</p>
+        <div class="lang-picker">
+          <span class="lang-picker-label" data-i18n="languageLabel">Language</span>
+          <div class="lang-picker-buttons">
+            <button class="lang-button" type="button" data-lang-option="en" aria-pressed="false" data-i18n="languageEnglish">English</button>
+            <button class="lang-button" type="button" data-lang-option="es" aria-pressed="false" data-i18n="languageSpanish">Spanish</button>
+          </div>
+        </div>
+      </div>
+      <div class="status-chip" data-i18n="successChip">Payment received</div>
+      <h1 data-i18n="successHeading">Your payment was received.</h1>
+      <p class="lead" data-i18n="successLead">
+        Your HabloTruck subscription is now being confirmed. Return to ManyChat and tap Ya pague or Verificar mi acceso.
       </p>
 
       <div class="action-row">
-        <a class="button" href="./index.html">Back to status home</a>
+        <a class="button" href="./index.html" data-i18n="successButton">Back to status home</a>
       </div>
 
       <section class="notes">
-        <h2>What happens next</h2>
+        <h2 data-i18n="successNotesHeading">What happens next</h2>
         <ul>
-          <li>Stripe sends the checkout event to the HabloTruck backend.</li>
-          <li>The backend projects your subscription and access.</li>
-          <li>ManyChat receives the updated access state.</li>
-          <li>You verify access from the chat and continue into HabloTruck.</li>
+          <li data-i18n="successNote1">Stripe sends the checkout event to the HabloTruck backend.</li>
+          <li data-i18n="successNote2">The backend projects your subscription and access.</li>
+          <li data-i18n="successNote3">ManyChat receives the updated access state.</li>
+          <li data-i18n="successNote4">You verify access from the chat and continue into HabloTruck.</li>
         </ul>
       </section>
     </section>
   </main>
+  <script src="./app.js"></script>
 </body>
 </html>
