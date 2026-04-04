@@ -38,6 +38,20 @@ public static class Buckets
         return $"{TablePrefixes.StripeCustomer}_{bucket:D2}";
     }
 
+    public static string ExternalIdentityPk(string userId)
+    {
+        var bucket = StableHashMod(userId, UserBucketCount);
+        return $"{TablePrefixes.ExternalIdentity}_{bucket:D3}_{userId.Trim()}";
+    }
+
+    public static string ExternalIdentityLookupPk(string provider, string externalSubject)
+    {
+        var normalizedProvider = provider.Trim().ToLowerInvariant();
+        var normalizedSubject = externalSubject.Trim();
+        var bucket = StableHashMod($"{normalizedProvider}:{normalizedSubject}", LookupBucketCount);
+        return $"{TablePrefixes.ExternalIdentityLookup}_{bucket:D2}";
+    }
+
     public static string EmailLookupPk(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
@@ -52,6 +66,16 @@ public static class Buckets
             : normalized.Length == 1 ? normalized : "xx";
 
         return $"{TablePrefixes.Email}_{prefix}";
+    }
+
+    public static string PhoneLookupPk(string phoneE164)
+    {
+        if (string.IsNullOrWhiteSpace(phoneE164))
+            throw new ArgumentException("Phone is required.", nameof(phoneE164));
+
+        var normalized = phoneE164.Trim();
+        var bucket = StableHashMod(normalized, LookupBucketCount);
+        return $"{TablePrefixes.Phone}_{bucket:D2}";
     }
 
     public static string TimeIndexPk(DateTimeOffset utc, string format)

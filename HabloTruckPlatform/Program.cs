@@ -1,6 +1,7 @@
 ﻿using Azure.Data.Tables;
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
+using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Application.UseCases;
 using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
@@ -18,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
 using System.Linq;
 
 var host = new HostBuilder()
@@ -87,6 +89,17 @@ var host = new HostBuilder()
         // ---- Stores (Infrastructure implementations)
         services.AddSingleton<IUserStore, TableUserStore>();
         services.AddSingleton<IUserResolver, TableUserResolver>();
+        services.AddSingleton<IExternalIdentityStore, TableExternalIdentityStore>();
+        services.AddSingleton(sp =>
+        {
+            var options = new ExternalAudienceOptions();
+            cfg.GetSection("ExternalAudience").Bind(options);
+            _ = options.GetNormalizedPreferredProvider();
+            _ = options.GetNormalizedManyChatPreferredChannels();
+            return options;
+        });
+        services.AddSingleton<IExternalAudiencePolicy, ExternalAudiencePolicy>();
+        services.AddSingleton<IManyChatAudienceResolver, ManyChatAudienceResolver>();
         services.AddSingleton<IGraceIndexStore, TableGraceIndexStore>();
         services.AddSingleton<IStripeEventStore, TableStripeEventStore>();
         services.AddSingleton<ICompanyStore, TableCompanyStore>();

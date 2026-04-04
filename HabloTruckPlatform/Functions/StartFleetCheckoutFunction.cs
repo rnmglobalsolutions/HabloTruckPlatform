@@ -62,6 +62,7 @@ public sealed class StartFleetCheckoutFunction
             Email = body?.Email,
             PhoneE164 = body?.PhoneE164,
             ManyChatSubscriberId = body?.ManyChatSubscriberId,
+            ManyChatChannel = body?.ManyChatChannel,
             Seats = body?.Seats ?? 0,
             SuccessUrl = body?.SuccessUrl,
             CancelUrl = body?.CancelUrl

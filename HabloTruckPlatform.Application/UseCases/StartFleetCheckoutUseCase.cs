@@ -26,6 +26,7 @@ public sealed class StartFleetCheckoutUseCase
         var email = Normalize(request.Email);
         var phoneE164 = Normalize(request.PhoneE164);
         var manyChatSubscriberId = Normalize(request.ManyChatSubscriberId);
+        var manyChatChannel = Normalize(request.ManyChatChannel);
         var successUrl = Normalize(request.SuccessUrl);
         var cancelUrl = Normalize(request.CancelUrl);
 
@@ -55,7 +56,8 @@ public sealed class StartFleetCheckoutUseCase
             CompanyName = companyName,
             Email = email,
             PhoneE164 = phoneE164,
-            ManyChatSubscriberId = manyChatSubscriberId
+            ManyChatSubscriberId = manyChatSubscriberId,
+            ManyChatChannel = manyChatChannel
         }, ct);
 
         return new StartFleetCheckoutResult

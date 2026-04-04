@@ -4,6 +4,7 @@ using HabloTruckPlatform.Application.Billing;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
+using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
@@ -190,7 +191,11 @@ public sealed class FailedActionRetryService
             var user = await _users.GetAsync(p.UserPk, p.UserId, ct)
                        ?? throw new InvalidOperationException("User not found for retry");
 
-            if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+            var targetSubscriberId = string.IsNullOrWhiteSpace(p.SubscriberId)
+                ? user.ManyChatSubscriberId?.Trim()
+                : p.SubscriberId.Trim();
+
+            if (string.IsNullOrWhiteSpace(targetSubscriberId))
             {
                 _logger.LogInformation(
                     "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
@@ -221,7 +226,7 @@ public sealed class FailedActionRetryService
                 Reason: "Retry ManyChat sync");
 
             var dependencyWatch = Stopwatch.StartNew();
-            await _manyChat.SyncUserAccessAsync(user, decision, ct);
+            await _manyChat.SyncUserAccessAsync(CloneForSubscriber(user, targetSubscriberId), decision, ct);
 
             user.LastSyncedAccessMode = decision.Mode.ToString();
             user.LastSyncedAccessSource = (int)decision.Source;
@@ -372,6 +377,41 @@ public sealed class FailedActionRetryService
 
         throw new InvalidOperationException($"Unknown actionType: {item.ActionType}");
     }
+
+    private static User CloneForSubscriber(User user, string subscriberId)
+        => new()
+        {
+            UserId = user.UserId,
+            EmailNormalized = user.EmailNormalized,
+            ManyChatSubscriberId = subscriberId,
+            PhoneE164 = user.PhoneE164,
+            StripeCustomerId = user.StripeCustomerId,
+            StripeSubscriptionId = user.StripeSubscriptionId,
+            SubscriptionStatus = user.SubscriptionStatus,
+            IndividualGraceEndsAtUtc = user.IndividualGraceEndsAtUtc,
+            CompanyId = user.CompanyId,
+            SeatEntitlementId = user.SeatEntitlementId,
+            SeatStatus = user.SeatStatus,
+            EffectiveAccess = user.EffectiveAccess,
+            LastStripeEventId = user.LastStripeEventId,
+            LastStripeEventCreatedUtc = user.LastStripeEventCreatedUtc,
+            UpdatedAtUtc = user.UpdatedAtUtc,
+            CurrentGracePk = user.CurrentGracePk,
+            CurrentGraceRk = user.CurrentGraceRk,
+            StripePriceId = user.StripePriceId,
+            IndividualPlanTerm = user.IndividualPlanTerm,
+            StripeCurrentPeriodEndUtc = user.StripeCurrentPeriodEndUtc,
+            StripeCancelAtPeriodEnd = user.StripeCancelAtPeriodEnd,
+            PaymentRecoveryStartedAtUtc = user.PaymentRecoveryStartedAtUtc,
+            LastSyncedAccessMode = user.LastSyncedAccessMode,
+            LastSyncedAccessSource = user.LastSyncedAccessSource,
+            LastSyncedGraceEndsAtUtc = user.LastSyncedGraceEndsAtUtc,
+            LastManyChatSyncAtUtc = user.LastManyChatSyncAtUtc,
+            PlanType = user.PlanType,
+            CohortId = user.CohortId,
+            SchoolId = user.SchoolId,
+            CohortAccessGrantedAtUtc = user.CohortAccessGrantedAtUtc
+        };
 
     private async Task<bool> ShouldSendSubscriptionReminderAsync(
         SubscriptionReminderDispatch dispatch,

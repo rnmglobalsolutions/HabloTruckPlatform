@@ -279,6 +279,51 @@ public sealed class TableStoreBehaviorTests
         Assert.Equal(user.StripeCurrentPeriodEndUtc, entity.StripeCurrentPeriodEndUtc);
     }
 
+    [Fact]
+    public async Task TableExternalIdentityStore_UpsertAsync_Should_WriteIdentityAndLookup()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new FakeTableRepository();
+        var sut = new TableExternalIdentityStore(factory, repo);
+
+        var now = new DateTimeOffset(2026, 4, 3, 12, 0, 0, TimeSpan.Zero);
+
+        await sut.UpsertAsync(new HabloTruckPlatform.Domain.Models.ExternalIdentity
+        {
+            UserId = "U_EXT_1",
+            Provider = "manychat",
+            ExternalSubject = "sid_123",
+            Channel = "instagram",
+            IsPrimary = true,
+            CreatedAtUtc = now,
+            LastSeenAtUtc = now
+        });
+
+        Assert.Equal(2, repo.Upserts.Count);
+        Assert.Contains(repo.Upserts, x => x.TableName == TableNames.ExternalIdentities);
+        Assert.Contains(repo.Upserts, x => x.TableName == TableNames.ExternalIdentityLookup);
+    }
+
+    [Fact]
+    public async Task TableExternalIdentityStore_UpsertAsync_Should_RejectReassigningIdentityToDifferentUser()
+    {
+        var factory = new FakeTableClientFactory();
+        var repo = new ExternalIdentityConflictRepository();
+        var sut = new TableExternalIdentityStore(factory, repo);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            sut.UpsertAsync(new HabloTruckPlatform.Domain.Models.ExternalIdentity
+            {
+                UserId = "U_EXT_NEW",
+                Provider = "manychat",
+                ExternalSubject = "sid_conflict",
+                Channel = "instagram",
+                IsPrimary = true,
+                CreatedAtUtc = new DateTimeOffset(2026, 4, 3, 12, 0, 0, TimeSpan.Zero),
+                LastSeenAtUtc = new DateTimeOffset(2026, 4, 3, 12, 0, 0, TimeSpan.Zero)
+            }));
+    }
+
     private sealed class FakeTableClientFactory : ITableClientFactory
     {
         private readonly Dictionary<string, TableClient> _clients = new(StringComparer.OrdinalIgnoreCase);
@@ -325,8 +370,41 @@ public sealed class TableStoreBehaviorTests
         }
     }
 
+    private sealed class ExternalIdentityConflictRepository : ITableRepository
+    {
+        public Task<T?> GetOrNullAsync<T>(TableClient table, string pk, string rk, CancellationToken ct = default) where T : class, ITableEntity
+        {
+            if (typeof(T) == typeof(ExternalIdentityLookupEntity) && table.Name == TableNames.ExternalIdentityLookup)
+            {
+                return Task.FromResult<T?>(
+                    new ExternalIdentityLookupEntity
+                    {
+                        PartitionKey = pk,
+                        RowKey = rk,
+                        UserPk = Buckets.UserBucketPk("U_EXT_OLD"),
+                        UserId = "U_EXT_OLD",
+                        Provider = "manychat",
+                        ExternalSubject = "sid_conflict",
+                        Channel = "facebook",
+                        IsPrimary = true,
+                        CreatedAtUtc = new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero),
+                        LastSeenAtUtc = new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero)
+                    } as T);
+            }
+
+            return Task.FromResult<T?>(null);
+        }
+
+        public Task UpsertAsync<T>(TableClient table, T entity, TableUpdateMode mode = TableUpdateMode.Merge, CancellationToken ct = default) where T : class, ITableEntity
+            => Task.CompletedTask;
+
+        public Task<bool> DeleteIfExistsAsync(TableClient table, string pk, string rk, CancellationToken ct = default)
+            => Task.FromResult(false);
+
+        public Task<bool> TryInsertAsync<T>(TableClient table, T entity, CancellationToken ct = default) where T : class, ITableEntity
+            => Task.FromResult(true);
+    }
+
     private sealed record TableInsertCall(string TableName, object Entity);
     private sealed record TableUpsertCall(string TableName, object Entity);
 }
-
-

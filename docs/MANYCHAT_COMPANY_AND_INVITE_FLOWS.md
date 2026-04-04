@@ -230,6 +230,7 @@ ManyChat should collect:
 - email
 - optional phone
 - `{{contact.id}}` as `manyChatSubscriberId`
+- optional `manyChatChannel` such as `facebook`, `instagram`, or `whatsapp`
 
 ### Step 3: ManyChat requests fleet checkout
 
@@ -311,6 +312,7 @@ ManyChat should send:
 - email
 - optional phone
 - `manyChatSubscriberId`
+- optional `manyChatChannel`
 
 ### Step 5: ManyChat requests join
 

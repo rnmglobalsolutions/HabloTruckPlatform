@@ -20,6 +20,24 @@ public interface IUserStore
         CancellationToken ct = default);
 
     /// <summary>
+    /// Create or resolve a user from a generic external identity plus fallback contact attributes.
+    /// </summary>
+    Task<User> GetOrCreateByExternalIdentityAsync(
+        string? emailNormalized,
+        string? phoneE164,
+        string? provider,
+        string? externalSubject,
+        string? channel,
+        CancellationToken ct = default)
+        => GetOrCreateAsync(
+            emailNormalized,
+            string.Equals(provider?.Trim(), HabloTruckPlatform.Domain.Models.ExternalIdentityProviders.ManyChat, StringComparison.OrdinalIgnoreCase)
+                ? externalSubject
+                : null,
+            phoneE164,
+            ct);
+
+    /// <summary>
     /// Update lookup mappings (email/subscriber/stripe customer) -> (UserPk, UserId).
     /// Should be idempotent.
     /// </summary>

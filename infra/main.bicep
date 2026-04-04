@@ -398,6 +398,26 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: manyChatSetCustomFieldByNamePath
         }
         {
+          name: 'ExternalAudience__PreferredProvider'
+          value: 'manychat'
+        }
+        {
+          name: 'ExternalAudience__ManyChatPreferredChannels__0'
+          value: 'facebook'
+        }
+        {
+          name: 'ExternalAudience__ManyChatPreferredChannels__1'
+          value: 'whatsapp'
+        }
+        {
+          name: 'ExternalAudience__ManyChatPreferredChannels__2'
+          value: 'instagram'
+        }
+        {
+          name: 'ExternalAudience__ManyChatPreferredChannels__3'
+          value: 'unknown'
+        }
+        {
           name: 'Stripe__CdlCohort100PriceId'
           value: stripeCdlCohort100PriceId
         }

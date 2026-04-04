@@ -163,6 +163,7 @@ ManyChat should collect:
 - email
 - optional phone
 - `{{contact.id}}` as `manyChatSubscriberId`
+- optional `manyChatChannel` such as `facebook`, `instagram`, or `whatsapp`
 
 ### Step 3: ManyChat requests Stripe checkout session
 

@@ -707,13 +707,68 @@ public sealed class SubscriptionReminderServiceTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => sut.RunDailyAsync(take: 0));
     }
 
+    [Fact]
+    public async Task RunDailyAsync_Should_UsePreferredManyChatAudience_WhenLegacySubscriberIdIsMissing()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var userStore = new InMemoryUserStore();
+        userStore.Users.Add(new User
+        {
+            UserId = "U_external_only",
+            ManyChatSubscriberId = null,
+            StripeSubscriptionId = "sub_external_only",
+            SubscriptionStatus = "active",
+            IndividualPlanTerm = "monthly",
+            StripeCancelAtPeriodEnd = false,
+            StripeCurrentPeriodEndUtc = now.AddDays(7),
+            PlanType = "individual_monthly"
+        });
+
+        var identityStore = new InMemoryExternalIdentityStore();
+        identityStore.Add(new ExternalIdentity
+        {
+            UserId = "U_external_only",
+            Provider = ExternalIdentityProviders.ManyChat,
+            ExternalSubject = "sid_instagram_only",
+            Channel = ExternalIdentityChannels.Instagram,
+            IsPrimary = true,
+            CreatedAtUtc = now,
+            LastSeenAtUtc = now
+        });
+
+        var manyChat = new RecordingManyChatSync();
+        var sut = BuildService(
+            userStore,
+            new InMemoryCompanyStore(),
+            new InMemoryReminderStore(),
+            manyChat,
+            now,
+            audienceResolver: new ManyChatAudienceResolver(new ExternalAudiencePolicy(identityStore, new ExternalAudienceOptions
+            {
+                PreferredProvider = ExternalIdentityProviders.ManyChat,
+                ManyChatPreferredChannels =
+                [
+                    ExternalIdentityChannels.Facebook,
+                    ExternalIdentityChannels.WhatsApp,
+                    ExternalIdentityChannels.Instagram,
+                    ExternalIdentityChannels.Unknown
+                ]
+            })));
+
+        await sut.RunDailyAsync(take: 100);
+
+        var dispatch = Assert.Single(manyChat.Dispatches);
+        Assert.Equal("sid_instagram_only", dispatch.SubscriberId);
+    }
+
     private static SubscriptionReminderService BuildService(
         InMemoryUserStore users,
         InMemoryCompanyStore companies,
         InMemoryReminderStore reminders,
         RecordingManyChatSync manyChat,
         DateTimeOffset now,
-        InMemoryFailedActionStore? failedActionStore = null)
+        InMemoryFailedActionStore? failedActionStore = null,
+        IManyChatAudienceResolver? audienceResolver = null)
     {
         return new SubscriptionReminderService(
             users,
@@ -722,7 +777,8 @@ public sealed class SubscriptionReminderServiceTests
             manyChat,
             failedActionStore ?? new InMemoryFailedActionStore(),
             new FixedClock(now),
-            NullLogger<SubscriptionReminderService>.Instance);
+            NullLogger<SubscriptionReminderService>.Instance,
+            manyChatAudienceResolver: audienceResolver);
     }
 
     private static User NewUser(
@@ -802,6 +858,25 @@ public sealed class SubscriptionReminderServiceTests
         }
 
         public Task UpsertFromCheckoutAsync(string companyId, string? companyName, string? adminEmailNormalized, string? stripeCustomerId, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryExternalIdentityStore : IExternalIdentityStore
+    {
+        private readonly List<ExternalIdentity> _items = new();
+
+        public void Add(ExternalIdentity identity) => _items.Add(identity);
+
+        public Task<ExternalIdentity?> GetAsync(string provider, string externalSubject, CancellationToken ct = default)
+            => Task.FromResult(_items.FirstOrDefault(x =>
+                string.Equals(x.Provider, provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.ExternalSubject, externalSubject, StringComparison.OrdinalIgnoreCase)));
+
+        public Task<IReadOnlyList<ExternalIdentity>> ListByUserAsync(string userId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ExternalIdentity>>(
+                _items.Where(x => string.Equals(x.UserId, userId, StringComparison.OrdinalIgnoreCase)).ToList());
+
+        public Task UpsertAsync(ExternalIdentity identity, CancellationToken ct = default)
             => Task.CompletedTask;
     }
 
@@ -910,6 +985,3 @@ public sealed class SubscriptionReminderServiceTests
         }
     }
 }
-
-
-

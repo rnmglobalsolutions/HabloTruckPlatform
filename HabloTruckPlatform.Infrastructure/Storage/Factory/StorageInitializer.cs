@@ -26,8 +26,11 @@ public sealed class StorageInitializer
         // -----------------------------
         await _factory.EnsureTableAsync(TableNames.Users, ct);
         await _factory.EnsureTableAsync(TableNames.UserEmail, ct);
+        await _factory.EnsureTableAsync(TableNames.UserPhone, ct);
         await _factory.EnsureTableAsync(TableNames.UserManyChat, ct);
         await _factory.EnsureTableAsync(TableNames.UserStripeCustomer, ct);
+        await _factory.EnsureTableAsync(TableNames.ExternalIdentities, ct);
+        await _factory.EnsureTableAsync(TableNames.ExternalIdentityLookup, ct);
 
         // -----------------------------
         // GRACE INDEX

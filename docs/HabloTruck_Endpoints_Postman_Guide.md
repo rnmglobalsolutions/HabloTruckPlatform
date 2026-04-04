@@ -258,6 +258,7 @@ x-correlation-id: <optional>
 {
   "inviteCode": "HT-AB12CD",
   "manyChatSubscriberId": "123456789",
+  "manyChatChannel": "whatsapp",
   "email": "chofer@example.com",
   "phoneE164": "+17865550100"
 }
@@ -507,6 +508,7 @@ Content-Type: application/json
   "email": "owner@acme.com",
   "phoneE164": "+17865550100",
   "manyChatSubscriberId": "123456789",
+  "manyChatChannel": "facebook",
   "seats": 20,
   "successUrl": "https://tuapp.com/company-success",
   "cancelUrl": "https://tuapp.com/company-cancel"
@@ -552,6 +554,7 @@ x-correlation-id: <optional>
   "email": "chofer@example.com",
   "phoneE164": "+17865550100",
   "manyChatSubscriberId": "123456789",
+  "manyChatChannel": "instagram",
   "companyId": "C1",
   "companyName": "Acme Trucking",
   "schoolId": "S1",

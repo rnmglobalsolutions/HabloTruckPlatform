@@ -68,4 +68,23 @@ public sealed class StripeCheckoutServiceTests
         Assert.Equal("always", options.CustomerCreation);
         Assert.Null(options.SubscriptionData);
     }
+
+    [Fact]
+    public void BuildSessionCreateOptions_Should_IncludeManyChatChannelInMetadata_WhenPresent()
+    {
+        var request = new StripeCheckoutSessionRequest
+        {
+            PriceId = "price_123",
+            Quantity = 1,
+            SuccessUrl = "https://app.hablotruck.com/success",
+            CancelUrl = "https://app.hablotruck.com/cancel",
+            PlanType = "individual_monthly",
+            ManyChatSubscriberId = "sid_123",
+            ManyChatChannel = "instagram"
+        };
+
+        var options = StripeCheckoutService.BuildSessionCreateOptions(request);
+
+        Assert.Equal("instagram", options.Metadata["manychatChannel"]);
+    }
 }

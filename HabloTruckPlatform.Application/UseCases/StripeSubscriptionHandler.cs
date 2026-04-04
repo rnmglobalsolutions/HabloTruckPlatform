@@ -23,6 +23,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IGraceIndexStore _graceIndexStore;
     private readonly IManyChatSync _manyChatSync;
     private readonly IManyChatDispatchQueue? _manyChatDispatchQueue;
+    private readonly IManyChatAudienceResolver? _manyChatAudienceResolver;
     private readonly AccessOrchestrator _accessOrchestrator;
     private readonly IClock _clock;
     private readonly GracePolicy _individualGracePolicy;
@@ -56,13 +57,15 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         BillingRecoveryManyChatNotifier billingRecoveryNotifier,
         ILogger<StripeSubscriptionHandler> logger,
         IManyChatDispatchQueue? manyChatDispatchQueue = null,
-        IAppMetrics? metrics = null)
+        IAppMetrics? metrics = null,
+        IManyChatAudienceResolver? manyChatAudienceResolver = null)
     {
         _userResolver = userResolver;
         _userStore = userStore;
         _graceIndexStore = graceIndexStore;
         _manyChatSync = manyChatSync;
         _manyChatDispatchQueue = manyChatDispatchQueue;
+        _manyChatAudienceResolver = manyChatAudienceResolver;
         _accessOrchestrator = accessOrchestrator;
         _clock = clock;
         _individualGracePolicy = individualGracePolicy;
@@ -223,9 +226,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         var emailNormalized = NormalizeEmail(data.CustomerEmail) ?? NormalizeEmail(GetMeta(data, "email"));
         var manyChatSubscriberId = GetMeta(data, "manychatSubscriberId") ?? GetMeta(data, "subscriberId");
+        var manyChatChannel = GetMeta(data, "manychatChannel");
         var phoneE164 = GetMeta(data, "phone");
 
-        var user = await _userStore.GetOrCreateAsync(emailNormalized, manyChatSubscriberId, phoneE164, ct);
+        var user = await _userStore.GetOrCreateByExternalIdentityAsync(
+            emailNormalized,
+            phoneE164,
+            string.IsNullOrWhiteSpace(manyChatSubscriberId) ? null : ExternalIdentityProviders.ManyChat,
+            manyChatSubscriberId,
+            manyChatChannel,
+            ct);
 
         user.StripeCustomerId = data.CustomerId!.Trim();
 
@@ -684,12 +694,12 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             user.StripeCurrentPeriodEndUtc,
             user.IndividualGraceEndsAtUtc);
 
-        if (paymentRecoveryJustStarted && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        if (paymentRecoveryJustStarted)
         {
             await _billingRecoveryNotifier.NotifyRecoveryActiveAsync(user, signal.StripeEventId, ct);
         }
 
-        if (paymentRecoveryJustEnded && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        if (paymentRecoveryJustEnded)
         {
             if (signal.Kind == StripeSignalKind.InvoicePaid)
                 await _billingRecoveryNotifier.NotifyRecoveredAsync(user, previousRecoveryStartedAtUtc, signal.StripeEventId, ct);
@@ -697,15 +707,16 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 await _billingRecoveryNotifier.NotifyClosedAsync(user, previousRecoveryStartedAtUtc, signal.StripeEventId, ct);
         }
 
+        var paymentFailedSubscriberId = await ResolvePreferredManyChatSubscriberIdAsync(user, ct);
         if (triggerPaymentFailedFlowIfNeeded
             && paymentRecoveryJustStarted
-            && !string.IsNullOrWhiteSpace(user.ManyChatSubscriberId)
+            && !string.IsNullOrWhiteSpace(paymentFailedSubscriberId)
             && user.PaymentRecoveryStartedAtUtc is not null)
         {
             var manyChatWatch = Stopwatch.StartNew();
             var payload = JsonSerializer.Serialize(
                 new ManyChatPaymentFailedFlowFailedActionPayload(
-                    SubscriberId: user.ManyChatSubscriberId?.Trim(),
+                    SubscriberId: paymentFailedSubscriberId,
                     UserId: user.UserId,
                     CompanyId: user.CompanyId,
                     SubscriptionId: user.StripeSubscriptionId,
@@ -729,7 +740,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
                 }
                 else
                 {
-                    await _manyChatSync.TriggerPaymentFailedFlowAsync(user.ManyChatSubscriberId!, ct);
+                    await _manyChatSync.TriggerPaymentFailedFlowAsync(paymentFailedSubscriberId, ct);
                 }
 
                 _logger.LogDebug(
@@ -836,6 +847,14 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             opWatch.ElapsedMilliseconds);
 
         return decision;
+    }
+
+    private async Task<string?> ResolvePreferredManyChatSubscriberIdAsync(User user, CancellationToken ct)
+    {
+        if (_manyChatAudienceResolver is null)
+            return string.IsNullOrWhiteSpace(user.ManyChatSubscriberId) ? null : user.ManyChatSubscriberId.Trim();
+
+        return await _manyChatAudienceResolver.ResolvePreferredSubscriberIdAsync(user, ExternalAudiencePurposes.PaymentFailedFlow, ct);
     }
 
     private void ApplySignalFacts(User user, StripeSignal signal, DateTimeOffset nowUtc)
