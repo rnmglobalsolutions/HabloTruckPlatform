@@ -559,6 +559,50 @@ public sealed class FailedActionRetryServiceTests
     }
 
     [Fact]
+    public async Task RetryDueAsync_Should_UseSubscriberIdFromPayload_ForManyChatSyncRetry()
+    {
+        var store = new InMemoryFailedActionStore();
+        var users = new InMemoryUserStore();
+        var manyChat = new RecordingManyChatSync();
+
+        var user = new User
+        {
+            UserId = "U_sync_multichannel",
+            ManyChatSubscriberId = "sid_current",
+            EffectiveAccess = new AccessSnapshot(
+                Mode: AccessMode.Full,
+                Source: AccessSource.Individual,
+                GraceEndsAtUtc: null)
+        };
+        users.Add(user);
+
+        var payload = JsonSerializer.Serialize(new ManyChatSyncFailedActionPayload(
+            UserPk: Buckets.UserBucketPk(user.UserId),
+            UserId: user.UserId,
+            SubscriberId: "sid_instagram",
+            CompanyId: null,
+            CorrelationId: user.UserId,
+            Reason: "sync_access",
+            OperationName: "manychat_sync_user_access"));
+
+        store.DueItems.Add(new FailedActionItem(
+            Pk: "pk_sync_multichannel",
+            Rk: "rk_sync_multichannel",
+            ActionType: FailedActionRetryService.ActionManyChatSync,
+            PayloadJson: payload,
+            Attempts: 0,
+            NextRetryUtc: DateTimeOffset.UtcNow));
+
+        var sut = new FailedActionRetryService(store, users, manyChat, NullLogger<FailedActionRetryService>.Instance);
+
+        await sut.RetryDueAsync(lookbackHours: 12, take: 50);
+
+        Assert.Equal(["sid_instagram"], manyChat.SyncSubscriberIds);
+        Assert.Single(store.Succeeded);
+        Assert.Empty(store.Dead);
+    }
+
+    [Fact]
     public async Task RetryDueAsync_Should_DispatchBillingRecoveryState_WhenCurrentEpisodeStillMatches()
     {
         var store = new InMemoryFailedActionStore();
@@ -733,6 +777,7 @@ public sealed class FailedActionRetryServiceTests
     private sealed class RecordingManyChatSync : IManyChatSync
     {
         public int SyncCalls { get; private set; }
+        public List<string> SyncSubscriberIds { get; } = new();
         public List<SubscriptionReminderDispatch> ReminderDispatches { get; } = new();
         public List<BillingRecoveryManyChatUpdate> BillingRecoveryUpdates { get; } = new();
         public Exception? PaymentFailedFlowException { get; set; }
@@ -746,6 +791,8 @@ public sealed class FailedActionRetryServiceTests
                 throw SyncException;
 
             SyncCalls++;
+            if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+                SyncSubscriberIds.Add(user.ManyChatSubscriberId);
             return Task.CompletedTask;
         }
 

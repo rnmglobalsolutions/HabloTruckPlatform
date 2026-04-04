@@ -4,8 +4,11 @@ public static class TableNames
 {
     public const string Users = "HTUsers";
     public const string UserEmail = "HTUserEmail";
+    public const string UserPhone = "HTUserPhone";
     public const string UserManyChat = "HTUserManyChat";
     public const string UserStripeCustomer = "HTUserStripeCustomer";
+    public const string ExternalIdentities = "HTExternalIdentities";
+    public const string ExternalIdentityLookup = "HTExternalIdentityLookup";
     public const string GraceIndex = "HTGraceIndex";
     public const string StripeEvents = "HTStripeEvents";
     public const string Companies = "HTCompanies";

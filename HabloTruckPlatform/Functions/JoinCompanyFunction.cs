@@ -116,10 +116,12 @@ public sealed class JoinCompanyFunction
 
         // 2) Resolve/create user (subscriberId preferred).
         var userWatch = Stopwatch.StartNew();
-        var user = await _users.GetOrCreateAsync(
+        var user = await _users.GetOrCreateByExternalIdentityAsync(
             emailNormalized: body?.Email,
-            manyChatSubscriberId: body?.ManyChatSubscriberId,
             phoneE164: body?.PhoneE164,
+            provider: string.IsNullOrWhiteSpace(body?.ManyChatSubscriberId) ? null : HabloTruckPlatform.Domain.Models.ExternalIdentityProviders.ManyChat,
+            externalSubject: body?.ManyChatSubscriberId,
+            channel: body?.ManyChatChannel,
             ct: ct);
 
         _logger.LogDebug(

@@ -15,6 +15,7 @@ public sealed class StripeCheckoutSessionRequest
     public string? Email { get; set; }
     public string? PhoneE164 { get; set; }
     public string? ManyChatSubscriberId { get; set; }
+    public string? ManyChatChannel { get; set; }
 
     // company / b2b
     public string? CompanyId { get; set; }

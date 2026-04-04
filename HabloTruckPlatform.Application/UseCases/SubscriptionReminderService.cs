@@ -18,6 +18,7 @@ public sealed class SubscriptionReminderService
     private readonly ISubscriptionReminderStore _reminders;
     private readonly IManyChatSync _manyChat;
     private readonly IManyChatDispatchQueue? _manyChatDispatchQueue;
+    private readonly IManyChatAudienceResolver? _manyChatAudienceResolver;
     private readonly IFailedActionStore _failedActionStore;
     private readonly IJobCheckpointStore _jobCheckpoints;
     private readonly IClock _clock;
@@ -35,13 +36,15 @@ public sealed class SubscriptionReminderService
         ILogger<SubscriptionReminderService> logger,
         IJobCheckpointStore? jobCheckpoints = null,
         IManyChatDispatchQueue? manyChatDispatchQueue = null,
-        IAppMetrics? metrics = null)
+        IAppMetrics? metrics = null,
+        IManyChatAudienceResolver? manyChatAudienceResolver = null)
     {
         _users = users;
         _companies = companies;
         _reminders = reminders;
         _manyChat = manyChat;
         _manyChatDispatchQueue = manyChatDispatchQueue;
+        _manyChatAudienceResolver = manyChatAudienceResolver;
         _failedActionStore = failedActionStore;
         _jobCheckpoints = jobCheckpoints ?? new NoopJobCheckpointStore();
         _clock = clock;
@@ -319,14 +322,15 @@ public sealed class SubscriptionReminderService
         DateTimeOffset nowUtc,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+        var subscriberId = await ResolvePreferredSubscriberIdAsync(user, ct);
+        if (string.IsNullOrWhiteSpace(subscriberId))
         {
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
                 "decision",
                 "build_dispatch",
                 "no_action_needed",
-                "missing_manychat_subscriber_id");
+                "missing_manychat_audience");
             return null;
         }
 
@@ -341,7 +345,7 @@ public sealed class SubscriptionReminderService
             return null;
         }
 
-        var paymentRecoveryDispatch = BuildPaymentRecoveryDispatch(user, nowUtc);
+        var paymentRecoveryDispatch = BuildPaymentRecoveryDispatch(user, nowUtc, subscriberId);
         if (paymentRecoveryDispatch is not null)
         {
             _logger.LogInformation(
@@ -420,7 +424,7 @@ public sealed class SubscriptionReminderService
             isCompanyReminder);
 
         return new SubscriptionReminderDispatch(
-            SubscriberId: user.ManyChatSubscriberId!.Trim(),
+            SubscriberId: subscriberId,
             UserId: user.UserId,
             SubscriptionId: user.StripeSubscriptionId!.Trim(),
             ReminderType: decision.Kind.ToEventName(),
@@ -437,7 +441,7 @@ public sealed class SubscriptionReminderService
         );
     }
 
-    private SubscriptionReminderDispatch? BuildPaymentRecoveryDispatch(User user, DateTimeOffset nowUtc)
+    private SubscriptionReminderDispatch? BuildPaymentRecoveryDispatch(User user, DateTimeOffset nowUtc, string subscriberId)
     {
         if (!IsPaymentRecoveryJourneyActive(user))
             return null;
@@ -454,7 +458,7 @@ public sealed class SubscriptionReminderService
         var segment = DeriveAudienceSegment(user, nowUtc);
 
         return new SubscriptionReminderDispatch(
-            SubscriberId: user.ManyChatSubscriberId!.Trim(),
+            SubscriberId: subscriberId,
             UserId: user.UserId,
             SubscriptionId: user.StripeSubscriptionId!.Trim(),
             ReminderType: $"payment_recovery_followup_day_{recoveryDay}",
@@ -517,6 +521,14 @@ public sealed class SubscriptionReminderService
 
         var activeWindow = nowUtc.AddDays(-30);
         return markerUtc.Value >= activeWindow ? "active" : "at_risk";
+    }
+
+    private async Task<string?> ResolvePreferredSubscriberIdAsync(User user, CancellationToken ct)
+    {
+        if (_manyChatAudienceResolver is null)
+            return string.IsNullOrWhiteSpace(user.ManyChatSubscriberId) ? null : user.ManyChatSubscriberId.Trim();
+
+        return await _manyChatAudienceResolver.ResolvePreferredSubscriberIdAsync(user, ExternalAudiencePurposes.SubscriptionReminderFlow, ct);
     }
 
     private static bool IsPaymentRecoveryJourneyActive(User user)

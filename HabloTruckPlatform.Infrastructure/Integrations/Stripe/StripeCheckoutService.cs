@@ -99,6 +99,7 @@ public sealed class StripeCheckoutService : IStripeCheckoutService
         AddIfNotBlank(metadata, "email", request.Email);
         AddIfNotBlank(metadata, "phone", request.PhoneE164);
         AddIfNotBlank(metadata, "manychatSubscriberId", request.ManyChatSubscriberId);
+        AddIfNotBlank(metadata, "manychatChannel", request.ManyChatChannel);
 
         if (request.Seats > 0)
             metadata["seats"] = request.Seats.ToString();

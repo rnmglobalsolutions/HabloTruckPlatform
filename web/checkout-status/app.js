@@ -39,7 +39,7 @@ const translations = {
     companySuccessChip: "Company checkout received",
     companySuccessHeading: "Your company purchase was received.",
     companySuccessLead:
-      "Return to ManyChat to retrieve the invite code for your team. The backend will create your entitlement and active invite automatically.",
+      "Return to ManyChat to get the code you will share with your team. We are getting everything ready for your drivers or students now.",
     companySuccessButton: "Back to status home",
     companySuccessNotesHeading: "What happens next",
     companySuccessNote1: "Stripe sends the checkout event to the backend.",
@@ -119,7 +119,7 @@ const translations = {
     companySuccessChip: "Compra de empresa recibida",
     companySuccessHeading: "La compra de tu empresa fue recibida.",
     companySuccessLead:
-      "Regresa a ManyChat para obtener el código de invitación para tu equipo. El backend creará tu entitlement y el invite activo automáticamente.",
+      "Regresa a ManyChat para obtener el código que vas a compartir con tu equipo. Ya estamos dejando todo listo para tus choferes o estudiantes.",
     companySuccessButton: "Volver al inicio",
     companySuccessNotesHeading: "Qué pasa ahora",
     companySuccessNote1: "Stripe envía el evento del checkout al backend.",

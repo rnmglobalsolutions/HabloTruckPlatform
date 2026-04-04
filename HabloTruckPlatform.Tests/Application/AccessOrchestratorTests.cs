@@ -272,13 +272,62 @@ public sealed class AccessOrchestratorTests
         Assert.Empty(fixture.FailedActionStore.Enqueued);
     }
 
-    private static Fixture BuildFixture(DateTimeOffset now)
+    [Fact]
+    public async Task RecomputeForUserAsync_Should_SyncAllManyChatContacts_WhenMultipleIdentitiesExist()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var externalIdentityStore = new InMemoryExternalIdentityStore();
+        var fixture = BuildFixture(now, externalIdentityStore);
+
+        var user = NewUser("U_multi_contact", subscriptionStatus: "active", manyChatSubscriberId: "sid_latest");
+        fixture.UserStore.Add(user);
+
+        externalIdentityStore.Add(new ExternalIdentity
+        {
+            UserId = user.UserId,
+            Provider = ExternalIdentityProviders.ManyChat,
+            ExternalSubject = "sid_facebook",
+            Channel = ExternalIdentityChannels.Facebook,
+            IsPrimary = false,
+            CreatedAtUtc = now.AddMinutes(-5),
+            LastSeenAtUtc = now.AddMinutes(-5)
+        });
+        externalIdentityStore.Add(new ExternalIdentity
+        {
+            UserId = user.UserId,
+            Provider = ExternalIdentityProviders.ManyChat,
+            ExternalSubject = "sid_latest",
+            Channel = ExternalIdentityChannels.Instagram,
+            IsPrimary = true,
+            CreatedAtUtc = now,
+            LastSeenAtUtc = now
+        });
+
+        await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+
+        Assert.Equal(2, fixture.ManyChat.SyncCalls);
+        Assert.Equal(["sid_latest", "sid_facebook"], fixture.ManyChat.SubscriberIds);
+    }
+
+    private static Fixture BuildFixture(DateTimeOffset now, InMemoryExternalIdentityStore? externalIdentityStore = null)
     {
         var userStore = new InMemoryUserStore();
         var seatStore = new InMemorySeatStore();
         var entitlementStore = new InMemoryEntitlementStore();
         var manyChat = new RecordingManyChatSync();
         var failedActionStore = new InMemoryFailedActionStore();
+        externalIdentityStore ??= new InMemoryExternalIdentityStore();
+        var audienceResolver = new ManyChatAudienceResolver(new ExternalAudiencePolicy(externalIdentityStore, new ExternalAudienceOptions
+        {
+            PreferredProvider = ExternalIdentityProviders.ManyChat,
+            ManyChatPreferredChannels =
+            [
+                ExternalIdentityChannels.Facebook,
+                ExternalIdentityChannels.WhatsApp,
+                ExternalIdentityChannels.Instagram,
+                ExternalIdentityChannels.Unknown
+            ]
+        }));
 
         var sut = new AccessOrchestrator(
             userStore,
@@ -287,9 +336,10 @@ public sealed class AccessOrchestratorTests
             manyChat,
             failedActionStore,
             new FixedClock(now),
-            new CompanyGracePolicy(7));
+            new CompanyGracePolicy(7),
+            manyChatAudienceResolver: audienceResolver);
 
-        return new Fixture(sut, userStore, seatStore, entitlementStore, manyChat, failedActionStore);
+        return new Fixture(sut, userStore, seatStore, entitlementStore, manyChat, failedActionStore, externalIdentityStore);
     }
 
     private static User NewUser(string userId, string? subscriptionStatus, string? manyChatSubscriberId)
@@ -309,7 +359,8 @@ public sealed class AccessOrchestratorTests
         InMemorySeatStore SeatStore,
         InMemoryEntitlementStore EntitlementStore,
         RecordingManyChatSync ManyChat,
-        InMemoryFailedActionStore FailedActionStore);
+        InMemoryFailedActionStore FailedActionStore,
+        InMemoryExternalIdentityStore ExternalIdentityStore);
 
     private sealed class FixedClock : IClock
     {
@@ -395,6 +446,7 @@ public sealed class AccessOrchestratorTests
     private sealed class RecordingManyChatSync : IManyChatSync
     {
         public int SyncCalls { get; private set; }
+        public List<string> SubscriberIds { get; } = new();
         public Exception? SyncException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
@@ -403,6 +455,8 @@ public sealed class AccessOrchestratorTests
                 throw SyncException;
 
             SyncCalls++;
+            if (!string.IsNullOrWhiteSpace(user.ManyChatSubscriberId))
+                SubscriberIds.Add(user.ManyChatSubscriberId);
             return Task.CompletedTask;
         }
 
@@ -462,8 +516,24 @@ public sealed class AccessOrchestratorTests
         public Task RequeueAsync(string pk, string rk, DateTimeOffset nextRetryUtc, CancellationToken ct = default)
             => Task.CompletedTask;
     }
+
+    private sealed class InMemoryExternalIdentityStore : IExternalIdentityStore
+    {
+        private readonly List<ExternalIdentity> _items = new();
+
+        public void Add(ExternalIdentity identity) => _items.Add(identity);
+
+        public Task<ExternalIdentity?> GetAsync(string provider, string externalSubject, CancellationToken ct = default)
+            => Task.FromResult(_items.FirstOrDefault(x =>
+                string.Equals(x.Provider, provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.ExternalSubject, externalSubject, StringComparison.OrdinalIgnoreCase)));
+
+        public Task<IReadOnlyList<ExternalIdentity>> ListByUserAsync(string userId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ExternalIdentity>>(
+                _items.Where(x => string.Equals(x.UserId, userId, StringComparison.OrdinalIgnoreCase)).ToList());
+
+        public Task UpsertAsync(ExternalIdentity identity, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
 }
-
-
-
 

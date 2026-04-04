@@ -19,8 +19,10 @@ public sealed class TableUserResolver : IUserResolver
     }
 
     private TableClient EmailTable => _factory.GetClient(TableNames.UserEmail);
+    private TableClient PhoneTable => _factory.GetClient(TableNames.UserPhone);
     private TableClient ManyChatTable => _factory.GetClient(TableNames.UserManyChat);
     private TableClient StripeCustomerTable => _factory.GetClient(TableNames.UserStripeCustomer);
+    private TableClient ExternalIdentityLookupTable => _factory.GetClient(TableNames.ExternalIdentityLookup);
 
     public async Task<UserRef?> ResolveByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
     {
@@ -48,6 +50,20 @@ public sealed class TableUserResolver : IUserResolver
         return entity is null ? null : new UserRef(entity.UserPk, entity.UserId);
     }
 
+    public async Task<UserRef?> ResolveByExternalIdentityAsync(string provider, string externalSubject, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(externalSubject))
+            return null;
+
+        var normalizedProvider = HabloTruckPlatform.Domain.Models.ExternalIdentity.NormalizeProvider(provider);
+        var normalizedSubject = HabloTruckPlatform.Domain.Models.ExternalIdentity.NormalizeExternalSubject(externalSubject);
+        var rk = $"{normalizedProvider}|{normalizedSubject}";
+        var pk = Buckets.ExternalIdentityLookupPk(normalizedProvider, normalizedSubject);
+
+        var entity = await _repo.GetOrNullAsync<ExternalIdentityLookupEntity>(ExternalIdentityLookupTable, pk, rk, ct);
+        return entity is null ? null : new UserRef(entity.UserPk, entity.UserId);
+    }
+
     public async Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(emailNormalized)) return null;
@@ -59,6 +75,18 @@ public sealed class TableUserResolver : IUserResolver
         var rk = email;
 
         var entity = await _repo.GetOrNullAsync<UserEmailLookupEntity>(EmailTable, pk, rk, ct);
+        return entity is null ? null : new UserRef(entity.UserPk, entity.UserId);
+    }
+
+    public async Task<UserRef?> ResolveByPhoneE164Async(string phoneE164, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(phoneE164)) return null;
+
+        var phone = phoneE164.Trim();
+        var pk = Buckets.PhoneLookupPk(phone);
+        var rk = phone;
+
+        var entity = await _repo.GetOrNullAsync<UserPhoneLookupEntity>(PhoneTable, pk, rk, ct);
         return entity is null ? null : new UserRef(entity.UserPk, entity.UserId);
     }
 }
