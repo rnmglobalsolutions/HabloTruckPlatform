@@ -121,6 +121,22 @@ jobs:
             --overwrite true \
             --only-show-errors
 
+      - name: Configure checkout redirect allow-list
+        run: |
+          set -euo pipefail
+
+          FUNCTION_APP_NAME="${{ steps.deploy_infra.outputs.function_app_name }}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+          STATIC_WEBSITE_URL="${{ steps.deploy_infra.outputs.static_website_url }}"
+          STATIC_WEBSITE_HOST="${STATIC_WEBSITE_URL#https://}"
+          STATIC_WEBSITE_HOST="${STATIC_WEBSITE_HOST%/}"
+
+          az functionapp config appsettings set \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "$RG_NAME" \
+            --settings "Stripe__AllowedCheckoutRedirectHosts__0=$STATIC_WEBSITE_HOST" \
+            --output none
+
       - name: Print checkout status URLs
         run: |
           echo "Static website: ${{ steps.deploy_infra.outputs.static_website_url }}"

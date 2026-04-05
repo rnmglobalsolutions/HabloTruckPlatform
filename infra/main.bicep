@@ -159,11 +159,7 @@ var resolvedStorageAccountName = empty(storageAccountName) ? generatedStorageAcc
 var tenantId = subscription().tenantId
 var storageAccountKey = storage.listKeys().keys[0].value
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageAccountKey};EndpointSuffix=${environment().suffixes.storage}'
-var staticWebsiteHost = replace(replace(storage.properties.primaryEndpoints.web, 'https://', ''), '/', '')
-var resolvedAllowedCheckoutRedirectHosts = concat([
-  staticWebsiteHost
-], allowedCheckoutRedirectHosts)
-var stripeAllowedCheckoutHostAppSettings = [for (host, i) in resolvedAllowedCheckoutRedirectHosts: {
+var stripeAllowedCheckoutHostAppSettings = [for (host, i) in allowedCheckoutRedirectHosts: {
   name: 'Stripe__AllowedCheckoutRedirectHosts__${i}'
   value: host
 }]
