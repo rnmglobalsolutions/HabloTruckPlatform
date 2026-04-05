@@ -1,3 +1,4 @@
+using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using Azure.Data.Tables;
 using HabloTruckPlatform.Domain.Ids;
@@ -53,36 +54,50 @@ public sealed class TableStoreBehaviorTests
     }
 
     [Fact]
-    public async Task TableStripeEventStore_Should_UseStripePartitionAndTrimmedRowKey()
+    public async Task TableStripeEventStore_Should_StartProcessing_UseStripePartitionAndTrimmedRowKey()
     {
         var factory = new FakeTableClientFactory();
         var repo = new FakeTableRepository();
         var sut = new TableStripeEventStore(factory, repo);
 
-        await sut.TryMarkProcessedAsync(" evt_123 ", "invoice.paid", new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
+        var result = await sut.TryStartProcessingAsync(" evt_123 ", "invoice.paid", new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
 
         var insert = Assert.Single(repo.TryInserts);
         Assert.Equal(TableNames.StripeEvents, insert.TableName);
+        Assert.Equal(StripeEventProcessingStartResult.Started, result);
 
         var entity = Assert.IsType<StripeEventEntity>(insert.Entity);
         Assert.Equal($"{TablePrefixes.Stripe}_EVT", entity.PartitionKey);
         Assert.Equal("evt_123", entity.RowKey);
         Assert.Equal("invoice.paid", entity.EventType);
+        Assert.Equal(StripeEventEntity.StatusProcessing, entity.Status);
     }
 
     [Fact]
-    public async Task TableStripeEventStore_Should_ReturnFalse_When_EventAlreadyProcessed()
+    public async Task TableStripeEventStore_Should_ReturnAlreadyProcessed_When_EventAlreadyProcessed()
     {
         var factory = new FakeTableClientFactory();
-        var repo = new FakeTableRepository { NextTryInsertResult = false };
+        var repo = new FakeTableRepository
+        {
+            NextTryInsertResult = false,
+            GetOrNullResult = new StripeEventEntity
+            {
+                PartitionKey = $"{TablePrefixes.Stripe}_EVT",
+                RowKey = "evt_dup",
+                EventType = "invoice.paid",
+                CreatedUtc = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero),
+                Status = StripeEventEntity.StatusProcessed,
+                ProcessedAtUtc = new DateTimeOffset(2026, 3, 10, 12, 5, 0, TimeSpan.Zero)
+            }
+        };
         var sut = new TableStripeEventStore(factory, repo);
 
-        var firstTime = await sut.TryMarkProcessedAsync(
+        var result = await sut.TryStartProcessingAsync(
             "evt_dup",
             "invoice.paid",
             new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero));
 
-        Assert.False(firstTime);
+        Assert.Equal(StripeEventProcessingStartResult.AlreadyProcessed, result);
         Assert.Single(repo.TryInserts);
     }
 

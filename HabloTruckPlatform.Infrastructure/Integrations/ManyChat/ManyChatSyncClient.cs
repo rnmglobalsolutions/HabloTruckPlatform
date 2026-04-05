@@ -311,7 +311,11 @@ public sealed class ManyChatSyncClient : IManyChatSync
                 innerException: ex);
         }
 
-        _logger.LogInformation($"ManyChat Path: {_http.BaseAddress}{path} - ManyChat Payload: {json}");
+        _logger.LogDebug(
+            "ManyChat request prepared. LogCategory={LogCategory} Path={Path} PayloadBytes={PayloadBytes}",
+            "dependency",
+            path,
+            json.Length);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var watch = Stopwatch.StartNew();

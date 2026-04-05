@@ -109,8 +109,14 @@ param stripeCdlCohort100PriceId string = ''
 param stripeCdlEnglishCohortPriceId string = ''
 param stripeTestingPriceId string = ''
 
+@description('Optional extra checkout redirect hosts allowed by Stripe checkout validation.')
+param allowedCheckoutRedirectHosts array = []
+
 @description('Optional extra resource tags.')
 param tags object = {}
+
+@description('Whether Key Vault purge protection should be enabled.')
+param enableKeyVaultPurgeProtection bool = false
 
 var rgTags = union({
   app: applicationName
@@ -171,7 +177,9 @@ module environmentDeployment './main.bicep' = {
     stripeCdlCohort100PriceId: stripeCdlCohort100PriceId
     stripeCdlEnglishCohortPriceId: stripeCdlEnglishCohortPriceId
     stripeTestingPriceId: stripeTestingPriceId
+    allowedCheckoutRedirectHosts: allowedCheckoutRedirectHosts
     tags: tags
+    enableKeyVaultPurgeProtection: enableKeyVaultPurgeProtection
   }
 }
 

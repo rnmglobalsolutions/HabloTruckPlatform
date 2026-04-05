@@ -23,6 +23,7 @@ Esta carpeta contiene la infraestructura de Azure para HabloTruck usando Bicep.
 - El `blob container` que crea el template es solo para el paquete de despliegue de la Function App.
 - El mismo `Storage Account` también hospeda un mini sitio estático para redirects de Stripe (`success`, `cancel`, `company-success`, `company-cancel`, `billing-return`).
 - La habilitación del static website se hace desde el workflow de GitHub con Azure CLI antes de publicar los archivos en `$web`.
+- `prod` habilita `Key Vault purge protection`; `dev` lo deja desactivado para no endurecer en exceso el ambiente de pruebas.
 - Las tablas de Azure Table Storage no se crean aquí porque la aplicación ya las inicializa al arrancar.
 - El `Resource Group` ahora se crea desde `bootstrap.bicep`, por lo que el principal de GitHub necesita permisos a nivel suscripción o un alcance equivalente que permita crear resource groups.
 
@@ -41,6 +42,9 @@ También publica ambos nombres de storage para evitar drift entre ambientes:
 
 - `TableStorageConnection`
 - `TableConnectionString`
+
+Y publica la allow-list de hosts válidos para redirects de Stripe en `Stripe__AllowedCheckoutRedirectHosts__*`.
+Por defecto incluye el host del static website del mismo Storage Account.
 
 ## Archivos
 
@@ -82,9 +86,11 @@ El workflow de `dev` ahora:
 4. despliega la infraestructura del ambiente dentro de ese resource group,
 5. publica el artefacto a la Function App.
 6. publica las páginas estáticas de checkout en el static website del Storage Account.
+7. usa `concurrency` para evitar despliegues solapados del mismo ambiente.
 
 El workflow de `prod` sigue la misma idea, pero está orientado a la rama `prod` y usa `environment: production`.
 Además, existe un workflow de validación para PRs que solo corre tests y no despliega.
+También serializa despliegues con `concurrency` y usa un timeout mayor para evitar quedar colgado indefinidamente.
 
 ## Static website y URLs de checkout
 

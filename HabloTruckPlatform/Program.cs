@@ -78,8 +78,12 @@ var host = new HostBuilder()
         // ---- Table Storage (Azure Tables)
         var tableConn = cfg["TableStorageConnection"]
             ?? cfg["TableConnectionString"]
-            ?? cfg["AzureWebJobsStorage"]
-            ?? "UseDevelopmentStorage=true";
+            ?? cfg["AzureWebJobsStorage"];
+
+        if (string.IsNullOrWhiteSpace(tableConn))
+            throw new InvalidOperationException(
+                "Storage connection string is required. Configure TableStorageConnection, TableConnectionString, or AzureWebJobsStorage.");
+
         services.AddSingleton(_ => new TableServiceClient(tableConn));
 
         services.AddSingleton<ITableClientFactory, TableClientFactory>();
@@ -157,7 +161,10 @@ var host = new HostBuilder()
         // ---- ManyChat
         services.Configure<ManyChatOptions>(ctx.Configuration.GetSection("ManyChat"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<ManyChatOptions>>().Value);
-        services.AddHttpClient<IManyChatSync, ManyChatSyncClient>();
+        services.AddHttpClient<IManyChatSync, ManyChatSyncClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
     })
     .Build();
 

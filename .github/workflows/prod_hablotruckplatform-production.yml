@@ -20,10 +20,15 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: hablotruck-prod-deploy
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 45
 
     steps:
       - name: Checkout GitHub Action

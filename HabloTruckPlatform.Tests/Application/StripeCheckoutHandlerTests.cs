@@ -70,6 +70,61 @@ public sealed class StripeCheckoutHandlerTests
         Assert.Equal("cdl_english_cohort", checkoutService.LastRequest?.PlanType);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_RejectNonHttpsRedirectUrls()
+    {
+        var checkoutService = new RecordingStripeCheckoutService();
+        var sut = new StripeCheckoutHandler(
+            checkoutService,
+            new StripeOptions
+            {
+                IndividualMonthlyPriceId = "price_individual_monthly",
+                IndividualYearlyPriceId = "price_individual_yearly",
+                FleetSeatMonthlyPriceId = "price_fleet_monthly"
+            },
+            NullLogger<StripeCheckoutHandler>.Instance);
+
+        var result = await sut.ExecuteAsync(new StripeCheckoutSessionRequest
+        {
+            PlanType = "individual_monthly",
+            Quantity = 1,
+            SuccessUrl = "http://app.hablotruck.com/success",
+            CancelUrl = "https://app.hablotruck.com/cancel"
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("redirect_url_must_use_https", result.Error);
+        Assert.Null(checkoutService.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_RejectRedirectHost_WhenNotInAllowList()
+    {
+        var checkoutService = new RecordingStripeCheckoutService();
+        var sut = new StripeCheckoutHandler(
+            checkoutService,
+            new StripeOptions
+            {
+                IndividualMonthlyPriceId = "price_individual_monthly",
+                IndividualYearlyPriceId = "price_individual_yearly",
+                FleetSeatMonthlyPriceId = "price_fleet_monthly",
+                AllowedCheckoutRedirectHosts = ["checkout.hablotruck.com"]
+            },
+            NullLogger<StripeCheckoutHandler>.Instance);
+
+        var result = await sut.ExecuteAsync(new StripeCheckoutSessionRequest
+        {
+            PlanType = "individual_monthly",
+            Quantity = 1,
+            SuccessUrl = "https://evil.example.com/success",
+            CancelUrl = "https://checkout.hablotruck.com/cancel"
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("redirect_url_host_not_allowed", result.Error);
+        Assert.Null(checkoutService.LastRequest);
+    }
+
     private sealed class RecordingStripeCheckoutService : IStripeCheckoutService
     {
         public StripeCheckoutSessionRequest? LastRequest { get; private set; }
