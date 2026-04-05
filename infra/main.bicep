@@ -234,7 +234,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
   tags: commonTags
-  properties: {
+  properties: union({
     tenantId: tenantId
     sku: {
       family: 'A'
@@ -256,10 +256,11 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enabledForDeployment: false
     enabledForTemplateDeployment: true
     enabledForDiskEncryption: false
-    enablePurgeProtection: enableKeyVaultPurgeProtection
     softDeleteRetentionInDays: 7
     publicNetworkAccess: 'Enabled'
-  }
+  }, enableKeyVaultPurgeProtection ? {
+    enablePurgeProtection: true
+  } : {})
 }
 
 resource tableConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
