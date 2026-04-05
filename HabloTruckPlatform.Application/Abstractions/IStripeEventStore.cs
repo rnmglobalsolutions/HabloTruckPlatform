@@ -1,11 +1,21 @@
 ﻿namespace HabloTruckPlatform.Application.Abstractions;
 
+public enum StripeEventProcessingStartResult
+{
+    Started,
+    AlreadyProcessed,
+    AlreadyInProgress
+}
+
 public interface IStripeEventStore
 {
-    /// <summary>
-    /// Returns false if already processed (idempotency).
-    /// Must be atomic (insert-if-not-exists).
-    /// </summary>
-    Task<bool> TryMarkProcessedAsync(
-        string stripeEventId, string eventType, DateTimeOffset createdUtc, CancellationToken ct = default);
+    Task<StripeEventProcessingStartResult> TryStartProcessingAsync(
+        string stripeEventId,
+        string eventType,
+        DateTimeOffset createdUtc,
+        CancellationToken ct = default);
+
+    Task MarkProcessedAsync(string stripeEventId, CancellationToken ct = default);
+
+    Task ReleaseProcessingAsync(string stripeEventId, CancellationToken ct = default);
 }

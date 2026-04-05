@@ -144,8 +144,14 @@ param stripeCdlEnglishCohortPriceId string = ''
 @description('Optional Stripe testing price id.')
 param stripeTestingPriceId string = ''
 
+@description('Optional extra checkout redirect hosts allowed by Stripe checkout validation.')
+param allowedCheckoutRedirectHosts array = []
+
 @description('Optional extra resource tags.')
 param tags object = {}
+
+@description('Whether Key Vault purge protection should be enabled.')
+param enableKeyVaultPurgeProtection bool = false
 
 var normalizedApp = toLower(replace(applicationName, '-', ''))
 var generatedStorageAccountName = take('${normalizedApp}${environmentName}${uniqueString(resourceGroup().id, applicationName, environmentName)}', 24)
@@ -153,6 +159,14 @@ var resolvedStorageAccountName = empty(storageAccountName) ? generatedStorageAcc
 var tenantId = subscription().tenantId
 var storageAccountKey = storage.listKeys().keys[0].value
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageAccountKey};EndpointSuffix=${environment().suffixes.storage}'
+var staticWebsiteHost = replace(replace(storage.properties.primaryEndpoints.web, 'https://', ''), '/', '')
+var resolvedAllowedCheckoutRedirectHosts = concat([
+  staticWebsiteHost
+], allowedCheckoutRedirectHosts)
+var stripeAllowedCheckoutHostAppSettings = [for (host, i) in resolvedAllowedCheckoutRedirectHosts: {
+  name: 'Stripe__AllowedCheckoutRedirectHosts__${i}'
+  value: host
+}]
 var commonTags = union({
   app: applicationName
   environment: environmentName
@@ -246,6 +260,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enabledForDeployment: false
     enabledForTemplateDeployment: true
     enabledForDiskEncryption: false
+    enablePurgeProtection: enableKeyVaultPurgeProtection
     softDeleteRetentionInDays: 7
     publicNetworkAccess: 'Enabled'
   }
@@ -324,7 +339,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
     reserved: true
     serverFarmId: appServicePlan.id
     siteConfig: {
-      appSettings: [
+      appSettings: concat([
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
@@ -461,7 +476,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'Stripe__WebhookSecret'
           value: '@Microsoft.KeyVault(SecretUri=${stripeWebhookSecretSecret.properties.secretUriWithVersion})'
         }
-      ]
+      ], stripeAllowedCheckoutHostAppSettings)
       ftpsState: 'Disabled'
       http20Enabled: true
       minTlsVersion: '1.2'

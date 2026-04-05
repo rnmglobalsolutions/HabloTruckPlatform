@@ -123,7 +123,7 @@ public sealed class StripeWebhookFunction
             : DateTimeOffset.UtcNow;
 
         var idempotencyWatch = Stopwatch.StartNew();
-        var firstTime = await _eventStore.TryMarkProcessedAsync(
+        var processingStart = await _eventStore.TryStartProcessingAsync(
             stripeEvent.Id,
             stripeEvent.Type,
             createdUtc,
@@ -137,19 +137,36 @@ public sealed class StripeWebhookFunction
             "StripeEvents",
             idempotencyWatch.ElapsedMilliseconds,
             true,
-            firstTime);
+            processingStart);
 
-        if (firstTime)
+        if (processingStart == StripeEventProcessingStartResult.Started)
         {
             _logger.LogInformation(
                 "Persistence transition. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} DurationMs={DurationMs}",
                 LogContext.Categories.Persistence,
                 LogContext.Outcomes.Applied,
-                "idempotency_marker_created",
+                "processing_lease_acquired",
                 idempotencyWatch.ElapsedMilliseconds);
         }
 
-        if (!firstTime)
+        if (processingStart == StripeEventProcessingStartResult.AlreadyInProgress)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                LogContext.Categories.Decision,
+                "event_processing_in_progress",
+                LogContext.Outcomes.SkippedDuplicate,
+                "Stripe event is already being processed");
+
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.SkippedDuplicate,
+                "event_in_progress",
+                started.ElapsedMilliseconds);
+        }
+
+        if (processingStart == StripeEventProcessingStartResult.AlreadyProcessed)
         {
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
@@ -220,6 +237,8 @@ public sealed class StripeWebhookFunction
                 Error: ex.Message
             ), ct);
 
+            await _eventStore.MarkProcessedAsync(stripeEvent.Id, ct);
+
             return BuildOutcomeResponse(
                 req,
                 HttpStatusCode.OK,
@@ -256,6 +275,8 @@ public sealed class StripeWebhookFunction
                 AccessSource: null,
                 Error: null
             ), ct);
+
+            await _eventStore.MarkProcessedAsync(stripeEvent.Id, ct);
 
             return BuildOutcomeResponse(
                 req,
@@ -297,6 +318,7 @@ public sealed class StripeWebhookFunction
         {
             var dispatchWatch = Stopwatch.StartNew();
             dispatch = await DispatchAsync(parsed, ct);
+            await _eventStore.MarkProcessedAsync(stripeEvent.Id, ct);
 
             _logger.LogDebug(
                 "Step completed. LogCategory={LogCategory} Step={Step} DispatchOutcome={DispatchOutcome} DurationMs={DurationMs} Reason={Reason}",
@@ -328,6 +350,8 @@ public sealed class StripeWebhookFunction
         }
         catch (Exception ex)
         {
+            await _eventStore.ReleaseProcessingAsync(stripeEvent.Id, ct);
+
             _logger.LogError(
                 ex,
                 "Stripe event processing failed. LogCategory={LogCategory} Outcome={Outcome} EventType={EventType}",
@@ -355,10 +379,9 @@ public sealed class StripeWebhookFunction
                 Error: ex.Message
             ), ct);
 
-            // Do not fail webhook; Stripe expects 2xx to avoid retries for known handled failures.
             return BuildOutcomeResponse(
                 req,
-                HttpStatusCode.OK,
+                HttpStatusCode.InternalServerError,
                 LogContext.Outcomes.DependencyFailed,
                 "handler_exception",
                 started.ElapsedMilliseconds);

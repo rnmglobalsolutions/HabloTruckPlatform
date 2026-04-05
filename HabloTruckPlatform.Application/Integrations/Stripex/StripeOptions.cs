@@ -21,6 +21,8 @@ public sealed class StripeOptions
     // Testing
     public string? TestingPriceId { get; set; }
 
+    public string[]? AllowedCheckoutRedirectHosts { get; set; }
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(WebhookSecret))

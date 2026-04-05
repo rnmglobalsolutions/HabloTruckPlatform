@@ -11,6 +11,7 @@ public sealed class TableStripeEventStore : IStripeEventStore
 {
     // One PK is fine: Stripe event IDs are globally unique, and you do single-row inserts.
     private const string Pk = $"{TablePrefixes.Stripe}_EVT";
+    private static readonly TimeSpan ProcessingLease = TimeSpan.FromMinutes(10);
 
     private readonly ITableClientFactory _factory;
     private readonly ITableRepository _repo;
@@ -23,12 +24,7 @@ public sealed class TableStripeEventStore : IStripeEventStore
 
     private TableClient Table => _factory.GetClient(TableNames.StripeEvents);
 
-    /// <summary>
-    /// Returns true if this call marked the event as processed for the first time.
-    /// Returns false if already processed (idempotency).
-    /// Must be atomic (insert-if-not-exists).
-    /// </summary>
-    public async Task<bool> TryMarkProcessedAsync(
+    public async Task<StripeEventProcessingStartResult> TryStartProcessingAsync(
         string stripeEventId,
         string eventType,
         DateTimeOffset createdUtc,
@@ -37,16 +33,74 @@ public sealed class TableStripeEventStore : IStripeEventStore
         if (string.IsNullOrWhiteSpace(stripeEventId))
             throw new ArgumentException("stripeEventId is required.", nameof(stripeEventId));
 
+        var rowKey = stripeEventId.Trim();
+        var nowUtc = DateTimeOffset.UtcNow;
         var entity = new StripeEventEntity
         {
             PartitionKey = Pk,
-            RowKey = stripeEventId.Trim(),
+            RowKey = rowKey,
             EventType = string.IsNullOrWhiteSpace(eventType) ? string.Empty : eventType.Trim(),
             CreatedUtc = createdUtc.UtcDateTime,
-            ProcessedAtUtc = DateTime.UtcNow
+            Status = StripeEventEntity.StatusProcessing,
+            ProcessingStartedAtUtc = nowUtc,
+            ProcessingExpiresAtUtc = nowUtc.Add(ProcessingLease),
+            ProcessedAtUtc = null
         };
 
-        // Atomic insert-if-not-exists (409 => already exists)
-        return await _repo.TryInsertAsync(Table, entity, ct);
+        if (await _repo.TryInsertAsync(Table, entity, ct))
+            return StripeEventProcessingStartResult.Started;
+
+        while (true)
+        {
+            var existing = await _repo.GetOrNullAsync<StripeEventEntity>(Table, Pk, rowKey, ct);
+            if (existing is null)
+                return await TryStartProcessingAsync(stripeEventId, eventType, createdUtc, ct);
+
+            if (string.Equals(existing.Status, StripeEventEntity.StatusProcessed, StringComparison.OrdinalIgnoreCase))
+                return StripeEventProcessingStartResult.AlreadyProcessed;
+
+            if (existing.ProcessingExpiresAtUtc is not null && existing.ProcessingExpiresAtUtc > nowUtc)
+                return StripeEventProcessingStartResult.AlreadyInProgress;
+
+            existing.EventType = string.IsNullOrWhiteSpace(eventType) ? existing.EventType : eventType.Trim();
+            existing.CreatedUtc = createdUtc.UtcDateTime;
+            existing.Status = StripeEventEntity.StatusProcessing;
+            existing.ProcessingStartedAtUtc = nowUtc;
+            existing.ProcessingExpiresAtUtc = nowUtc.Add(ProcessingLease);
+            existing.ProcessedAtUtc = null;
+
+            try
+            {
+                await Table.UpdateEntityAsync(existing, existing.ETag, TableUpdateMode.Replace, ct).ConfigureAwait(false);
+                return StripeEventProcessingStartResult.Started;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 412)
+            {
+                continue;
+            }
+        }
+    }
+
+    public async Task MarkProcessedAsync(string stripeEventId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(stripeEventId))
+            throw new ArgumentException("stripeEventId is required.", nameof(stripeEventId));
+
+        var entity = await _repo.GetOrNullAsync<StripeEventEntity>(Table, Pk, stripeEventId.Trim(), ct)
+            ?? throw new InvalidOperationException($"Stripe event '{stripeEventId}' was not found for completion.");
+
+        entity.Status = StripeEventEntity.StatusProcessed;
+        entity.ProcessedAtUtc = DateTimeOffset.UtcNow;
+        entity.ProcessingExpiresAtUtc = null;
+
+        await Table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Replace, ct).ConfigureAwait(false);
+    }
+
+    public async Task ReleaseProcessingAsync(string stripeEventId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(stripeEventId))
+            throw new ArgumentException("stripeEventId is required.", nameof(stripeEventId));
+
+        await _repo.DeleteIfExistsAsync(Table, Pk, stripeEventId.Trim(), ct);
     }
 }

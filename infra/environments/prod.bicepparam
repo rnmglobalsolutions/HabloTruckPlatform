@@ -44,6 +44,8 @@ param stripeCdlCohort50PriceId = ''
 param stripeCdlCohort100PriceId = ''
 param stripeCdlEnglishCohortPriceId = ''
 param stripeTestingPriceId = ''
+param allowedCheckoutRedirectHosts = []
+param enableKeyVaultPurgeProtection = true
 
 param tags = {
   environment: 'prod'

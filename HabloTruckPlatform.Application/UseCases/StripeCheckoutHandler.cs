@@ -40,7 +40,7 @@ public sealed class StripeCheckoutHandler
             return Fail("invalid_request", opWatch, null, null);
 
         if (string.IsNullOrWhiteSpace(request.PlanType))
-            return Fail("plant_type_required", opWatch, request.PlanType, request.PriceId);
+            return Fail("plan_type_required", opWatch, request.PlanType, request.PriceId);
 
         if (request.Quantity <= 0)
             return Fail("quantity_must_be_greater_than_zero", opWatch, request.PlanType, request.PriceId);
@@ -50,6 +50,12 @@ public sealed class StripeCheckoutHandler
 
         if (string.IsNullOrWhiteSpace(request.CancelUrl))
             return Fail("cancel_url_required", opWatch, request.PlanType, request.PriceId);
+
+        if (!IsAllowedRedirectUrl(request.SuccessUrl, out var successUrlError))
+            return Fail(successUrlError, opWatch, request.PlanType, request.PriceId);
+
+        if (!IsAllowedRedirectUrl(request.CancelUrl, out var cancelUrlError))
+            return Fail(cancelUrlError, opWatch, request.PlanType, request.PriceId);
 
         request.PriceId = GetPriceIdForPlanType(request.PlanType);
 
@@ -192,5 +198,39 @@ public sealed class StripeCheckoutHandler
             SessionId = null,
             Error = error
         };
+    }
+
+    private bool IsAllowedRedirectUrl(string url, out string error)
+    {
+        error = "invalid_redirect_url";
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            error = "redirect_url_invalid";
+            return false;
+        }
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            error = "redirect_url_must_use_https";
+            return false;
+        }
+
+        var allowedHosts = (_stripeOptions.AllowedCheckoutRedirectHosts ?? [])
+            .Where(host => !string.IsNullOrWhiteSpace(host))
+            .Select(host => host.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (allowedHosts.Count == 0)
+            return true;
+
+        if (!allowedHosts.Contains(uri.Host.Trim().ToLowerInvariant(), StringComparer.OrdinalIgnoreCase))
+        {
+            error = "redirect_url_host_not_allowed";
+            return false;
+        }
+
+        return true;
     }
 }

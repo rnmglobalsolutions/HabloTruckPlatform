@@ -89,7 +89,7 @@ public sealed class StripeWebhookFunctionTests
     [Fact]
     public async Task Run_Should_IgnoreDuplicate_When_EventAlreadyProcessed()
     {
-        var fixture = BuildFixture(eventStoreResult: false);
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.AlreadyProcessed));
         var json = BuildSubscriptionUpdatedEventJson("evt_dup", "cus_dup", "sub_dup");
         var req = NewSignedRequest(json, fixture.WebhookSecret);
 
@@ -118,9 +118,9 @@ public sealed class StripeWebhookFunctionTests
         Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
         Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
 
-        Assert.Equal(2, eventStore.MarkResults.Count);
-        Assert.True(eventStore.MarkResults[0]);
-        Assert.False(eventStore.MarkResults[1]);
+        Assert.Equal(2, eventStore.StartResults.Count);
+        Assert.Equal(StripeEventProcessingStartResult.Started, eventStore.StartResults[0]);
+        Assert.Equal(StripeEventProcessingStartResult.AlreadyProcessed, eventStore.StartResults[1]);
 
         Assert.Single(fixture.Handler.Calls, x => x == "invoice_paid");
 
@@ -302,7 +302,7 @@ public sealed class StripeWebhookFunctionTests
 
         var signatureValidator = new StripeSignatureValidator(options, NullLogger<StripeSignatureValidator>.Instance);
         var parser = new StripeEventParser();
-        var eventStore = new StubStripeEventStore(result: true);
+        var eventStore = new StubStripeEventStore(StripeEventProcessingStartResult.Started);
         var auditStore = new ThrowingStripeEventAuditStore();
         var handler = new RecordingStripeSubscriptionHandler();
         var userResolver = new StaticUserResolver();
@@ -330,7 +330,7 @@ public sealed class StripeWebhookFunctionTests
     [Fact]
     public async Task Run_Should_RecordFailedOutcome_When_HandlerThrows()
     {
-        var fixture = BuildFixture(eventStoreResult: true);
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started));
         fixture.Handler.ThrowOnSubscriptionUpdated = true;
 
         var json = BuildSubscriptionUpdatedEventJson("evt_throw", "cus_throw", "sub_throw");
@@ -338,7 +338,7 @@ public sealed class StripeWebhookFunctionTests
 
         var response = await fixture.Function.Run(req, req.FunctionContext);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
         Assert.Equal("failed", audit.Outcome);
@@ -346,7 +346,9 @@ public sealed class StripeWebhookFunctionTests
     }
 
     private static Fixture BuildFixture(bool eventStoreResult)
-        => BuildFixture(new StubStripeEventStore(eventStoreResult));
+        => BuildFixture(new StubStripeEventStore(eventStoreResult
+            ? StripeEventProcessingStartResult.Started
+            : StripeEventProcessingStartResult.AlreadyProcessed));
 
     private static Fixture BuildFixture(IStripeEventStore eventStore)
     {
@@ -716,26 +718,45 @@ public sealed class StripeWebhookFunctionTests
 
     private sealed class StubStripeEventStore : IStripeEventStore
     {
-        private readonly bool _result;
+        private readonly StripeEventProcessingStartResult _result;
+        public int MarkProcessedCalls { get; private set; }
+        public int ReleaseCalls { get; private set; }
 
-        public StubStripeEventStore(bool result)
+        public StubStripeEventStore(StripeEventProcessingStartResult result)
             => _result = result;
 
-        public Task<bool> TryMarkProcessedAsync(string stripeEventId, string eventType, DateTimeOffset createdUtc, CancellationToken ct = default)
+        public Task<StripeEventProcessingStartResult> TryStartProcessingAsync(string stripeEventId, string eventType, DateTimeOffset createdUtc, CancellationToken ct = default)
             => Task.FromResult(_result);
+
+        public Task MarkProcessedAsync(string stripeEventId, CancellationToken ct = default)
+        {
+            MarkProcessedCalls++;
+            return Task.CompletedTask;
+        }
+
+        public Task ReleaseProcessingAsync(string stripeEventId, CancellationToken ct = default)
+        {
+            ReleaseCalls++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class DeduplicatingStripeEventStore : IStripeEventStore
     {
         private readonly HashSet<string> _processed = new(StringComparer.OrdinalIgnoreCase);
-        public List<bool> MarkResults { get; } = new();
+        public List<StripeEventProcessingStartResult> StartResults { get; } = new();
 
-        public Task<bool> TryMarkProcessedAsync(string stripeEventId, string eventType, DateTimeOffset createdUtc, CancellationToken ct = default)
+        public Task<StripeEventProcessingStartResult> TryStartProcessingAsync(string stripeEventId, string eventType, DateTimeOffset createdUtc, CancellationToken ct = default)
         {
             var firstTime = _processed.Add(stripeEventId.Trim());
-            MarkResults.Add(firstTime);
-            return Task.FromResult(firstTime);
+            var result = firstTime ? StripeEventProcessingStartResult.Started : StripeEventProcessingStartResult.AlreadyProcessed;
+            StartResults.Add(result);
+            return Task.FromResult(result);
         }
+
+        public Task MarkProcessedAsync(string stripeEventId, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task ReleaseProcessingAsync(string stripeEventId, CancellationToken ct = default) => Task.CompletedTask;
     }
     private sealed class ThrowingStripeEventAuditStore : IStripeEventAuditStore
     {
