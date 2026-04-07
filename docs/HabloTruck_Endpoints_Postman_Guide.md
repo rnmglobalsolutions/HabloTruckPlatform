@@ -9,6 +9,7 @@ Nota general:
 - La mayoría de endpoints usan Azure Functions `AuthorizationLevel.Function`, por lo que normalmente se llaman con `?code=<FUNCTION_KEY>` en la URL.
 - Además, casi todos validan `x-api-key` por header, incluyendo `health`.
 - Header opcional de observabilidad: `x-correlation-id`
+- Para `successUrl` y `cancelUrl` de Stripe checkout, el backend ahora valida que el host esté permitido. En la práctica, usa las URLs del static website que despliega esta misma solución (`success.html`, `cancel.html`, `company-success.html`, `company-cancel.html`).
 
 ---
 
@@ -510,12 +511,13 @@ Content-Type: application/json
   "manyChatSubscriberId": "123456789",
   "manyChatChannel": "facebook",
   "seats": 20,
-  "successUrl": "https://tuapp.com/company-success",
-  "cancelUrl": "https://tuapp.com/company-cancel"
+  "successUrl": "https://<static-website-host>/company-success.html",
+  "cancelUrl": "https://<static-website-host>/company-cancel.html"
 }
 ```
 
 `companyId` es opcional. Si no se envía, el backend genera o resuelve uno para el checkout administrativo.
+Usa un host permitido por `Stripe__AllowedCheckoutRedirectHosts`; por defecto el workflow registra el host del static website del mismo ambiente.
 
 **Response Object**  
 ```json
@@ -561,11 +563,15 @@ x-correlation-id: <optional>
   "cohortId": "COHORT_01",
   "seats": 0,
   "durationDays": 0,
-  "successUrl": "https://tuapp.com/success",
-  "cancelUrl": "https://tuapp.com/cancel",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
+
+Nota:
+
+- Si `successUrl` o `cancelUrl` usan un host no permitido, el backend responde con errores tipo `redirect_url_host_not_allowed` o `redirect_url_must_use_https`.
 
 **Response Object**  
 ```json
@@ -630,7 +636,7 @@ x-correlation-id: <optional>
   "actorUserPk": "U_20260331",
   "actorUserId": "USER_123",
   "subscriptionId": "sub_123",
-  "returnUrl": "https://tuapp.com/billing"
+  "returnUrl": "https://<static-website-host>/billing-return.html"
 }
 ```
 

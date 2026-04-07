@@ -65,8 +65,9 @@ Related backend files:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
@@ -79,8 +80,9 @@ Related backend files:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
@@ -121,6 +123,13 @@ Possible error shapes include:
 - validation failures from the request
 - `stripe_checkout_session_create_failed`
 - `internal_server_error`
+- `redirect_url_invalid`
+- `redirect_url_must_use_https`
+- `redirect_url_host_not_allowed`
+
+Operational note:
+
+- `successUrl` and `cancelUrl` should use the static website deployed with this solution, or another host explicitly included in `Stripe__AllowedCheckoutRedirectHosts`.
 
 ## ManyChat State Recommended
 
@@ -530,8 +539,9 @@ Body:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```

@@ -80,7 +80,7 @@ Related backend files:
   "actorUserPk": "U_20260331",
   "actorUserId": "USER_123",
   "subscriptionId": "sub_123",
-  "returnUrl": "https://tuapp.com/billing"
+  "returnUrl": "https://<static-website-host>/billing-return.html"
 }
 ```
 
@@ -560,7 +560,7 @@ Body:
   "actorUserPk": "{{cf_actor_user_pk}}",
   "actorUserId": "{{cf_actor_user_id}}",
   "subscriptionId": "{{cf_subscription_id}}",
-  "returnUrl": "https://tuapp.com/billing"
+  "returnUrl": "https://<static-website-host>/billing-return.html"
 }
 ```
 

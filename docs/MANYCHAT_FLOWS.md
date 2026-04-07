@@ -39,6 +39,10 @@ What changed internally is the execution model for outbound ManyChat side effect
 
 In practice, this means the originating request or timer finishes faster and the actual ManyChat call is processed asynchronously in the background. No payload changes are required from ManyChat because this is an internal backend improvement.
 
+Checkout redirect note:
+
+- `successUrl`, `cancelUrl`, and billing `returnUrl` should use the checkout status static website deployed with this solution, or another host explicitly included in `Stripe__AllowedCheckoutRedirectHosts`.
+
 ## Domain Model
 
 The company-seat flow depends on four concepts:
@@ -124,8 +128,9 @@ Payload:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
@@ -187,8 +192,9 @@ Payload:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
@@ -249,9 +255,10 @@ Payload:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
+  "manyChatChannel": "facebook",
   "seats": {{cf_requested_seats}},
-  "successUrl": "https://tu-frontend.com/company-success",
-  "cancelUrl": "https://tu-frontend.com/company-cancel"
+  "successUrl": "https://<static-website-host>/company-success.html",
+  "cancelUrl": "https://<static-website-host>/company-cancel.html"
 }
 ```
 
@@ -638,8 +645,9 @@ Payload:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "successUrl": "https://tu-frontend.com/success",
-  "cancelUrl": "https://tu-frontend.com/cancel",
+  "manyChatChannel": "facebook",
+  "successUrl": "https://<static-website-host>/success.html",
+  "cancelUrl": "https://<static-website-host>/cancel.html",
   "quantity": 1
 }
 ```
@@ -707,9 +715,10 @@ Payload:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
+  "manyChatChannel": "facebook",
   "seats": {{cf_requested_seats}},
-  "successUrl": "https://tu-frontend.com/company-success",
-  "cancelUrl": "https://tu-frontend.com/company-cancel"
+  "successUrl": "https://<static-website-host>/company-success.html",
+  "cancelUrl": "https://<static-website-host>/company-cancel.html"
 }
 ```
 

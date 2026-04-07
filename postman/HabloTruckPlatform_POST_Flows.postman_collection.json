@@ -83,7 +83,27 @@
     },
     {
       "key": "returnUrl",
-      "value": "https://manageapp.example/billing/recovery-return"
+      "value": "https://<static-website-host>/billing-return.html"
+    },
+    {
+      "key": "checkoutSuccessUrl",
+      "value": "https://<static-website-host>/success.html"
+    },
+    {
+      "key": "checkoutCancelUrl",
+      "value": "https://<static-website-host>/cancel.html"
+    },
+    {
+      "key": "companyCheckoutSuccessUrl",
+      "value": "https://<static-website-host>/company-success.html"
+    },
+    {
+      "key": "companyCheckoutCancelUrl",
+      "value": "https://<static-website-host>/company-cancel.html"
+    },
+    {
+      "key": "manyChatChannel",
+      "value": "facebook"
     },
     {
       "key": "companyName",
@@ -148,7 +168,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planType\": \"individual_monthly\",\n  \"quantity\": 1,\n  \"successUrl\": \"https://manageapp.example/success\",\n  \"cancelUrl\": \"https://manageapp.example/cancel\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\"\n}",
+              "raw": "{\n  \"planType\": \"individual_monthly\",\n  \"quantity\": 1,\n  \"successUrl\": \"{{checkoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{checkoutCancelUrl}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -190,7 +210,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planType\": \"company_seat\",\n  \"quantity\": {{seatQuantity}},\n  \"successUrl\": \"https://manageapp.example/company/success\",\n  \"cancelUrl\": \"https://manageapp.example/company/cancel\",\n  \"email\": \"{{email}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"companyName\": \"{{companyName}}\",\n  \"seats\": {{seatQuantity}}\n}",
+              "raw": "{\n  \"planType\": \"company_seat\",\n  \"quantity\": {{seatQuantity}},\n  \"successUrl\": \"{{companyCheckoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{companyCheckoutCancelUrl}}\",\n  \"email\": \"{{email}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"companyName\": \"{{companyName}}\",\n  \"seats\": {{seatQuantity}}\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -232,7 +252,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"seats\": {{seatQuantity}},\n  \"successUrl\": \"https://manageapp.example/company/success\",\n  \"cancelUrl\": \"https://manageapp.example/company/cancel\"\n}",
+              "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"seats\": {{seatQuantity}},\n  \"successUrl\": \"{{companyCheckoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{companyCheckoutCancelUrl}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -504,7 +524,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\"\n}",
+              "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
