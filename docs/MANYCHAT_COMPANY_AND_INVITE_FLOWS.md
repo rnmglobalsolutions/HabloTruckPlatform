@@ -49,6 +49,7 @@ Important:
 - The invite is auto-created after successful fleet checkout.
 - The backend supports showing the current active invite and resending it.
 - ManyChat should still include a user-facing verification and fallback experience.
+- `successUrl` and `cancelUrl` should use the checkout status static website deployed with this solution, or another host explicitly included in `Stripe__AllowedCheckoutRedirectHosts`.
 
 ## Relevant Endpoints
 
@@ -78,9 +79,10 @@ Related backend files:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
+  "manyChatChannel": "facebook",
   "seats": {{cf_requested_seats}},
-  "successUrl": "https://tu-frontend.com/company-success",
-  "cancelUrl": "https://tu-frontend.com/company-cancel"
+  "successUrl": "https://<static-website-host>/company-success.html",
+  "cancelUrl": "https://<static-website-host>/company-cancel.html"
 }
 ```
 
@@ -116,7 +118,8 @@ Related backend files:
   "inviteCode": "{{cf_invite_code}}",
   "email": "{{contact.email}}",
   "manyChatSubscriberId": "{{contact.id}}",
-  "phoneE164": "{{cf_phone_e164}}"
+  "phoneE164": "{{cf_phone_e164}}",
+  "manyChatChannel": "facebook"
 }
 ```
 
@@ -671,9 +674,10 @@ Body:
   "email": "{{contact.email}}",
   "phoneE164": "{{cf_phone_e164}}",
   "manyChatSubscriberId": "{{contact.id}}",
+  "manyChatChannel": "facebook",
   "seats": {{cf_requested_seats}},
-  "successUrl": "https://tu-frontend.com/company-success",
-  "cancelUrl": "https://tu-frontend.com/company-cancel"
+  "successUrl": "https://<static-website-host>/company-success.html",
+  "cancelUrl": "https://<static-website-host>/company-cancel.html"
 }
 ```
 
