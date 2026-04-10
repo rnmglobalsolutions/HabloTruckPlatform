@@ -8,6 +8,7 @@ namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 public sealed class AzureQueueManyChatDispatchQueue : IManyChatDispatchQueue, IAsyncDisposable
 {
     private const string QueueName = "manychat-dispatch";
+    private const int AzureQueueReceiveMaxMessages = 32;
 
     private static readonly JsonSerializerOptions JsonOpts =
         new(JsonSerializerDefaults.Web);
@@ -36,10 +37,12 @@ public sealed class AzureQueueManyChatDispatchQueue : IManyChatDispatchQueue, IA
         if (maxMessages <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxMessages));
 
+        var requestedMessages = Math.Min(maxMessages, AzureQueueReceiveMaxMessages);
+
         await EnsureInitializedAsync(ct);
 
         var response = await _queueClient.ReceiveMessagesAsync(
-            maxMessages: maxMessages,
+            maxMessages: requestedMessages,
             visibilityTimeout: visibilityTimeout,
             cancellationToken: ct);
 

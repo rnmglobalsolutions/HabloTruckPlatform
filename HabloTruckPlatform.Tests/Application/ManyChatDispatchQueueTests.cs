@@ -138,6 +138,7 @@ public sealed class ManyChatDispatchQueueTests
         Assert.Equal(1, manyChat.SyncCalls);
         Assert.Single(queue.CompletedMessageIds);
         Assert.Empty(failedActions.Enqueued);
+        Assert.Equal(10, queue.LastRequestedMaxMessages);
         var user = users.Get("U_process_sync")!;
         Assert.Equal(nameof(AccessMode.Full), user.LastSyncedAccessMode);
         Assert.Equal((int)AccessSource.Individual, user.LastSyncedAccessSource);
@@ -197,8 +198,32 @@ public sealed class ManyChatDispatchQueueTests
         await processor.RunBatchAsync(maxMessages: 10);
 
         Assert.Single(queue.CompletedMessageIds);
+        Assert.Equal(10, queue.LastRequestedMaxMessages);
         var failed = Assert.Single(failedActions.Enqueued);
         Assert.Equal(FailedActionRetryService.ActionManyChatSync, failed.ActionType);
+    }
+
+    [Fact]
+    public async Task QueueProcessor_Should_DefaultToAzureQueueCompatibleBatchSize()
+    {
+        var now = new DateTimeOffset(2026, 4, 2, 12, 0, 0, TimeSpan.Zero);
+        var queue = new RecordingManyChatDispatchQueue();
+        var failedActions = new InMemoryFailedActionStore();
+        var retryService = new FailedActionRetryService(
+            failedActions,
+            new InMemoryUserStore(),
+            new RecordingManyChatSync(),
+            NullLogger<FailedActionRetryService>.Instance);
+        var processor = new ManyChatDispatchQueueProcessorService(
+            queue,
+            failedActions,
+            retryService,
+            new FixedClock(now),
+            NullLogger<ManyChatDispatchQueueProcessorService>.Instance);
+
+        await processor.RunBatchAsync();
+
+        Assert.Equal(32, queue.LastRequestedMaxMessages);
     }
 
     private sealed class FixedClock : IClock
@@ -214,6 +239,7 @@ public sealed class ManyChatDispatchQueueTests
 
         public List<ManyChatDispatchMessage> Messages { get; } = new();
         public List<string> CompletedMessageIds { get; } = new();
+        public int LastRequestedMaxMessages { get; private set; }
 
         public Task EnqueueAsync(ManyChatDispatchMessage message, CancellationToken ct = default)
         {
@@ -229,6 +255,7 @@ public sealed class ManyChatDispatchQueueTests
 
         public Task<IReadOnlyList<ManyChatDispatchLease>> DequeueAsync(int maxMessages, TimeSpan visibilityTimeout, CancellationToken ct = default)
         {
+            LastRequestedMaxMessages = maxMessages;
             var items = new List<ManyChatDispatchLease>();
             while (_leases.Count > 0 && items.Count < maxMessages)
             {
