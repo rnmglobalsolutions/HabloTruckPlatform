@@ -68,6 +68,9 @@ public sealed class StripeCheckoutHandler
         {
             var result = await _stripeCheckoutService.CreateCheckoutSessionAsync(request, ct);
 
+            if (result.Result && string.IsNullOrWhiteSpace(result.GeneratedAtUtc))
+                result.GeneratedAtUtc = DateTimeOffset.UtcNow.ToString("O");
+
             _logger.LogDebug(
                 "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
                 "dependency",
@@ -196,6 +199,7 @@ public sealed class StripeCheckoutHandler
             Result = false,
             Url = "",
             SessionId = null,
+            GeneratedAtUtc = null,
             Error = error
         };
     }

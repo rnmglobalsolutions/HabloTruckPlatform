@@ -144,6 +144,7 @@ Successful response shape:
   "result": true,
   "url": "https://checkout.stripe.com/...",
   "sessionId": "cs_...",
+  "generatedAtUtc": "2026-04-10T03:12:45.1234567Z",
   "error": null
 }
 ```
@@ -208,6 +209,7 @@ Same as monthly:
   "result": true,
   "url": "https://checkout.stripe.com/...",
   "sessionId": "cs_...",
+  "generatedAtUtc": "2026-04-10T03:12:45.1234567Z",
   "error": null
 }
 ```

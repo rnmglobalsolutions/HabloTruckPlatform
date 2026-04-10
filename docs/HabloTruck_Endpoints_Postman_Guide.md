@@ -572,6 +572,9 @@ x-correlation-id: <optional>
 Nota:
 
 - Si `successUrl` o `cancelUrl` usan un host no permitido, el backend responde con errores tipo `redirect_url_host_not_allowed` o `redirect_url_must_use_https`.
+- `generatedAtUtc` captura el instante exacto en UTC en que el payment link fue generado.
+- Si guardas este valor en ManyChat como **Text field**, se conserva como texto UTC y ManyChat no lo convierte automáticamente a horario local.
+- Si quieres comportamiento de fecha/hora según timezone en ManyChat, usa un campo o automatización de **Date/Time** en vez de un campo de texto.
 
 **Response Object**  
 ```json
@@ -579,6 +582,7 @@ Nota:
   "result": true,
   "url": "https://checkout.stripe.com/...",
   "sessionId": "cs_test_123",
+  "generatedAtUtc": "2026-04-10T03:12:45.1234567Z",
   "error": null
 }
 ```
