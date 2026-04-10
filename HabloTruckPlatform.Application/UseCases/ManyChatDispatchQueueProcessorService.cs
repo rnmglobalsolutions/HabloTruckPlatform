@@ -8,6 +8,8 @@ namespace HabloTruckPlatform.Application.UseCases;
 
 public sealed class ManyChatDispatchQueueProcessorService
 {
+    private const int DefaultBatchSize = 32;
+
     private readonly IManyChatDispatchQueue _queue;
     private readonly IFailedActionStore _failedActionStore;
     private readonly FailedActionRetryService _failedActionRetryService;
@@ -32,7 +34,7 @@ public sealed class ManyChatDispatchQueueProcessorService
     }
 
     public async Task RunBatchAsync(
-        int maxMessages = 50,
+        int maxMessages = DefaultBatchSize,
         TimeSpan? visibilityTimeout = null,
         CancellationToken ct = default)
     {
