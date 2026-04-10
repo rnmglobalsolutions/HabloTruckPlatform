@@ -103,6 +103,7 @@ x-api-key: <HttpApiKey>
   "result": true,
   "url": "https://checkout.stripe.com/...",
   "sessionId": "cs_...",
+  "generatedAtUtc": "2026-04-10T03:12:45.1234567Z",
   "error": null
 }
 ```
@@ -114,6 +115,7 @@ x-api-key: <HttpApiKey>
   "result": false,
   "url": null,
   "sessionId": null,
+  "generatedAtUtc": null,
   "error": "..."
 }
 ```
@@ -130,6 +132,7 @@ Possible error shapes include:
 Operational note:
 
 - `successUrl` and `cancelUrl` should use the static website deployed with this solution, or another host explicitly included in `Stripe__AllowedCheckoutRedirectHosts`.
+- `generatedAtUtc` is returned in UTC ISO 8601 format. If ManyChat stores it in a Text field, it remains raw UTC text. If you need local-time behavior in ManyChat, use a Date/Time-capable field or automation instead of plain text.
 
 ## ManyChat State Recommended
 

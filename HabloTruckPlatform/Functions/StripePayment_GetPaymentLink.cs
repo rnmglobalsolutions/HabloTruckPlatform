@@ -85,6 +85,7 @@ public class StripePayment_GetPaymentLink
                 Result = false,
                 Url = "",
                 SessionId = null,
+                GeneratedAtUtc = null,
                 Error = "invalid_json_body"
             }, cancellationToken: ctx.CancellationToken);
 
@@ -145,6 +146,7 @@ public class StripePayment_GetPaymentLink
                 Result = false,
                 Url = "",
                 SessionId = null,
+                GeneratedAtUtc = null,
                 Error = "internal_server_error"
             }, cancellationToken: ctx.CancellationToken);
 
@@ -167,5 +169,4 @@ public class StripePayment_GetPaymentLink
         return null;
     }
 }
-
 

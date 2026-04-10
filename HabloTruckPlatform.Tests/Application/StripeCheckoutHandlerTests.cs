@@ -38,6 +38,7 @@ public sealed class StripeCheckoutHandlerTests
         Assert.True(result.Result);
         Assert.Equal("price_fleet_monthly", checkoutService.LastRequest?.PriceId);
         Assert.Equal(planType, checkoutService.LastRequest?.PlanType);
+        Assert.False(string.IsNullOrWhiteSpace(result.GeneratedAtUtc));
     }
 
     [Fact]
@@ -68,6 +69,7 @@ public sealed class StripeCheckoutHandlerTests
         Assert.True(result.Result);
         Assert.Equal("price_cdl_english", checkoutService.LastRequest?.PriceId);
         Assert.Equal("cdl_english_cohort", checkoutService.LastRequest?.PlanType);
+        Assert.False(string.IsNullOrWhiteSpace(result.GeneratedAtUtc));
     }
 
     [Fact]

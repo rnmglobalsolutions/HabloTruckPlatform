@@ -106,6 +106,10 @@
       "value": "facebook"
     },
     {
+      "key": "checkoutGeneratedAtUtc",
+      "value": ""
+    },
+    {
       "key": "companyName",
       "value": "Fleet Co"
     },
@@ -192,7 +196,21 @@
                 }
               ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.generatedAtUtc) pm.collectionVariables.set('checkoutGeneratedAtUtc', data.generatedAtUtc);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "01.2 Create Stripe Payment Link (Company Seats)",
