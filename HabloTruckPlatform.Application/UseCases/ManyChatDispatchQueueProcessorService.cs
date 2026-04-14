@@ -52,7 +52,6 @@ public sealed class ManyChatDispatchQueueProcessorService
 
             try
             {
-                _logger.LogInformation("#ManyChatDispatchQueueProcessorService - Entering Manychat Sync");
                 await _failedActionRetryService.DispatchAsync(
                     lease.Message.ActionType,
                     lease.Message.PayloadJson,
@@ -61,7 +60,7 @@ public sealed class ManyChatDispatchQueueProcessorService
                 await _queue.CompleteAsync(lease, ct);
                 _metrics?.ManyChatDispatchProcessed(lease.Message.ActionType, "completed");
 
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "Outcome recorded. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} ActionType={ActionType} DequeueCount={DequeueCount}",
                     "outcome",
                     "completed",
