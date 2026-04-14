@@ -14,9 +14,9 @@
     },
     "applicationInsights": {
       "samplingSettings": {
-        "isEnabled": false,
+        "isEnabled": true,
         "excludedTypes": "Request",
-        "maxTelemetryItemsPerSecond": 10
+        "maxTelemetryItemsPerSecond": 5
       },
       "enableLiveMetricsFilters": true
     }

@@ -273,7 +273,17 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         else if (string.IsNullOrWhiteSpace(user.PlanType))
         {
             user.PlanType = planFromPrice ?? planFromMeta ?? user.PlanType;
+            user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
         }
+
+        _logger.LogInformation("Plan determined. LogCategory={LogCategory} PriceId={PriceId} Interval={Interval} PlanFromPrice={PlanFromPrice} PlanFromMeta={PlanFromMeta} FinalPlan={FinalPlan} Term={Term}",
+            "plan_determination",
+            priceId,
+            interval,
+            planFromPrice,
+            planFromMeta,
+            user.PlanType,
+            user.IndividualPlanTerm);
 
         user.UpdatedAtUtc = nowUtc;
 

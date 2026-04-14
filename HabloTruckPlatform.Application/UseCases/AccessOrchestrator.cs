@@ -271,7 +271,6 @@ public sealed class AccessOrchestrator
             {
                 if (_manyChatDispatchQueue is not null)
                 {
-                    _logger.LogInformation("Sending ManyChat sync to dispatch queue. UserId={UserId} SubscriberId={SubscriberId}", user.UserId, subscriberId);
                     await _manyChatDispatchQueue.EnqueueAsync(
                         new ManyChatDispatchMessage(
                             FailedActionRetryService.ActionManyChatSync,
@@ -279,7 +278,6 @@ public sealed class AccessOrchestrator
                             user.UserId,
                             _clock.UtcNow),
                         ct);
-                    _logger.LogInformation("Enqueued ManyChat sync message. UserId={UserId} SubscriberId={SubscriberId}", user.UserId, subscriberId);
                     _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatSync);
 
                     _logger.LogDebug(
