@@ -238,16 +238,17 @@ public sealed class AccessOrchestrator
         }
 
         // Dedupe: only sync if decision materially changed.
-        if (!ShouldSyncManyChat(user, decision))
-        {
-            _logger.LogInformation(
-                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
-                "decision",
-                "manychat_sync_skipped",
-                "no_action_needed",
-                "access_state_unchanged");
-            return;
-        }
+        // (Removed on 04/14/2026 after we observed that manychat sync is not a high-volume operation and the logic was complex and error-prone, especially with multiple subscriberIds per user.)
+        //if (!ShouldSyncManyChat(user, decision))
+        //{
+        //    _logger.LogInformation(
+        //        "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+        //        "decision",
+        //        "manychat_sync_skipped",
+        //        "no_action_needed",
+        //        "access_state_unchanged");
+        //    return;
+        //}
 
         var allHandled = true;
 
