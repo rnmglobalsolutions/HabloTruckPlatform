@@ -8,6 +8,7 @@ For the detailed end-to-end flow of individual monthly and yearly subscriptions,
 - `docs/MANYCHAT_INDIVIDUAL_SUBSCRIPTION_FLOWS.md`
 - `docs/MANYCHAT_COMPANY_AND_INVITE_FLOWS.md`
 - `docs/MANYCHAT_BILLING_RECOVERY_AND_RENEWAL_FLOWS.md`
+- `docs/SUBSCRIPTION_UPGRADES_DOWNGRADES.md`
 - `docs/MANYCHAT_MASTER_ARCHITECTURE.md`
 - `docs/MANYCHAT_IMPLEMENTATION_BLUEPRINT_ES.md`
 

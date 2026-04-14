@@ -32,6 +32,11 @@ It does not cover:
 - initial individual checkout
 - company seat purchase
 - invite-code joins
+- post-payment upgrades or downgrades
+
+For post-payment plan changes, see:
+
+- `docs/SUBSCRIPTION_UPGRADES_DOWNGRADES.md`
 
 ## Key Backend Reality
 

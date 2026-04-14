@@ -1,0 +1,1985 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 32 /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R 43 0 R 45 0 R 47 0 R 49 0 R 51 0 R 53 0 R 55 0 R 57 0 R 59 0 R 61 0 R 63 0 R 65 0 R 67 0 R 69 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Length 3883 >>
+stream
+BT /F2 18 Tf 54 738.00 Td (HabloTruck Mega Prompt) Tj ET
+BT /F1 8 Tf 54 716.00 Td () Tj ET
+BT /F1 10 Tf 54 706.00 Td () Tj ET
+BT /F1 10 Tf 54 693.00 Td (Generated for reuse in other AI tools on 2026-04-13.) Tj ET
+BT /F1 10 Tf 54 680.00 Td (Updated with confirmed pricing on 2026-04-13.) Tj ET
+BT /F1 10 Tf 54 667.00 Td () Tj ET
+BT /F1 10 Tf 54 654.00 Td (Copy and paste everything below into any tool that needs to understand HabloTruck quickly ) Tj ET
+BT /F1 10 Tf 54 641.00 Td (and accurately.) Tj ET
+BT /F1 10 Tf 54 628.00 Td () Tj ET
+BT /F1 8 Tf 54 615.00 Td () Tj ET
+BT /F1 10 Tf 54 605.00 Td (----------------------------------------------------------------------) Tj ET
+BT /F1 8 Tf 54 593.00 Td () Tj ET
+BT /F1 10 Tf 54 583.00 Td () Tj ET
+BT /F2 14 Tf 54 570.00 Td (Mega Prompt) Tj ET
+BT /F1 6 Tf 54 552.00 Td () Tj ET
+BT /F1 10 Tf 54 544.00 Td () Tj ET
+BT /F1 10 Tf 54 531.00 Td (You are working on HabloTruck. Treat this document as the source-of-truth business and ) Tj ET
+BT /F1 10 Tf 54 518.00 Td (product context unless the user gives you newer information.) Tj ET
+BT /F1 10 Tf 54 505.00 Td () Tj ET
+BT /F1 10 Tf 54 492.00 Td (HabloTruck is a Spanish-first, chat-centered platform that helps truck drivers, CDL ) Tj ET
+BT /F1 10 Tf 54 479.00 Td (students, trucking companies, fleets, and driving schools get access to practical trucking) Tj ET
+BT /F1 10 Tf 54 466.00 Td ( English and related learning/support experiences. Its core promise is simple: help ) Tj ET
+BT /F1 10 Tf 54 453.00 Td (Spanish-speaking trucking workers learn the real English used on the road in the United ) Tj ET
+BT /F1 10 Tf 54 440.00 Td (States, while giving individuals, companies, and schools a low-friction way to buy, ) Tj ET
+BT /F1 10 Tf 54 427.00 Td (activate, verify, recover, and retain access through ManyChat, Stripe, and a serverless ) Tj ET
+BT /F1 10 Tf 54 414.00 Td (backend.) Tj ET
+BT /F1 10 Tf 54 401.00 Td () Tj ET
+BT /F1 10 Tf 54 388.00 Td (The product should feel practical, direct, supportive, and road-relevant. Avoid generic ) Tj ET
+BT /F1 10 Tf 54 375.00 Td (language-learning positioning. HabloTruck is not just "an English course." It is a ) Tj ET
+BT /F1 10 Tf 54 362.00 Td (trucking-specific access and learning platform designed around the realities of drivers, ) Tj ET
+BT /F1 10 Tf 54 349.00 Td (students, school admins, fleet operators, payment issues, invite codes, and chat-based ) Tj ET
+BT /F1 10 Tf 54 336.00 Td (onboarding.) Tj ET
+BT /F1 10 Tf 54 323.00 Td () Tj ET
+BT /F1 10 Tf 54 310.00 Td (North-star ambition:) Tj ET
+BT /F1 10 Tf 54 297.00 Td () Tj ET
+BT /F1 10 Tf 54 284.00 Td (HabloTruck should become the go-to solution for Latino truckers in America to learn ) Tj ET
+BT /F1 10 Tf 54 271.00 Td (road-truck English: the practical English used with dispatchers, shippers, receivers, ) Tj ET
+BT /F1 10 Tf 54 258.00 Td (brokers, mechanics, DOT officers, roadside inspectors, warehouses, customers, and other ) Tj ET
+BT /F1 10 Tf 54 245.00 Td (people drivers deal with on the job.) Tj ET
+BT /F1 10 Tf 54 232.00 Td () Tj ET
+BT /F1 10 Tf 54 219.00 Td (Core learning delivery format:) Tj ET
+BT /F1 10 Tf 54 206.00 Td () Tj ET
+BT /F1 10 Tf 54 193.00 Td (HabloTruck teaches road-truck English through compact chat messages that usually include ) Tj ET
+BT /F1 10 Tf 54 180.00 Td (four parts:) Tj ET
+BT /F1 10 Tf 54 167.00 Td () Tj ET
+BT /F1 10 Tf 54 154.00 Td (1. English phrase.) Tj ET
+BT /F1 10 Tf 54 141.00 Td (2. Spanish translation.) Tj ET
+BT /F1 10 Tf 54 128.00 Td (3. Cuban pronunciation guide.) Tj ET
+BT /F1 10 Tf 54 115.00 Td (4. Native English audio recording of the phrase.) Tj ET
+BT /F1 10 Tf 54 102.00 Td () Tj ET
+BT /F1 10 Tf 54 89.00 Td (The Cuban pronunciation guide is a practical sound bridge for the user. It is meant to ) Tj ET
+BT /F1 10 Tf 54 76.00 Td (show how the English phrase sounds using a familiar Cuban/Caribbean Spanish-friendly ) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 4241 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (phonetic approximation, so the driver or student can repeat the phrase as close as ) Tj ET
+BT /F1 10 Tf 54 725.00 Td (possible to the native English sound. It is not academic IPA and should never be written ) Tj ET
+BT /F1 10 Tf 54 712.00 Td (in a mocking or stereotyped way. It should be respectful, useful, easy to repeat, and ) Tj ET
+BT /F1 10 Tf 54 699.00 Td (focused on the actual sound.) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (The native English recording is usually short, around 5-7 seconds maximum, and should ) Tj ET
+BT /F1 10 Tf 54 660.00 Td (model the phrase naturally and clearly.) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td (Core product experience:) Tj ET
+BT /F1 10 Tf 54 621.00 Td () Tj ET
+BT /F1 10 Tf 54 608.00 Td (HabloTruck is a structured menu-based training system, not a random phrase generator. The ) Tj ET
+BT /F1 10 Tf 54 595.00 Td (user should feel they are browsing a practical trucking-English dashboard organized around) Tj ET
+BT /F1 10 Tf 54 582.00 Td ( the way a trucker actually works day to day. The main menu should expose operational ) Tj ET
+BT /F1 10 Tf 54 569.00 Td (modules, each module should feel like a mini-course, and the chat should keep the lesson ) Tj ET
+BT /F1 10 Tf 54 556.00 Td (loop fast: phrase, translation, Cuban pronunciation, audio, then Next or Repeat.) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (Confirmed core prices:) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Individual monthly: $12.99 USD plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Individual yearly: $97 USD plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Company, fleet, or school seat: $9.99 USD per seat per month plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F2 14 Tf 54 452.00 Td (One-Sentence Definition) Tj ET
+BT /F1 6 Tf 54 434.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td () Tj ET
+BT /F1 10 Tf 54 413.00 Td (HabloTruck helps Latino and Spanish-speaking truck drivers and CDL students in America ) Tj ET
+BT /F1 10 Tf 54 400.00 Td (learn practical road-truck English through conversational onboarding, $12.99/month or ) Tj ET
+BT /F1 10 Tf 54 387.00 Td ($97/year individual subscriptions, $9.99/month company or school seats, invite codes, ) Tj ET
+BT /F1 10 Tf 54 374.00 Td (automated billing recovery, and retention flows.) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F2 14 Tf 54 348.00 Td (Short Elevator Pitch) Tj ET
+BT /F1 6 Tf 54 330.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td (HabloTruck gives truck drivers, students, companies, and schools an easy way to activate ) Tj ET
+BT /F1 10 Tf 54 296.00 Td (practical English learning for the U.S. trucking world. Individuals can subscribe monthly ) Tj ET
+BT /F1 10 Tf 54 283.00 Td (or yearly from chat. Companies and schools can buy seats for a team, receive an invite ) Tj ET
+BT /F1 10 Tf 54 270.00 Td (code, and let drivers or students claim access. Stripe handles checkout and billing, ) Tj ET
+BT /F1 10 Tf 54 257.00 Td (ManyChat handles the conversational experience, and the HabloTruck backend keeps access, ) Tj ET
+BT /F1 10 Tf 54 244.00 Td (seats, payments, reminders, and recovery states synchronized.) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F2 14 Tf 54 218.00 Td (Offer Summary) Tj ET
+BT /F1 6 Tf 54 200.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td () Tj ET
+BT /F1 10 Tf 54 179.00 Td (HabloTruck has a simple offer ladder:) Tj ET
+BT /F1 10 Tf 54 166.00 Td () Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Individual monthly access for drivers/students: $12.99 USD/month plus taxes.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Individual yearly access for drivers/students: $97 USD/year plus taxes.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Company, fleet, or school seats: $9.99 USD per seat/month plus taxes.) Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Optional CDL cohort SKUs can exist as one-time Stripe checkouts when needed, but their ) Tj ET
+BT /F1 10 Tf 54 101.00 Td (final pricing should be confirmed separately.) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (The commercial story should stay easy to understand: individuals buy their own access, ) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 3754 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (while companies and schools buy seats and distribute access with invite codes.) Tj ET
+BT /F1 10 Tf 54 725.00 Td () Tj ET
+BT /F2 14 Tf 54 712.00 Td (Free And Full Access Model) Tj ET
+BT /F1 6 Tf 54 694.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (HabloTruck should have a clear free-to-paid path.) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (Free version:) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Gives users 5 phrases per day.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- Pulls those phrases from different trucking modules.) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Creates a daily habit instead of overwhelming the user.) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Lets users experience the core learning format: English phrase, Spanish translation, ) Tj ET
+BT /F1 10 Tf 54 569.00 Td (Cuban pronunciation, and short audio.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Shows the broader module menu with locked modules.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Creates curiosity and desire to explore specific topics such as Police, DOT Inspection, ) Tj ET
+BT /F1 10 Tf 54 530.00 Td (GPS, Weigh Station, Loads, Fuel, Parking, and BOL.) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (Free-version strategy:) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (- The free version is not just a sample. It is a habit builder and conversion engine.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- The user should feel: "This helps me, but I need full access for the exact situations I ) Tj ET
+BT /F1 10 Tf 54 452.00 Td (face at work.") Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Locked modules should be visible enough to create interest, but not frustrating enough ) Tj ET
+BT /F1 10 Tf 54 426.00 Td (to feel deceptive.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- The free user should always have a simple upgrade path.) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (Full access:) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Unlocks 10+ structured operational modules.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Includes deep, scenario-based trucking-English phrase libraries.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Can reasonably be positioned as 1,000+ practical phrases if each core module contains ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (around 100 phrases.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Supports unlimited practice compared with the daily free limit.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Keeps the same fast learning format: phrase, translation, Cuban pronunciation, and ) Tj ET
+BT /F1 10 Tf 54 283.00 Td (audio.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- Uses a menu-driven learning system with visual cards/images for intuitive navigation.) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (Full-access user experience:) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Main Menu = module selection screen.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Each module = mini-course.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Visual cards = easy, intuitive navigation.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- The experience should feel more like browsing useful work scenarios than taking a boring) Tj ET
+BT /F1 10 Tf 54 166.00 Td ( course.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- A good analogy is "Netflix-style browsing for trucking-English situations," but avoid ) Tj ET
+BT /F1 10 Tf 54 140.00 Td (overusing that publicly unless the design actually supports it.) Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (Interaction loop:) Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (- User selects a module.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- HabloTruck sends one phrase lesson.) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4020 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- User listens to native audio.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- User can tap Repeat to hear/review it again.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- User can tap Next to continue.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- The flow continues inside the selected module.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- The user should always be able to return to the main menu.) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F2 14 Tf 54 660.00 Td (What HabloTruck Does) Tj ET
+BT /F1 6 Tf 54 642.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (HabloTruck supports the full commercial and access lifecycle around a trucking-English ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (learning product:) Tj ET
+BT /F1 10 Tf 54 595.00 Td () Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Welcomes new users through a ManyChat entry router.) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Routes users based on intent and access state.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Presents a menu-based training system organized by real trucking work situations.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Supports a free daily phrase experience and a full-access module experience.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Lets individuals buy monthly or yearly access.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Lets company owners, fleet operators, and school admins buy seat bundles.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Creates Stripe Checkout sessions for individual and company purchases.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Receives Stripe webhook events as the source of truth for payments and subscriptions.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Projects subscription state into effective access.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Creates company records and seat entitlements after fleet purchases.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Auto-generates invite codes for purchased company or school seats.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Lets drivers or students validate invite codes and claim seats.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Tracks seat usage and prevents over-capacity access.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Synchronizes access state back to ManyChat through tags and custom fields.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Supports payment-failure recovery through Stripe Billing Portal update links.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Supports manual retry of open Stripe invoices.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Sends renewal reminders.) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Supports "Stay with HabloTruck" retention flows before churn.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Provides success, cancel, and billing-return status pages for Stripe redirects.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Provides admin/support endpoints for invites, failed actions, Stripe replay, and ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (operational recovery.) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F2 14 Tf 54 296.00 Td (Core Customer Segments) Tj ET
+BT /F1 6 Tf 54 278.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (Primary B2C segment:) Tj ET
+BT /F1 10 Tf 54 244.00 Td () Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Spanish-speaking truck drivers.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- CDL students.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- New drivers preparing to work in the United States.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Drivers who need practical English for road, dispatch, loading, inspection, safety, ) Tj ET
+BT /F1 10 Tf 54 179.00 Td (billing, and job communication contexts.) Tj ET
+BT /F1 10 Tf 54 166.00 Td () Tj ET
+BT /F1 10 Tf 54 153.00 Td (Primary B2B segment:) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Trucking company owners.) Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Fleet operators.) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Dispatch or operations managers buying training access for drivers.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- CDL schools or training programs buying access for students.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Admins who need to distribute access through seats and invite codes.) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 4008 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td (Secondary/internal users:) Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (- HabloTruck support/admin operators.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- ManyChat flow builders.) Tj ET
+BT /F1 10 Tf 54 673.00 Td (- Backend/API operators.) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Growth, sales, and retention teams.) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F2 14 Tf 54 634.00 Td (Market) Tj ET
+BT /F1 6 Tf 54 616.00 Td () Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (HabloTruck operates at the intersection of:) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Trucking and logistics workforce training.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- English for specific purposes.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Spanish-speaking immigrant and bilingual workforce enablement.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- CDL training and driver readiness.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Fleet training and retention.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Conversational commerce through chat automation.) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (The market opportunity is strongest where Spanish-speaking drivers, students, and ) Tj ET
+BT /F1 10 Tf 54 465.00 Td (operators need practical language help tied to trucking work rather than broad academic ) Tj ET
+BT /F1 10 Tf 54 452.00 Td (English. HabloTruck should speak to real road outcomes: better communication, confidence, ) Tj ET
+BT /F1 10 Tf 54 439.00 Td (fewer misunderstandings, smoother dispatch/load interactions, and stronger readiness for ) Tj ET
+BT /F1 10 Tf 54 426.00 Td (U.S. trucking environments.) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F2 14 Tf 54 400.00 Td (Problem It Solves Today In America) Tj ET
+BT /F1 6 Tf 54 382.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (HabloTruck solves a real communication and workforce-readiness problem in the U.S. ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (trucking industry: Spanish-speaking drivers and CDL students often need practical English ) Tj ET
+BT /F1 10 Tf 54 335.00 Td (for trucking situations, but most English learning options are too generic, too slow, too ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (classroom-like, or not connected to the exact moments where language matters on the road.) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td (In America today, trucking work is English-heavy in the places where mistakes are ) Tj ET
+BT /F1 10 Tf 54 283.00 Td (expensive:) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Road signs, traffic instructions, and safety warnings.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Dispatch calls and load updates.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Shipper and receiver instructions.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Check-in, dock, yard, and warehouse communication.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- DOT, roadside inspection, and law-enforcement questions.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Bills of lading, logs, incident notes, and basic records.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Mechanical issue reporting.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Delivery exceptions, delays, lumper/payment questions, and claims.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Customer, broker, dispatcher, and operations communication.) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (This matters because commercial truck driving is a large, high-stakes occupation in the ) Tj ET
+BT /F1 10 Tf 54 114.00 Td (United States. The Bureau of Labor Statistics reports about 2.2 million heavy and ) Tj ET
+BT /F1 10 Tf 54 101.00 Td (tractor-trailer truck driver jobs in 2024 and projects hundreds of thousands of openings ) Tj ET
+BT /F1 10 Tf 54 88.00 Td (per year over the decade. The same BLS profile emphasizes that long-haul drivers may be ) Tj ET
+BT /F1 10 Tf 54 75.00 Td (away from home for days or weeks, work nights/weekends/holidays, and face one of the ) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 4581 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (highest occupational injury and fatality risk profiles. In that environment, English is ) Tj ET
+BT /F1 10 Tf 54 725.00 Td (not just "nice to have." It affects confidence, safety communication, productivity, and ) Tj ET
+BT /F1 10 Tf 54 712.00 Td (opportunity.) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (There is also a regulatory-readiness angle. U.S. commercial driver qualification rules ) Tj ET
+BT /F1 10 Tf 54 673.00 Td (require drivers to have enough English ability to communicate with the public, understand ) Tj ET
+BT /F1 10 Tf 54 660.00 Td (highway signs/signals, respond to official inquiries, and make entries on reports and ) Tj ET
+BT /F1 10 Tf 54 647.00 Td (records. FMCSA guidance also tells motor carriers to assess whether drivers can ) Tj ET
+BT /F1 10 Tf 54 634.00 Td (communicate with enforcement officers and understand highway traffic signs. Since June 25,) Tj ET
+BT /F1 10 Tf 54 621.00 Td ( 2025, non-compliance with the English language proficiency rule can be treated as a ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (driver out-of-service violation under the CVSA North American Standard Out-of-Service ) Tj ET
+BT /F1 10 Tf 54 595.00 Td (Criteria.) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (Important positioning guardrail:) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td (HabloTruck should not claim to guarantee legal compliance, guarantee passing an ) Tj ET
+BT /F1 10 Tf 54 530.00 Td (inspection, guarantee employment, or replace official CDL training. The correct claim is ) Tj ET
+BT /F1 10 Tf 54 517.00 Td (that HabloTruck helps drivers and students build practical trucking-English readiness for ) Tj ET
+BT /F1 10 Tf 54 504.00 Td (the real communication moments they face in the U.S. trucking industry.) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (Useful source notes for factual context:) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (- U.S. Bureau of Labor Statistics, Heavy and Tractor-trailer Truck Drivers: https://www.bl) Tj ET
+BT /F1 10 Tf 54 439.00 Td (s.gov/ooh/transportation-and-material-moving/heavy-and-tractor-trailer-truck-drivers.htm) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- eCFR 49 CFR 391.11\(b\)\(2\), General qualifications of drivers: ) Tj ET
+BT /F1 10 Tf 54 413.00 Td (https://www.law.cornell.edu/cfr/text/49/391.11) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- FMCSA English Language Proficiency assessment guidance: https://www.fmcsa.dot.gov/regula) Tj ET
+BT /F1 10 Tf 54 387.00 Td (tions/what-should-motor-carrier-do-assess-cmv-drivers-english-language-proficiency-elp-dur) Tj ET
+BT /F1 10 Tf 54 374.00 Td (ing) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- CVSA English Language Proficiency out-of-service update: ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (https://cvsa.org/news/elp-oosc-06252025/) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F2 14 Tf 54 322.00 Td (Pain Caused By The Problem) Tj ET
+BT /F1 6 Tf 54 304.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (For drivers and students, the pain is personal and practical:) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Anxiety when a dispatcher, officer, shipper, broker, or receiver speaks fast English.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Fear of looking unprepared or being embarrassed in front of coworkers or officials.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Missed or misunderstood instructions that can create delays, rejected loads, wrong ) Tj ET
+BT /F1 10 Tf 54 218.00 Td (turns, or extra waiting time.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Trouble explaining mechanical issues, delays, incidents, or load problems.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Stress during roadside inspections or official questions.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Less confidence applying for better routes, better companies, or more independent work.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Feeling stuck between knowing how to drive and not yet having the job-specific English ) Tj ET
+BT /F1 10 Tf 54 153.00 Td (to communicate confidently.) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (For companies, fleets, and schools, the pain is operational:) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Drivers may need extra help with basic English-heavy situations.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Dispatchers and admins spend time clarifying repeated communication problems.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Training teams may lack a practical, trucking-specific English layer.) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Length 4445 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Schools can teach driving skills but still need a simple way to support English ) Tj ET
+BT /F1 10 Tf 54 725.00 Td (readiness for students.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Companies need a scalable way to distribute learning access to many drivers without ) Tj ET
+BT /F1 10 Tf 54 699.00 Td (manually managing every account.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Payment, onboarding, access, and renewal friction can turn a helpful training product ) Tj ET
+BT /F1 10 Tf 54 673.00 Td (into support workload if not automated.) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (HabloTruck addresses this pain by combining:) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Trucking-specific English content and positioning.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- A repeatable lesson-message format: English phrase, Spanish translation, Cuban ) Tj ET
+BT /F1 10 Tf 54 595.00 Td (pronunciation guide, and short native English audio.) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Spanish-first conversational onboarding.) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Simple individual pricing.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Company/school seat bundles.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Invite-code activation.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Automated access verification.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Billing recovery.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Retention flows that keep users engaged before they disappear.) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F2 14 Tf 54 478.00 Td (Industry Expert Challenge: What The Prompt Must Not Miss) Tj ET
+BT /F1 6 Tf 54 460.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (If you are using this prompt to build strategy, content, ads, scripts, flows, or product ) Tj ET
+BT /F1 10 Tf 54 426.00 Td (plans, do not reduce HabloTruck to "English lessons for truck drivers." That is too small.) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td (The stronger framing is:) Tj ET
+BT /F1 10 Tf 54 387.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td (HabloTruck is a road-truck-English readiness platform for Latino truckers in America. It ) Tj ET
+BT /F1 10 Tf 54 361.00 Td (helps drivers handle the English moments that affect time, money, safety, confidence, ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (compliance-readiness, and career opportunity.) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (Missing or underweighted pain to include:) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Time pressure: truck drivers often communicate in English while they are tired, under ) Tj ET
+BT /F1 10 Tf 54 283.00 Td (appointment pressure, trying to find parking, dealing with detention, or trying not to ) Tj ET
+BT /F1 10 Tf 54 270.00 Td (lose hours.) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Money pressure: miscommunication can contribute to delays, missed appointments, ) Tj ET
+BT /F1 10 Tf 54 244.00 Td (detention disputes, layovers, rejected loads, claims, unpaid waiting time, or fewer good ) Tj ET
+BT /F1 10 Tf 54 231.00 Td (opportunities.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Safety pressure: drivers need to understand signs, warnings, inspection instructions, ) Tj ET
+BT /F1 10 Tf 54 205.00 Td (yard rules, receiver directions, mechanical issues, and emergency language.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Dignity pressure: many drivers know how to work hard and drive safely but feel ) Tj ET
+BT /F1 10 Tf 54 179.00 Td (embarrassed, ignored, or talked down to when English becomes a barrier.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Regulatory pressure: English language proficiency is not a new idea in U.S. commercial ) Tj ET
+BT /F1 10 Tf 54 153.00 Td (driver qualification rules, but enforcement attention increased in 2025. HabloTruck should) Tj ET
+BT /F1 10 Tf 54 140.00 Td ( position around readiness, not legal guarantees.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Fleet pressure: carriers and schools do not just need content; they need a simple way to) Tj ET
+BT /F1 10 Tf 54 114.00 Td ( distribute access, reduce repeated communication problems, and support drivers without ) Tj ET
+BT /F1 10 Tf 54 101.00 Td (building a training department.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- School pressure: CDL schools can teach vehicle operation and test preparation, but many ) Tj ET
+BT /F1 10 Tf 54 75.00 Td (students still need practical English for the job environment after training.) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 18 0 R >>
+endobj
+20 0 obj
+<< /Length 4547 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Retention pressure: drivers who feel unsupported may disengage from learning or leave ) Tj ET
+BT /F1 10 Tf 54 725.00 Td (the company/school relationship; HabloTruck can become a retention and support touchpoint.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Trust pressure: Latino truckers need a product that feels built for them, not a generic ) Tj ET
+BT /F1 10 Tf 54 699.00 Td (app with Spanish translation added later.) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (Current U.S. trucking context that strengthens HabloTruck's case:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (- ATRI's 2025 Top Industry Issues report says the economy remained the industry's top ) Tj ET
+BT /F1 10 Tf 54 634.00 Td (concern for the third consecutive year and that English Language Proficiency for Drivers ) Tj ET
+BT /F1 10 Tf 54 621.00 Td (entered the list as a first-time issue.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- Truck parking remains a national safety concern according to FHWA/Jason's Law materials;) Tj ET
+BT /F1 10 Tf 54 595.00 Td ( parking shortages can push drivers toward unsafe or unofficial parking locations.) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Driver detention remains a safety and earnings issue. DOT OIG research estimated that a ) Tj ET
+BT /F1 10 Tf 54 569.00 Td (15-minute increase in average dwell time raises expected crash rate by 6.2 percent and ) Tj ET
+BT /F1 10 Tf 54 556.00 Td (that detention is associated with major annual driver earnings losses.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- FMCSA's Entry-Level Driver Training rules create a baseline for CDL training, but they ) Tj ET
+BT /F1 10 Tf 54 530.00 Td (do not remove the need for practical job-specific English practice after or alongside CDL ) Tj ET
+BT /F1 10 Tf 54 517.00 Td (training.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- U.S. commercial driver qualification rules require sufficient English to communicate ) Tj ET
+BT /F1 10 Tf 54 491.00 Td (with the public, understand highway traffic signs/signals, respond to official inquiries, ) Tj ET
+BT /F1 10 Tf 54 478.00 Td (and make entries on reports and records.) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (Useful source notes for this industry-challenge context:) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td (- ATRI 2025 Top Industry Issues: https://truckingresearch.org/2025/10/for-the-third-year-i) Tj ET
+BT /F1 10 Tf 54 413.00 Td (n-a-row-the-economy-is-the-trucking-industrys-top-concern/) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- FHWA Jason's Law Truck Parking Survey: https://ops.fhwa.dot.gov/freight/infrastructure/t) Tj ET
+BT /F1 10 Tf 54 387.00 Td (ruck_parking/jasons_law/truckparkingsurvey/) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- FMCSA Driver Detention research page: https://www.fmcsa.dot.gov/research-and-analysis/im) Tj ET
+BT /F1 10 Tf 54 361.00 Td (pact-driver-detention-time-safety-and-operations) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- DOT OIG Driver Detention report: https://www.oig.dot.gov/library-item/36237) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- FMCSA Entry-Level Driver Training: https://www.fmcsa.dot.gov/registration/commercial-dri) Tj ET
+BT /F1 10 Tf 54 322.00 Td (vers-license/entry-level-driver-training-eldt) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F2 14 Tf 54 296.00 Td (Problem-To-Solution Map) Tj ET
+BT /F1 6 Tf 54 278.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (Use this map when explaining what HabloTruck solves.) Tj ET
+BT /F1 10 Tf 54 244.00 Td () Tj ET
+BT /F1 10 Tf 54 231.00 Td (Driver does not understand dispatcher/load instructions:) Tj ET
+BT /F1 10 Tf 54 218.00 Td () Tj ET
+BT /F1 10 Tf 54 205.00 Td (- HabloTruck solution: scenario-based trucking English, short phrase practice, Spanish ) Tj ET
+BT /F1 10 Tf 54 192.00 Td (translations, Cuban pronunciation guides, short native English recordings, and repeated ) Tj ET
+BT /F1 10 Tf 54 179.00 Td (exposure to real dispatch language.) Tj ET
+BT /F1 10 Tf 54 166.00 Td () Tj ET
+BT /F1 10 Tf 54 153.00 Td (Driver struggles at shipper/receiver:) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (- HabloTruck solution: pickup, delivery, check-in, dock, appointment, bill of lading, ) Tj ET
+BT /F1 10 Tf 54 114.00 Td (seal, detention, lumper, and warehouse communication modules delivered as phrase + ) Tj ET
+BT /F1 10 Tf 54 101.00 Td (translation + pronunciation + audio.) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (Driver is nervous during DOT/roadside inspection:) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 20 0 R >>
+endobj
+22 0 obj
+<< /Length 3877 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td (- HabloTruck solution: inspection roleplay, official-inquiry vocabulary, document phrases,) Tj ET
+BT /F1 10 Tf 54 712.00 Td ( vehicle/defect language, and calm practice scripts.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Guardrail: do not claim HabloTruck guarantees inspection success or legal compliance.) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (Driver loses time because English-heavy situations create confusion:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (- HabloTruck solution: practical micro-lessons for the moments where a driver needs to ) Tj ET
+BT /F1 10 Tf 54 634.00 Td (ask, confirm, clarify, or report a problem quickly.) Tj ET
+BT /F1 10 Tf 54 621.00 Td () Tj ET
+BT /F1 10 Tf 54 608.00 Td (Driver has pride but feels embarrassed asking basic questions:) Tj ET
+BT /F1 10 Tf 54 595.00 Td () Tj ET
+BT /F1 10 Tf 54 582.00 Td (- HabloTruck solution: Spanish-first, respectful tone that treats the driver as capable ) Tj ET
+BT /F1 10 Tf 54 569.00 Td (and experienced, not as a beginner in life.) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td (CDL student learns vehicle operation but lacks job-specific English:) Tj ET
+BT /F1 10 Tf 54 530.00 Td () Tj ET
+BT /F1 10 Tf 54 517.00 Td (- HabloTruck solution: post-classroom and companion English layer for the real U.S. ) Tj ET
+BT /F1 10 Tf 54 504.00 Td (trucking workplace.) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (Company/school needs to support many drivers:) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (- HabloTruck solution: $9.99/seat/month access, company purchase flow, auto-created invite) Tj ET
+BT /F1 10 Tf 54 439.00 Td ( codes, seat assignment, access tracking, and ManyChat-based support paths.) Tj ET
+BT /F1 10 Tf 54 426.00 Td () Tj ET
+BT /F1 10 Tf 54 413.00 Td (Admin does not want another complicated LMS:) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (- HabloTruck solution: chat-first access, Stripe checkout, invite code distribution, and ) Tj ET
+BT /F1 10 Tf 54 374.00 Td (automated ManyChat state sync.) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (Payment failure interrupts learning:) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (- HabloTruck solution: grace periods, billing recovery, Stripe Billing Portal update ) Tj ET
+BT /F1 10 Tf 54 309.00 Td (links, retry-payment flow, reminders, and retention journeys.) Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (User is active but gets accidentally resold:) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (- HabloTruck solution: access-state routing in ManyChat using backend-synchronized tags ) Tj ET
+BT /F1 10 Tf 54 244.00 Td (and fields.) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F2 14 Tf 54 218.00 Td (Road-Truck-English Content Pillars) Tj ET
+BT /F1 6 Tf 54 200.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td () Tj ET
+BT /F1 10 Tf 54 179.00 Td (These are the learning/content categories HabloTruck should own. They are important for ) Tj ET
+BT /F1 10 Tf 54 166.00 Td (product strategy, curriculum planning, ads, landing pages, ManyChat flows, and future app ) Tj ET
+BT /F1 10 Tf 54 153.00 Td (experiences.) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (HabloTruck content is situational training, not just vocabulary. A strong module should ) Tj ET
+BT /F1 10 Tf 54 114.00 Td (teach practical question-and-answer patterns, real phrases, and realistic workplace ) Tj ET
+BT /F1 10 Tf 54 101.00 Td (scenarios. Each core module can be designed around roughly 100 phrases, producing a ) Tj ET
+BT /F1 10 Tf 54 88.00 Td (full-access library of 1,000+ practical trucking-English phrases across 10+ modules.) Tj ET
+BT /F1 10 Tf 54 75.00 Td () Tj ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 22 0 R >>
+endobj
+24 0 obj
+<< /Length 3621 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (Every phrase lesson should generally follow this message structure:) Tj ET
+BT /F1 10 Tf 54 725.00 Td () Tj ET
+BT /F1 10 Tf 54 712.00 Td (- English Phrase: the exact phrase the driver should learn.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Spanish Translation: the meaning in natural Spanish.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Cuban Pronunciation: a practical Cuban/Caribbean Spanish-friendly pronunciation guide ) Tj ET
+BT /F1 10 Tf 54 673.00 Td (that helps the user approximate the native English sound.) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Native English Recording: a short native-speaker audio clip, usually 5-7 seconds ) Tj ET
+BT /F1 10 Tf 54 647.00 Td (maximum.) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (Example structure:) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (- English Phrase: "Good Morning Officer") Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Spanish Translation: "Buenos dias Oficial") Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Cuban Pronunciation: "Gud Moornin Ofiser") Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Native English Recording: short native audio of "Good Morning Officer.") Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (Another example:) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (- English Phrase: "I am checking in for pickup.") Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Spanish Translation: "Estoy registrandome para recoger la carga.") Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Cuban Pronunciation: "Ai am chequin in for pih-cop.") Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Native English Recording: short native audio of "I am checking in for pickup.") Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (Lesson-format guardrails:) Tj ET
+BT /F1 10 Tf 54 426.00 Td () Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Keep the phrase practical and immediately usable.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Keep the pronunciation guide respectful and sound-focused.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Avoid making the pronunciation guide look like a joke or caricature.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Keep audio short enough for drivers to replay quickly.) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Prefer one clear phrase per audio clip.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- If the phrase is safety-sensitive or compliance-related, include a simple caution or ) Tj ET
+BT /F1 10 Tf 54 335.00 Td (context note.) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F2 14 Tf 54 309.00 Td (Full Access Module Breakdown) Tj ET
+BT /F1 6 Tf 54 291.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (Full Access should feel like a professional trucking-English training dashboard. These ) Tj ET
+BT /F1 10 Tf 54 257.00 Td (modules should be treated as core product categories:) Tj ET
+BT /F1 10 Tf 54 244.00 Td () Tj ET
+BT /F1 10 Tf 54 231.00 Td (1. Police and Dispatchers) Tj ET
+BT /F1 10 Tf 54 218.00 Td () Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Talking to police during stops.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Understanding officer commands.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Communicating with dispatch.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- High-emotion, high-conversion module because fear and uncertainty around police/official) Tj ET
+BT /F1 10 Tf 54 153.00 Td ( communication is real.) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (2. DOT Inspection) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Inspection conversations.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Document and compliance language.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Officer interaction.) Tj ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 24 0 R >>
+endobj
+26 0 obj
+<< /Length 3107 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Useful for inspection-readiness and confidence.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Guardrail: say "prepare for inspection conversations" or "communicate with more ) Tj ET
+BT /F1 10 Tf 54 712.00 Td (confidence," not "guaranteed to pass inspections.") Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (3. Cargas y Descargas / Loads) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Pickup conversations.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Delivery conversations.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Warehouse communication.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Appointment handling.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- Live load/live unload.) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Drop and hook.) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (4. Combustible / Fuel) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Paying for fuel.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Asking questions at truck stops.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Understanding fuel receipts and instructions.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Fuel card and pump problem language.) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (5. Weigh Station / Bascula) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Entering scales.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Understanding instructions from officers.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Scale house communication.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Compliance dialogue.) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (6. BOL / Bill of Lading) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Understanding paperwork.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Signing documents.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Verifying load details.) Tj ET
+BT /F1 10 Tf 54 322.00 Td (- Seal number, trailer number, pickup number, delivery number.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- This is a high-value module because many drivers struggle with paperwork language.) Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (7. Parking / Truck Stops) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Reserving parking.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Asking for available spots.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Overnight stay communication.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Shower, fuel, repair, restroom, restaurant, and service desk language.) Tj ET
+BT /F1 10 Tf 54 205.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td (8. Control de Trafico / Traffic Control) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Traffic officer instructions.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Road control situations.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Emergency directions.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Detours, blocked lanes, construction, and accident-scene language.) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (9. GPS and Directions) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Asking for directions.) Tj ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 26 0 R >>
+endobj
+28 0 obj
+<< /Length 3208 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Understanding route instructions.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Navigation issues.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Wrong entrance, low bridge, restricted road, truck route, and turnaround language.) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (10. Entrega / Delivery) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Final delivery interaction.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Delivery confirmations.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Issue handling.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Late delivery, damaged freight, missing product, appointment change, and ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (proof-of-delivery language.) Tj ET
+BT /F1 10 Tf 54 595.00 Td () Tj ET
+BT /F1 10 Tf 54 582.00 Td (Expandable modules:) Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Mechanical problems.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Road emergencies.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Border control.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Customer communication.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Recruiter/job interview English.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- ELD/logbook support conversations.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Insurance, claims, and accident reporting basics.) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (Module design rules:) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Each module should feel like a real work situation.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Each module should include both statements and questions.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Question + answer format is valuable because real trucking conversations are ) Tj ET
+BT /F1 10 Tf 54 387.00 Td (interactive.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Do not teach isolated vocabulary without context when a scenario phrase would be better.) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Prefer phrases a driver can say today at work.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- The menu should show locked modules to create curiosity, but full access should clearly ) Tj ET
+BT /F1 10 Tf 54 335.00 Td (unlock the practical depth.) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td (Dispatch and load communication:) Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (- Load assignment.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- Pickup and delivery appointment.) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Check calls.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- ETA updates.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Delay explanations.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Route changes.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Broker/dispatcher clarification.) Tj ET
+BT /F1 10 Tf 54 192.00 Td () Tj ET
+BT /F1 10 Tf 54 179.00 Td (Shipper and receiver communication:) Tj ET
+BT /F1 10 Tf 54 166.00 Td () Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Check-in and check-out.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Dock door instructions.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Live load/live unload.) Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Drop and hook.) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Trailer number.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Seal number.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Bill of lading.) Tj ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 28 0 R >>
+endobj
+30 0 obj
+<< /Length 2797 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Lumper payment.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Detention and waiting time.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Rejected load, shortage, overage, damage, OS&D.) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (Road, safety, and official communication:) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Road signs.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Detours.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Weigh stations.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Scale house instructions.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- DOT/roadside inspection.) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Officer questions.) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Logbook/ELD basics.) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Medical card/CDL/registration/insurance document words.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Warnings, citations, and out-of-service language.) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (Maintenance and breakdown:) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Flat tire.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Air leak.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Brake issue.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Check engine light.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Reefer problem.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Temperature setting.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Trailer lights.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Roadside assistance.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Tow/service call.) Tj ET
+BT /F1 10 Tf 54 387.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td (Emergency and incident communication:) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Accident report basics.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Calling 911.) Tj ET
+BT /F1 10 Tf 54 322.00 Td (- Explaining location.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Injury and damage vocabulary.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Hazard, spill, fire, blocked lane.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- Weather and road condition language.) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (Money and operations:) Tj ET
+BT /F1 10 Tf 54 244.00 Td () Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Fuel card.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Scale ticket.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Toll.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Advance.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Lumper fee.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Detention request.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Layover.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Rate confirmation.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Invoice/basic payment questions.) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (Career and professionalism:) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Applying for trucking jobs.) Tj ET
+endstream
+endobj
+31 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 30 0 R >>
+endobj
+32 0 obj
+<< /Length 3821 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Talking to recruiter.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Safety meeting language.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Company policy language.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Respectful clarification phrases.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Saying "I don't understand, please repeat" without losing confidence.) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F2 14 Tf 54 660.00 Td (Product And Curriculum Opportunities) Tj ET
+BT /F1 6 Tf 54 642.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (The current backend proves the access, payment, entitlement, and ManyChat infrastructure. ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (These ideas are natural product expansions, but should not be presented as already shipped) Tj ET
+BT /F1 10 Tf 54 595.00 Td ( unless confirmed:) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Audio and pronunciation practice for trucking phrases.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Voice roleplays with dispatcher, shipper, receiver, officer, mechanic, and broker ) Tj ET
+BT /F1 10 Tf 54 543.00 Td (personas.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Inspection-readiness simulations.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Shipper/receiver check-in simulations.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Flashcards and micro-lessons by route/job scenario.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Certificate or progress reporting for schools/fleets.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Company admin dashboard for seat usage and driver progress.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Driver confidence score or readiness checklist.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- WhatsApp-first experience for drivers who prefer WhatsApp over Facebook/Instagram.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Referral/ambassador program for Latino trucker communities.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Content partnerships with CDL schools, dispatch training programs, recruiters, and ) Tj ET
+BT /F1 10 Tf 54 413.00 Td (trucking influencers.) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (Roadmap guardrail:) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (Do not confuse future opportunities with current capabilities. Current confirmed ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (capabilities are strongest around Stripe checkout, subscriptions, company seats, invite ) Tj ET
+BT /F1 10 Tf 54 335.00 Td (codes, access projection, ManyChat sync, billing recovery, reminders, and retention flows.) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F2 14 Tf 54 309.00 Td (Value Proposition) Tj ET
+BT /F1 6 Tf 54 291.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (For individual drivers and students:) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Get trucking-specific English instead of generic English lessons.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Start from chat without navigating a complicated web app.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Choose monthly access at $12.99/month plus taxes or yearly access at $97/year plus ) Tj ET
+BT /F1 10 Tf 54 205.00 Td (taxes.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Pay through Stripe.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Verify access from ManyChat after checkout.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Recover access if a payment fails.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Keep learning without needing support for every billing issue.) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (For companies, fleets, and schools:) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Buy multiple seats at $9.99 per seat/month plus taxes.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Share one invite code with drivers or students.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Let team members activate their own access.) Tj ET
+endstream
+endobj
+33 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 32 0 R >>
+endobj
+34 0 obj
+<< /Length 3893 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Track seat capacity through backend entitlement logic.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Avoid manually creating accounts for every driver.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Retrieve or resend active invite codes from ManyChat.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Keep company access separate from individual subscriptions.) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (For HabloTruck operations:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Stripe remains the billing source of truth.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- ManyChat is the user-facing conversational layer.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Azure Functions backend owns access rules, entitlements, seat assignment, and recovery ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (logic.) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Async queues reduce friction and avoid making users wait for every downstream ManyChat ) Tj ET
+BT /F1 10 Tf 54 582.00 Td (sync.) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Tags and fields in ManyChat create clean segmentation for sales, access, billing ) Tj ET
+BT /F1 10 Tf 54 556.00 Td (recovery, and retention.) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F2 14 Tf 54 530.00 Td (Product Positioning) Tj ET
+BT /F1 6 Tf 54 512.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td () Tj ET
+BT /F1 10 Tf 54 491.00 Td (Use positioning like:) Tj ET
+BT /F1 10 Tf 54 478.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td (- "The go-to road-truck-English solution for Latino truckers in America.") Tj ET
+BT /F1 10 Tf 54 452.00 Td (- "English for the road, built for truck drivers.") Tj ET
+BT /F1 10 Tf 54 439.00 Td (- "Learn the exact English you need to work as a truck driver in the U.S.") Tj ET
+BT /F1 10 Tf 54 426.00 Td (- "Communicate with confidence with police, DOT, dispatchers, shippers, receivers, and ) Tj ET
+BT /F1 10 Tf 54 413.00 Td (truck stops.") Tj ET
+BT /F1 10 Tf 54 400.00 Td (- "Practice the English that protects your time, money, safety, and confidence on the ) Tj ET
+BT /F1 10 Tf 54 387.00 Td (road.") Tj ET
+BT /F1 10 Tf 54 374.00 Td (- "Practical trucking English for Spanish-speaking drivers and students.") Tj ET
+BT /F1 10 Tf 54 361.00 Td (- "A chat-first way to activate and manage HabloTruck access.") Tj ET
+BT /F1 10 Tf 54 348.00 Td (- "Individual subscriptions and company seats for trucking English learning.") Tj ET
+BT /F1 10 Tf 54 335.00 Td (- "Built for drivers, fleets, and CDL schools that need simple access and real trucking ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (context.") Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td (High-conversion emotional triggers:) Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (- Fear: police stops, DOT inspection, weigh stations, official questions.) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Frustration: not understanding dispatch, warehouse staff, paperwork, GPS/directions, or ) Tj ET
+BT /F1 10 Tf 54 244.00 Td (truck stop instructions.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Aspiration: becoming more independent, confident, professional, and ready for better ) Tj ET
+BT /F1 10 Tf 54 218.00 Td (work opportunities.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Relief: being able to replay short native audio and practice privately without ) Tj ET
+BT /F1 10 Tf 54 192.00 Td (embarrassment.) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (Approved benefit framing:) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Helps drivers communicate with more confidence.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Helps drivers prepare for real trucking conversations.) Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Helps reduce confusion in high-pressure work situations.) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Helps companies and schools support drivers with practical English.) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (Use caution with:) Tj ET
+endstream
+endobj
+35 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 34 0 R >>
+endobj
+36 0 obj
+<< /Length 3109 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td (- "Avoid fines.") Tj ET
+BT /F1 10 Tf 54 712.00 Td (- "Pass inspections.") Tj ET
+BT /F1 10 Tf 54 699.00 Td (- "Never get in trouble.") Tj ET
+BT /F1 10 Tf 54 686.00 Td (- "Guaranteed compliance.") Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (Safer alternatives:) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td (- "Prepare for DOT inspection conversations.") Tj ET
+BT /F1 10 Tf 54 621.00 Td (- "Understand common officer instructions.") Tj ET
+BT /F1 10 Tf 54 608.00 Td (- "Reduce communication mistakes.") Tj ET
+BT /F1 10 Tf 54 595.00 Td (- "Communicate more clearly in inspection and roadside situations.") Tj ET
+BT /F1 10 Tf 54 582.00 Td (- "Build confidence before high-pressure moments.") Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (Avoid positioning like:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Generic English app.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Generic ESL course.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Generic LMS.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Corporate training platform without trucking specificity.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Payment app.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- CRM-only bot.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- A one-flow chatbot.) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F2 14 Tf 54 426.00 Td (Tone and Brand Voice) Tj ET
+BT /F1 6 Tf 54 408.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (The user-facing tone should be:) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Spanish-first when speaking to drivers/students.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Clear and reassuring.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Practical and benefit-oriented.) Tj ET
+BT /F1 10 Tf 54 322.00 Td (- Respectful of working people.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Direct, not academic.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Calm during payment or access issues.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- Confident but not hype-heavy.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- Helpful during retention, not desperate.) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (Good Spanish-language tone examples:) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F1 10 Tf 54 218.00 Td (- "Bienvenido a HabloTruck. Aqui vas a aprender el ingles real que se usa en la carretera ) Tj ET
+BT /F1 10 Tf 54 205.00 Td (en Estados Unidos.") Tj ET
+BT /F1 10 Tf 54 192.00 Td (- "Tu acceso ya esta activo.") Tj ET
+BT /F1 10 Tf 54 179.00 Td (- "Te ayudo a resolverlo.") Tj ET
+BT /F1 10 Tf 54 166.00 Td (- "Si tienes una empresa o escuela, puedes activar acceso para tu equipo.") Tj ET
+BT /F1 10 Tf 54 153.00 Td (- "Perfecto. Si ya tienes un codigo de empresa o escuela, te ayudo a activarlo ahora ) Tj ET
+BT /F1 10 Tf 54 140.00 Td (mismo.") Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (Avoid:) Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Overly formal Spanish that feels academic.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Fear-based sales.) Tj ET
+endstream
+endobj
+37 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 36 0 R >>
+endobj
+38 0 obj
+<< /Length 3159 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- "Last chance" pressure.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Generic "learn English fast" promises.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Claims about guaranteed job outcomes unless the business explicitly approves them.) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F2 14 Tf 54 686.00 Td (Core Journeys) Tj ET
+BT /F1 6 Tf 54 668.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (HabloTruck should be modeled as modular journeys, not one giant bot flow.) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (The learning experience should also be modular, not random. A user should enter through a ) Tj ET
+BT /F1 10 Tf 54 608.00 Td (router, choose free or full access, then browse modules that mirror real trucking ) Tj ET
+BT /F1 10 Tf 54 595.00 Td (situations.) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (The five commercial/access journeys are:) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td (1. Individual subscription.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (2. Company or school purchase.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (3. Join with invite code.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (4. Billing recovery and renewal.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (5. Stay with HabloTruck / save before churn.) Tj ET
+BT /F1 10 Tf 54 478.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td (The main learning journeys are:) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (1. Free daily phrases.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (2. Full access module browsing.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (3. Module mini-course flow.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (4. Next/repeat phrase loop.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (5. Return to main menu.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (6. Upgrade from locked module.) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (Recommended top-level ManyChat flow set:) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (1. Flow 0 - Entry Router.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (2. Flow - Individual Subscription.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (3. Flow - Company or School Purchase.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (4. Flow - Join with Invite Code.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (5. Flow - Billing Recovery.) Tj ET
+BT /F1 10 Tf 54 257.00 Td (6. Flow - Renewal Reminder.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (7. Flow - Stay with HabloTruck.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (8. Flow - Mi Cuenta.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (9. Flow - Free Daily Phrases.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (10. Flow - Full Access Module Menu.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (11. Flow - Module Lesson Player.) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F2 14 Tf 54 166.00 Td (Entry Router) Tj ET
+BT /F1 6 Tf 54 148.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (The entry router should quickly classify the user into the right path:) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (- New individual buyer.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Company or school admin.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Driver or student with invite code.) Tj ET
+endstream
+endobj
+39 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 38 0 R >>
+endobj
+40 0 obj
+<< /Length 2907 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Current paid subscriber.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- User in billing recovery or renewal state.) Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (Recommended entry keywords:) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (- info) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- inicio) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- menu) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- ya pague) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- mi acceso) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- mi codigo) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- actualizar pago) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (Recommended first message:) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td ("Bienvenido a HabloTruck.) Tj ET
+BT /F1 10 Tf 54 530.00 Td () Tj ET
+BT /F1 10 Tf 54 517.00 Td (Aqui vas a aprender el ingles real que se usa en la carretera en Estados Unidos.) Tj ET
+BT /F1 10 Tf 54 504.00 Td () Tj ET
+BT /F1 10 Tf 54 491.00 Td (Como quieres comenzar?") Tj ET
+BT /F1 10 Tf 54 478.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td (Recommended buttons:) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Quiero acceso completo) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Soy empresa o escuela) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Ya tengo codigo) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (Routing rules:) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (- If the user has full access, send them to content, not back to sales.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- If the user is in billing recovery, send them to recovery before reselling.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- If the user has company-backed access, respect that path and avoid unnecessary ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (individual upsell.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- If the user already joined a company, treat repeated join attempts as verification, not ) Tj ET
+BT /F1 10 Tf 54 296.00 Td (failure.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- If the user says they already paid, verify access first.) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F2 14 Tf 54 257.00 Td (Individual Subscription Journey) Tj ET
+BT /F1 6 Tf 54 239.00 Td () Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F1 10 Tf 54 218.00 Td (This journey is for monthly and yearly buyers.) Tj ET
+BT /F1 10 Tf 54 205.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td (Supported plan types:) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (- individual_monthly) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- individual_yearly) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (Goal:) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Let a driver or student choose monthly or yearly access.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Collect email and optional phone.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Create a Stripe Checkout session.) Tj ET
+endstream
+endobj
+41 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 40 0 R >>
+endobj
+42 0 obj
+<< /Length 3296 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Send the user to Stripe.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Let Stripe webhooks confirm payment.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Project access in the backend.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Sync access state back to ManyChat.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Let the user verify access with "Ya pague" or "Verificar mi acceso.") Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (Important implementation reality:) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td (- The backend supports checkout and subscription projection.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Stripe webhook events are the source of truth for final payment/access state.) Tj ET
+BT /F1 10 Tf 54 608.00 Td (- Backend synchronization to ManyChat primarily updates tags and custom fields.) Tj ET
+BT /F1 10 Tf 54 595.00 Td (- A dedicated visible success message after checkout may need to be handled in ManyChat ) Tj ET
+BT /F1 10 Tf 54 582.00 Td (through a verification flow.) Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (Key endpoint:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (POST /api/stripe/payment-link) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (Expected monthly payload pattern:) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td ({) Tj ET
+BT /F1 10 Tf 54 465.00 Td (  "planType": "individual_monthly",) Tj ET
+BT /F1 10 Tf 54 452.00 Td (  "email": "{{contact.email}}",) Tj ET
+BT /F1 10 Tf 54 439.00 Td (  "phoneE164": "{{cf_phone_e164}}",) Tj ET
+BT /F1 10 Tf 54 426.00 Td (  "manyChatSubscriberId": "{{contact.id}}",) Tj ET
+BT /F1 10 Tf 54 413.00 Td (  "manyChatChannel": "facebook",) Tj ET
+BT /F1 10 Tf 54 400.00 Td (  "successUrl": "https://<static-website-host>/success.html",) Tj ET
+BT /F1 10 Tf 54 387.00 Td (  "cancelUrl": "https://<static-website-host>/cancel.html",) Tj ET
+BT /F1 10 Tf 54 374.00 Td (  "quantity": 1) Tj ET
+BT /F1 10 Tf 54 361.00 Td (}) Tj ET
+BT /F1 10 Tf 54 348.00 Td () Tj ET
+BT /F1 10 Tf 54 335.00 Td (Expected yearly payload pattern:) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td ({) Tj ET
+BT /F1 10 Tf 54 296.00 Td (  "planType": "individual_yearly",) Tj ET
+BT /F1 10 Tf 54 283.00 Td (  "email": "{{contact.email}}",) Tj ET
+BT /F1 10 Tf 54 270.00 Td (  "phoneE164": "{{cf_phone_e164}}",) Tj ET
+BT /F1 10 Tf 54 257.00 Td (  "manyChatSubscriberId": "{{contact.id}}",) Tj ET
+BT /F1 10 Tf 54 244.00 Td (  "manyChatChannel": "facebook",) Tj ET
+BT /F1 10 Tf 54 231.00 Td (  "successUrl": "https://<static-website-host>/success.html",) Tj ET
+BT /F1 10 Tf 54 218.00 Td (  "cancelUrl": "https://<static-website-host>/cancel.html",) Tj ET
+BT /F1 10 Tf 54 205.00 Td (  "quantity": 1) Tj ET
+BT /F1 10 Tf 54 192.00 Td (}) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (Successful response shape:) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td ({) Tj ET
+BT /F1 10 Tf 54 127.00 Td (  "result": true,) Tj ET
+BT /F1 10 Tf 54 114.00 Td (  "url": "https://checkout.stripe.com/...",) Tj ET
+BT /F1 10 Tf 54 101.00 Td (  "sessionId": "cs_...",) Tj ET
+BT /F1 10 Tf 54 88.00 Td (  "generatedAtUtc": "2026-04-10T03:12:45.1234567Z",) Tj ET
+BT /F1 10 Tf 54 75.00 Td (  "error": null) Tj ET
+endstream
+endobj
+43 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 42 0 R >>
+endobj
+44 0 obj
+<< /Length 3281 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (}) Tj ET
+BT /F1 10 Tf 54 725.00 Td () Tj ET
+BT /F1 10 Tf 54 712.00 Td (After checkout:) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Stripe sends checkout/subscription events.) Tj ET
+BT /F1 10 Tf 54 673.00 Td (- Backend resolves or creates the user.) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Backend stores Stripe customer and subscription references.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Backend computes effective access.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Backend queues ManyChat access synchronization.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- ManyChat should offer "Ya pague" / "Verificar mi acceso.") Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F2 14 Tf 54 595.00 Td (Company, Fleet, and School Seat Journey) Tj ET
+BT /F1 6 Tf 54 577.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (This journey is for:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Company owners.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- School admins.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Fleet operators.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Anyone buying access for a team.) Tj ET
+BT /F1 10 Tf 54 478.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td (Core B2B model:) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (- A company or school admin buys a bundle of seats.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- The backend creates or updates a Company.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- The backend creates or updates an Entitlement with SeatsTotal.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- The backend auto-creates an active invite code.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Drivers or students use that invite code to claim one seat.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- The backend assigns seats, prevents over-capacity access, and syncs access back to ) Tj ET
+BT /F1 10 Tf 54 361.00 Td (ManyChat.) Tj ET
+BT /F1 10 Tf 54 348.00 Td () Tj ET
+BT /F1 10 Tf 54 335.00 Td (Key concepts:) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Company: the B2B customer account or tenant.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Entitlement: the concrete package of seats owned by that company.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- InviteCode: the code that allows drivers/students to claim a seat.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- SeatAssignment: the record linking a user to a seat within an entitlement.) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (Key endpoint for admin purchase:) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F1 10 Tf 54 218.00 Td (POST /api/company/fleet/start-checkout) Tj ET
+BT /F1 10 Tf 54 205.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td (Payload pattern:) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td ({) Tj ET
+BT /F1 10 Tf 54 153.00 Td (  "companyName": "{{cf_company_name}}",) Tj ET
+BT /F1 10 Tf 54 140.00 Td (  "email": "{{contact.email}}",) Tj ET
+BT /F1 10 Tf 54 127.00 Td (  "phoneE164": "{{cf_phone_e164}}",) Tj ET
+BT /F1 10 Tf 54 114.00 Td (  "manyChatSubscriberId": "{{contact.id}}",) Tj ET
+BT /F1 10 Tf 54 101.00 Td (  "manyChatChannel": "facebook",) Tj ET
+BT /F1 10 Tf 54 88.00 Td (  "seats": {{cf_requested_seats}},) Tj ET
+BT /F1 10 Tf 54 75.00 Td (  "successUrl": "https://<static-website-host>/company-success.html",) Tj ET
+endstream
+endobj
+45 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 44 0 R >>
+endobj
+46 0 obj
+<< /Length 2715 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (  "cancelUrl": "https://<static-website-host>/company-cancel.html") Tj ET
+BT /F1 10 Tf 54 725.00 Td (}) Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (Success response shape:) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td ({) Tj ET
+BT /F1 10 Tf 54 660.00 Td (  "ok": true,) Tj ET
+BT /F1 10 Tf 54 647.00 Td (  "companyId": "C_01JQ...",) Tj ET
+BT /F1 10 Tf 54 634.00 Td (  "companyName": "Acme Trucking",) Tj ET
+BT /F1 10 Tf 54 621.00 Td (  "seats": 20,) Tj ET
+BT /F1 10 Tf 54 608.00 Td (  "url": "https://checkout.stripe.com/...",) Tj ET
+BT /F1 10 Tf 54 595.00 Td (  "sessionId": "cs_...") Tj ET
+BT /F1 10 Tf 54 582.00 Td (}) Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (After company checkout:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Stripe confirms the purchase.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Backend creates or updates company.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Backend creates or updates entitlement.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Backend stores seat count.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Backend auto-creates active invite code.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Admin returns to ManyChat to retrieve the code.) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (Key endpoint to retrieve active invite:) Tj ET
+BT /F1 10 Tf 54 426.00 Td () Tj ET
+BT /F1 10 Tf 54 413.00 Td (POST /api/company/invite/active) Tj ET
+BT /F1 10 Tf 54 400.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td (Payload:) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td ({) Tj ET
+BT /F1 10 Tf 54 348.00 Td (  "companyId": "{{cf_company_id}}") Tj ET
+BT /F1 10 Tf 54 335.00 Td (}) Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td (Response shape:) Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td ({) Tj ET
+BT /F1 10 Tf 54 270.00 Td (  "ok": true,) Tj ET
+BT /F1 10 Tf 54 257.00 Td (  "code": "HT-AB12CD",) Tj ET
+BT /F1 10 Tf 54 244.00 Td (  "companyId": "C1",) Tj ET
+BT /F1 10 Tf 54 231.00 Td (  "entitlementId": "E1",) Tj ET
+BT /F1 10 Tf 54 218.00 Td (  "status": "active",) Tj ET
+BT /F1 10 Tf 54 205.00 Td (  "maxUses": 20,) Tj ET
+BT /F1 10 Tf 54 192.00 Td (  "uses": 4,) Tj ET
+BT /F1 10 Tf 54 179.00 Td (  "remaining": 16,) Tj ET
+BT /F1 10 Tf 54 166.00 Td (  "expiresAtUtc": "2026-04-30T00:00:00.0000000Z") Tj ET
+BT /F1 10 Tf 54 153.00 Td (}) Tj ET
+BT /F1 10 Tf 54 140.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td (Key endpoint to resend/recover invite:) Tj ET
+BT /F1 10 Tf 54 114.00 Td () Tj ET
+BT /F1 10 Tf 54 101.00 Td (POST /api/company/invite/resend) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (Payload:) Tj ET
+endstream
+endobj
+47 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 46 0 R >>
+endobj
+48 0 obj
+<< /Length 2633 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td ({) Tj ET
+BT /F1 10 Tf 54 712.00 Td (  "companyId": "{{cf_company_id}}",) Tj ET
+BT /F1 10 Tf 54 699.00 Td (  "entitlementId": "{{cf_entitlement_id}}") Tj ET
+BT /F1 10 Tf 54 686.00 Td (}) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (Behavior:) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Return existing active invite if present.) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Recreate one from entitlement if missing.) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F2 14 Tf 54 595.00 Td (Driver or Student Invite-Code Journey) Tj ET
+BT /F1 6 Tf 54 577.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (This journey is for drivers or students who already received a company/school code.) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (Goal:) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Ask for invite code.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Validate the code.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Collect or confirm identity.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Join company.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Assign one seat.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Sync access to ManyChat.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Route user into full-access HabloTruck experience.) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td (Key endpoint to validate invite:) Tj ET
+BT /F1 10 Tf 54 387.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td (POST /api/company/invite/info) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (Payload:) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td ({) Tj ET
+BT /F1 10 Tf 54 309.00 Td (  "inviteCode": "{{cf_invite_code}}") Tj ET
+BT /F1 10 Tf 54 296.00 Td (}) Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (Success response shape:) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td ({) Tj ET
+BT /F1 10 Tf 54 231.00 Td (  "ok": true,) Tj ET
+BT /F1 10 Tf 54 218.00 Td (  "valid": true,) Tj ET
+BT /F1 10 Tf 54 205.00 Td (  "code": "HT-AB12CD",) Tj ET
+BT /F1 10 Tf 54 192.00 Td (  "status": "active",) Tj ET
+BT /F1 10 Tf 54 179.00 Td (  "companyId": "C1",) Tj ET
+BT /F1 10 Tf 54 166.00 Td (  "entitlementId": "E1",) Tj ET
+BT /F1 10 Tf 54 153.00 Td (  "expiresAtUtc": "",) Tj ET
+BT /F1 10 Tf 54 140.00 Td (  "maxUses": 20,) Tj ET
+BT /F1 10 Tf 54 127.00 Td (  "uses": 4,) Tj ET
+BT /F1 10 Tf 54 114.00 Td (  "remaining": 16) Tj ET
+BT /F1 10 Tf 54 101.00 Td (}) Tj ET
+BT /F1 10 Tf 54 88.00 Td () Tj ET
+BT /F1 10 Tf 54 75.00 Td (Key endpoint to join:) Tj ET
+endstream
+endobj
+49 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 48 0 R >>
+endobj
+50 0 obj
+<< /Length 3055 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td (POST /api/company/join) Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (Payload:) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td ({) Tj ET
+BT /F1 10 Tf 54 660.00 Td (  "inviteCode": "{{cf_invite_code}}",) Tj ET
+BT /F1 10 Tf 54 647.00 Td (  "email": "{{contact.email}}",) Tj ET
+BT /F1 10 Tf 54 634.00 Td (  "manyChatSubscriberId": "{{contact.id}}",) Tj ET
+BT /F1 10 Tf 54 621.00 Td (  "phoneE164": "{{cf_phone_e164}}",) Tj ET
+BT /F1 10 Tf 54 608.00 Td (  "manyChatChannel": "facebook") Tj ET
+BT /F1 10 Tf 54 595.00 Td (}) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (Success response shape:) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td ({) Tj ET
+BT /F1 10 Tf 54 530.00 Td (  "ok": true,) Tj ET
+BT /F1 10 Tf 54 517.00 Td (  "alreadyJoined": false,) Tj ET
+BT /F1 10 Tf 54 504.00 Td (  "companyId": "C1",) Tj ET
+BT /F1 10 Tf 54 491.00 Td (  "entitlementId": "E1") Tj ET
+BT /F1 10 Tf 54 478.00 Td (}) Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (Important business outcomes:) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td (- alreadyJoined=true is a success, not an error.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Users already in another company should be blocked and routed to support.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Invite expired, disabled, exhausted, or no seats available should show retry/support ) Tj ET
+BT /F1 10 Tf 54 387.00 Td (options.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Seat assignment conflicts should be handled calmly and escalated if repeated.) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F2 14 Tf 54 348.00 Td (Billing Recovery and Renewal) Tj ET
+BT /F1 6 Tf 54 330.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td () Tj ET
+BT /F1 10 Tf 54 309.00 Td (HabloTruck supports billing recovery because subscription access should not collapse into ) Tj ET
+BT /F1 10 Tf 54 296.00 Td (manual support every time a card fails.) Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (Billing recovery covers:) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Failed payments.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Delinquent subscriptions.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Renewal reminders.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Payment recovery follow-up.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Self-service payment method update.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Manual retry of an open Stripe invoice.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Stay with HabloTruck retention.) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td (Backend capabilities:) Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Detect payment failure from Stripe webhook.) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Project subscription state.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Move users into grace or blocked state based on access rules.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Trigger a ManyChat payment failed flow if configured.) Tj ET
+endstream
+endobj
+51 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 50 0 R >>
+endobj
+52 0 obj
+<< /Length 2846 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Sync billing recovery tags and fields.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Create Stripe Billing Portal links.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Retry open Stripe invoices.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Queue outbound ManyChat side effects asynchronously.) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (Key endpoint for payment method update:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (POST /api/stripe/subscription/payment-method-update-link) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (Payload:) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td ({) Tj ET
+BT /F1 10 Tf 54 582.00 Td (  "actorUserPk": "U_20260331",) Tj ET
+BT /F1 10 Tf 54 569.00 Td (  "actorUserId": "USER_123",) Tj ET
+BT /F1 10 Tf 54 556.00 Td (  "subscriptionId": "sub_123",) Tj ET
+BT /F1 10 Tf 54 543.00 Td (  "returnUrl": "https://<static-website-host>/billing-return.html") Tj ET
+BT /F1 10 Tf 54 530.00 Td (}) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (Success response shape:) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td ({) Tj ET
+BT /F1 10 Tf 54 465.00 Td (  "result": true,) Tj ET
+BT /F1 10 Tf 54 452.00 Td (  "url": "https://billing.stripe.com/...",) Tj ET
+BT /F1 10 Tf 54 439.00 Td (  "sessionId": "bps_123",) Tj ET
+BT /F1 10 Tf 54 426.00 Td (  "customerId": "cus_123",) Tj ET
+BT /F1 10 Tf 54 413.00 Td (  "subscriptionId": "sub_123",) Tj ET
+BT /F1 10 Tf 54 400.00 Td (  "immediateRetryRecommended": true,) Tj ET
+BT /F1 10 Tf 54 387.00 Td (  "error": null) Tj ET
+BT /F1 10 Tf 54 374.00 Td (}) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (Key endpoint for retrying open invoice:) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (POST /api/stripe/subscription/retry-payment) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td (Payload:) Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td ({) Tj ET
+BT /F1 10 Tf 54 257.00 Td (  "actorUserPk": "U_20260331",) Tj ET
+BT /F1 10 Tf 54 244.00 Td (  "actorUserId": "USER_123",) Tj ET
+BT /F1 10 Tf 54 231.00 Td (  "subscriptionId": "sub_123") Tj ET
+BT /F1 10 Tf 54 218.00 Td (}) Tj ET
+BT /F1 10 Tf 54 205.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td (Success response shape:) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td ({) Tj ET
+BT /F1 10 Tf 54 153.00 Td (  "result": true,) Tj ET
+BT /F1 10 Tf 54 140.00 Td (  "customerId": "cus_123",) Tj ET
+BT /F1 10 Tf 54 127.00 Td (  "subscriptionId": "sub_123",) Tj ET
+BT /F1 10 Tf 54 114.00 Td (  "invoiceId": "in_123",) Tj ET
+BT /F1 10 Tf 54 101.00 Td (  "invoiceStatus": "open",) Tj ET
+BT /F1 10 Tf 54 88.00 Td (  "collectionMethod": "charge_automatically",) Tj ET
+BT /F1 10 Tf 54 75.00 Td (  "invoiceFound": true,) Tj ET
+endstream
+endobj
+53 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 52 0 R >>
+endobj
+54 0 obj
+<< /Length 2818 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (  "paymentAttempted": true,) Tj ET
+BT /F1 10 Tf 54 725.00 Td (  "invoicePaid": false,) Tj ET
+BT /F1 10 Tf 54 712.00 Td (  "error": null) Tj ET
+BT /F1 10 Tf 54 699.00 Td (}) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (Recommended recovery message:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td ("No pudimos procesar tu pago, pero tu acceso todavia puede recuperarse.") Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (Buttons:) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Actualizar metodo de pago) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Intentar cobro otra vez) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Hablar con soporte) Tj ET
+BT /F1 10 Tf 54 556.00 Td () Tj ET
+BT /F1 10 Tf 54 543.00 Td (Recovered-state message:) Tj ET
+BT /F1 10 Tf 54 530.00 Td () Tj ET
+BT /F1 10 Tf 54 517.00 Td ("Listo. Tu pago fue corregido y tu cuenta quedo recuperada.") Tj ET
+BT /F1 10 Tf 54 504.00 Td () Tj ET
+BT /F2 14 Tf 54 491.00 Td (Stay with HabloTruck Retention) Tj ET
+BT /F1 6 Tf 54 473.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td (This is the save-before-churn journey. It should be used when:) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Renewal is approaching.) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- User looks at cancellation-related content.) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- User seems at risk of churn.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Backend triggers a reminder journey configured as save_before_churn.) Tj ET
+BT /F1 10 Tf 54 374.00 Td () Tj ET
+BT /F1 10 Tf 54 361.00 Td (Goal:) Tj ET
+BT /F1 10 Tf 54 348.00 Td () Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Reinforce value before the user leaves.) Tj ET
+BT /F1 10 Tf 54 322.00 Td (- Route billing problems to recovery.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Route hesitation/value concerns back to useful content.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Offer support without sounding desperate.) Tj ET
+BT /F1 10 Tf 54 283.00 Td () Tj ET
+BT /F1 10 Tf 54 270.00 Td (Tone:) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Helpful.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- Practical.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Benefit-oriented.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Not generic.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Not overly salesy.) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (Recommended message:) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td ("Antes de irte, quiero recordarte todo lo que ya tienes en HabloTruck.") Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (Buttons:) Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Quiero seguir con HabloTruck) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Actualizar pago) Tj ET
+endstream
+endobj
+55 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 54 0 R >>
+endobj
+56 0 obj
+<< /Length 3087 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Hablar con soporte) Tj ET
+BT /F1 10 Tf 54 725.00 Td () Tj ET
+BT /F2 14 Tf 54 712.00 Td (Access Model) Tj ET
+BT /F1 6 Tf 54 694.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (Effective access can be:) Tj ET
+BT /F1 10 Tf 54 660.00 Td () Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Full) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Grace) Tj ET
+BT /F1 10 Tf 54 621.00 Td (- Blocked) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (Access source can be:) Tj ET
+BT /F1 10 Tf 54 582.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Individual) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Company) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- Both) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- None) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (Individual access:) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Full when the user's Stripe subscription is active/trialing/paid-through.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Grace when payment fails or subscription ends but grace is still active.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Blocked when no valid paid-through, active, company, cohort, or grace state exists.) Tj ET
+BT /F1 10 Tf 54 439.00 Td () Tj ET
+BT /F1 10 Tf 54 426.00 Td (Company access:) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Full when the user has an active seat and the entitlement is active.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Grace when a company entitlement expired but remains within company grace.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Blocked when no active entitlement/seat or grace applies.) Tj ET
+BT /F1 10 Tf 54 361.00 Td () Tj ET
+BT /F1 10 Tf 54 348.00 Td (Grace policies:) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (- Individual grace policy is configured in hours. Current environment parameter: 72 hours.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Company grace policy is configured in days. Current environment parameter: 7 days.) Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (Access decision priority:) Tj ET
+BT /F1 10 Tf 54 270.00 Td () Tj ET
+BT /F1 10 Tf 54 257.00 Td (- If company and individual/cohort are active, source is Both.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- If company active, source is Company.) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- If individual or cohort active, source is Individual.) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- If grace exists on both, source is Both and later grace end is shown.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- If only company grace exists, source is Company.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- If only individual grace exists, source is Individual.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Otherwise, access is Blocked.) Tj ET
+BT /F1 10 Tf 54 166.00 Td () Tj ET
+BT /F2 14 Tf 54 153.00 Td (ManyChat Tags and Fields) Tj ET
+BT /F1 6 Tf 54 135.00 Td () Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (Backend-synchronized access tags:) Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (- HT_ACCESS_FULL) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- HT_ACCESS_GRACE) Tj ET
+endstream
+endobj
+57 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 56 0 R >>
+endobj
+58 0 obj
+<< /Length 2754 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- HT_ACCESS_BLOCKED) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- HT_SRC_INDIVIDUAL) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- HT_SRC_COMPANY) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (Backend-synchronized billing tags:) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (- HT_BILLING_ACTION_REQUIRED) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- HT_BILLING_RECOVERED) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (Backend-synchronized custom fields:) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (- ht_access_mode) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- ht_grace_ends_utc) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- ht_company_id) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- ht_billing_recovery_status) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- ht_billing_recovery_subscription_id) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- ht_billing_recovery_invoice_id) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- ht_billing_recovery_invoice_status) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- ht_billing_recovery_updated_utc) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- ht_billing_recovery_started_utc) Tj ET
+BT /F1 10 Tf 54 478.00 Td () Tj ET
+BT /F1 10 Tf 54 465.00 Td (ManyChat helper fields:) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (- cf_email) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- cf_phone_e164) Tj ET
+BT /F1 10 Tf 54 413.00 Td (- cf_plan_type) Tj ET
+BT /F1 10 Tf 54 400.00 Td (- cf_checkout_url) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- cf_checkout_session_id) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- cf_last_checkout_error) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- cf_company_id) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- cf_company_name) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- cf_requested_seats) Tj ET
+BT /F1 10 Tf 54 322.00 Td (- cf_entitlement_id) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- cf_invite_code) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- cf_last_company_error) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- cf_actor_user_pk) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- cf_actor_user_id) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- cf_subscription_id) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- cf_last_billing_error) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- cf_payment_method_update_url) Tj ET
+BT /F1 10 Tf 54 218.00 Td () Tj ET
+BT /F1 10 Tf 54 205.00 Td (Built-in ManyChat values:) Tj ET
+BT /F1 10 Tf 54 192.00 Td () Tj ET
+BT /F1 10 Tf 54 179.00 Td (- {{contact.id}} as manyChatSubscriberId) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- {{contact.email}} as email when available) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td (ManyChat channels may include:) Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (- facebook) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- instagram) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- whatsapp) Tj ET
+BT /F1 10 Tf 54 75.00 Td () Tj ET
+endstream
+endobj
+59 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 58 0 R >>
+endobj
+60 0 obj
+<< /Length 3629 >>
+stream
+BT /F2 14 Tf 54 738.00 Td (Pricing Model) Tj ET
+BT /F1 6 Tf 54 720.00 Td () Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (Use these confirmed customer-facing prices unless the user provides newer pricing:) Tj ET
+BT /F1 10 Tf 54 686.00 Td () Tj ET
+BT /F1 10 Tf 54 673.00 Td (- Individual monthly: $12.99 USD per month plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Individual yearly: $97 USD per year plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Company, fleet, or school seat: $9.99 USD per seat per month plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 634.00 Td () Tj ET
+BT /F1 10 Tf 54 621.00 Td (Pricing architecture:) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F1 10 Tf 54 595.00 Td (- Individual monthly subscription at $12.99/month + taxes.) Tj ET
+BT /F1 10 Tf 54 582.00 Td (- Individual yearly subscription at $97/year + taxes.) Tj ET
+BT /F1 10 Tf 54 569.00 Td (- Fleet/company/school monthly per-seat subscription at $9.99/seat/month + taxes.) Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Optional one-time CDL cohort checkout SKUs. Confirm final amount before publishing ) Tj ET
+BT /F1 10 Tf 54 543.00 Td (cohort pricing.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Optional testing price ID for non-production/testing flows.) Tj ET
+BT /F1 10 Tf 54 517.00 Td () Tj ET
+BT /F1 10 Tf 54 504.00 Td (Pricing strategy notes:) Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F1 10 Tf 54 478.00 Td (- The yearly plan is the better-value individual option compared with paying monthly for ) Tj ET
+BT /F1 10 Tf 54 465.00 Td (12 months.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Company/school pricing is per active seat and should be explained as scalable team ) Tj ET
+BT /F1 10 Tf 54 439.00 Td (access.) Tj ET
+BT /F1 10 Tf 54 426.00 Td (- Taxes are handled by Stripe checkout and should be described as "plus applicable taxes.") Tj ET
+BT /F1 10 Tf 54 413.00 Td (- Do not quote CDL cohort prices unless the business confirms a specific cohort SKU and ) Tj ET
+BT /F1 10 Tf 54 400.00 Td (amount.) Tj ET
+BT /F1 10 Tf 54 387.00 Td (- Free access should be positioned as 5 daily phrases.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Full access should be positioned as unlimited access to 10+ structured modules and ) Tj ET
+BT /F1 10 Tf 54 361.00 Td (1,000+ practical trucking-English phrases when the content library supports that count.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Locked modules should create a clear upgrade path from free to paid.) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F1 10 Tf 54 322.00 Td (Supported checkout plan types:) Tj ET
+BT /F1 10 Tf 54 309.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td (- individual_monthly) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- individual_yearly) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- fleet) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- fleet_seat) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- company_seat) Tj ET
+BT /F1 10 Tf 54 231.00 Td (- fleet_monthly) Tj ET
+BT /F1 10 Tf 54 218.00 Td (- cdl_cohort_25) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- cdl_cohort_50) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- cdl_cohort_100) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- cdl_english_cohort) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- testing) Tj ET
+BT /F1 10 Tf 54 153.00 Td () Tj ET
+BT /F1 10 Tf 54 140.00 Td (Dev environment Stripe price IDs currently present:) Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Individual monthly: price_1TKiQGLkH66TmATPpKGUzJ2y) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Individual yearly: price_1TKiQGLkH66TmATP9GQyrk44) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Fleet seat monthly: price_1TBMGSLkH66TmATPQyx42A2k) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Testing: price_1T9I5wLkH66TmATPaVHICsmU) Tj ET
+endstream
+endobj
+61 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 60 0 R >>
+endobj
+62 0 obj
+<< /Length 3603 >>
+stream
+BT /F1 10 Tf 54 738.00 Td () Tj ET
+BT /F1 10 Tf 54 725.00 Td (Production price IDs are currently left blank in the parameter file and should be supplied) Tj ET
+BT /F1 10 Tf 54 712.00 Td ( from the production Stripe account/configuration.) Tj ET
+BT /F1 10 Tf 54 699.00 Td () Tj ET
+BT /F1 10 Tf 54 686.00 Td (Recommended pricing copy:) Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (- "Plan mensual: $12.99 USD al mes + taxes.") Tj ET
+BT /F1 10 Tf 54 647.00 Td (- "Plan anual: $97 USD al ano + taxes.") Tj ET
+BT /F1 10 Tf 54 634.00 Td (- "Empresa o escuela: $9.99 USD por seat al mes + taxes.") Tj ET
+BT /F1 10 Tf 54 621.00 Td (- "Cohortes CDL: precio unico por cohorte, confirmar SKU y monto en Stripe.") Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F2 14 Tf 54 595.00 Td (Checkout and Redirect Pages) Tj ET
+BT /F1 6 Tf 54 577.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (HabloTruck includes a static checkout-status website with pages for:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Individual payment success.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Individual payment cancel/not completed.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Company checkout success.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Company checkout cancel/not completed.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Billing update return.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- 404/status home.) Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (These pages are bilingual in English and Spanish and are used as Stripe Checkout and ) Tj ET
+BT /F1 10 Tf 54 426.00 Td (Billing Portal redirect destinations.) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td (Operational note:) Tj ET
+BT /F1 10 Tf 54 387.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td (- successUrl, cancelUrl, and billing returnUrl should use the deployed static website host) Tj ET
+BT /F1 10 Tf 54 361.00 Td ( or another host explicitly allowed by Stripe__AllowedCheckoutRedirectHosts.) Tj ET
+BT /F1 10 Tf 54 348.00 Td (- Redirect URLs must use HTTPS unless local/development behavior is explicitly changed.) Tj ET
+BT /F1 10 Tf 54 335.00 Td () Tj ET
+BT /F2 14 Tf 54 322.00 Td (Backend/API Architecture) Tj ET
+BT /F1 6 Tf 54 304.00 Td () Tj ET
+BT /F1 10 Tf 54 296.00 Td () Tj ET
+BT /F1 10 Tf 54 283.00 Td (The backend is a .NET Azure Functions app with Domain, Application, Infrastructure, and ) Tj ET
+BT /F1 10 Tf 54 270.00 Td (Functions layers.) Tj ET
+BT /F1 10 Tf 54 257.00 Td () Tj ET
+BT /F1 10 Tf 54 244.00 Td (Core integrations:) Tj ET
+BT /F1 10 Tf 54 231.00 Td () Tj ET
+BT /F1 10 Tf 54 218.00 Td (- Stripe for checkout, subscriptions, invoices, webhooks, billing portal, and pricing.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- ManyChat for conversational onboarding, tags, custom fields, and triggered flows.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Azure Table Storage for users, companies, entitlements, invite codes, seat assignments, ) Tj ET
+BT /F1 10 Tf 54 179.00 Td (Stripe event records, failed actions, reminders, and indexes.) Tj ET
+BT /F1 10 Tf 54 166.00 Td (- Azure Queue for asynchronous ManyChat dispatch.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Application Insights / Log Analytics for telemetry and operational monitoring.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Bicep infrastructure for dev/prod Azure deployments.) Tj ET
+BT /F1 10 Tf 54 127.00 Td () Tj ET
+BT /F1 10 Tf 54 114.00 Td (Important backend function areas:) Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Stripe payment link creation.) Tj ET
+BT /F1 10 Tf 54 75.00 Td (- Fleet checkout creation.) Tj ET
+endstream
+endobj
+63 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 62 0 R >>
+endobj
+64 0 obj
+<< /Length 3889 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- Stripe webhook processing.) Tj ET
+BT /F1 10 Tf 54 725.00 Td (- Company invite creation/lookup/resend/disable/list.) Tj ET
+BT /F1 10 Tf 54 712.00 Td (- Company join.) Tj ET
+BT /F1 10 Tf 54 699.00 Td (- Payment method update link.) Tj ET
+BT /F1 10 Tf 54 686.00 Td (- Retry open invoice.) Tj ET
+BT /F1 10 Tf 54 673.00 Td (- Cancel subscription at period end.) Tj ET
+BT /F1 10 Tf 54 660.00 Td (- Stripe replay.) Tj ET
+BT /F1 10 Tf 54 647.00 Td (- Failed action listing/requeue.) Tj ET
+BT /F1 10 Tf 54 634.00 Td (- Timers for reminders, reconciliation, failed action retry, entitlement expiry, ) Tj ET
+BT /F1 10 Tf 54 621.00 Td (entitlement recount, grace sweeps, and ManyChat dispatch queue processing.) Tj ET
+BT /F1 10 Tf 54 608.00 Td () Tj ET
+BT /F2 14 Tf 54 595.00 Td (Operational Principles) Tj ET
+BT /F1 6 Tf 54 577.00 Td () Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (- Stripe webhook projection is the source of truth after payment.) Tj ET
+BT /F1 10 Tf 54 543.00 Td (- ManyChat should verify access after checkout instead of assuming immediate success.) Tj ET
+BT /F1 10 Tf 54 530.00 Td (- Access sync and reminder sends are queued asynchronously.) Tj ET
+BT /F1 10 Tf 54 517.00 Td (- Company purchases auto-create invite codes.) Tj ET
+BT /F1 10 Tf 54 504.00 Td (- Invite codes consume uses and seat capacity.) Tj ET
+BT /F1 10 Tf 54 491.00 Td (- Seat assignment should be idempotent for users already in the same company.) Tj ET
+BT /F1 10 Tf 54 478.00 Td (- Users already in another company should be blocked and routed to support.) Tj ET
+BT /F1 10 Tf 54 465.00 Td (- Failed payments should start recovery, not immediate harsh churn.) Tj ET
+BT /F1 10 Tf 54 452.00 Td (- Retention should be its own journey, not just a billing error flow.) Tj ET
+BT /F1 10 Tf 54 439.00 Td (- Company access should not be confused with individual upsell.) Tj ET
+BT /F1 10 Tf 54 426.00 Td () Tj ET
+BT /F2 14 Tf 54 413.00 Td (Known Gaps or Cautions) Tj ET
+BT /F1 6 Tf 54 395.00 Td () Tj ET
+BT /F1 10 Tf 54 387.00 Td () Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Production Stripe price IDs are blank in the checked parameter file.) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- CDL cohort pricing is not confirmed in this prompt; confirm SKU and amount before ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (publishing cohort offers.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Individual checkout success is primarily synchronized through tags/fields; ManyChat ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (should provide a visible "verify my access" path.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Some admin experiences may still benefit from richer UX, such as invite lookup by admin ) Tj ET
+BT /F1 10 Tf 54 296.00 Td (identity or managing multiple entitlements.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- Avoid claiming the platform has a full web learning UI unless newer product context ) Tj ET
+BT /F1 10 Tf 54 270.00 Td (confirms it. The backend and docs strongly establish access, billing, ManyChat, and ) Tj ET
+BT /F1 10 Tf 54 257.00 Td (entitlement infrastructure around a trucking-English learning experience.) Tj ET
+BT /F1 10 Tf 54 244.00 Td () Tj ET
+BT /F2 14 Tf 54 231.00 Td (Recommended User-Facing Copy Themes) Tj ET
+BT /F1 6 Tf 54 213.00 Td () Tj ET
+BT /F1 10 Tf 54 205.00 Td () Tj ET
+BT /F1 10 Tf 54 192.00 Td (For drivers/students:) Tj ET
+BT /F1 10 Tf 54 179.00 Td () Tj ET
+BT /F1 10 Tf 54 166.00 Td (- "Aprende el ingles real que se usa en la carretera.") Tj ET
+BT /F1 10 Tf 54 153.00 Td (- "Activa tu acceso y empieza desde aqui.") Tj ET
+BT /F1 10 Tf 54 140.00 Td (- "Si ya pagaste, verifico tu acceso.") Tj ET
+BT /F1 10 Tf 54 127.00 Td (- "Si tienes codigo de empresa o escuela, te ayudo a activarlo.") Tj ET
+BT /F1 10 Tf 54 114.00 Td (- "Tu acceso ya esta activo.") Tj ET
+BT /F1 10 Tf 54 101.00 Td () Tj ET
+BT /F1 10 Tf 54 88.00 Td (For companies/schools:) Tj ET
+BT /F1 10 Tf 54 75.00 Td () Tj ET
+endstream
+endobj
+65 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 64 0 R >>
+endobj
+66 0 obj
+<< /Length 4171 >>
+stream
+BT /F1 10 Tf 54 738.00 Td (- "Activa acceso para tu equipo.") Tj ET
+BT /F1 10 Tf 54 725.00 Td (- "Compra seats para tus drivers o estudiantes.") Tj ET
+BT /F1 10 Tf 54 712.00 Td (- "Despues del pago, te damos un codigo para compartir.") Tj ET
+BT /F1 10 Tf 54 699.00 Td (- "Cada driver usa el codigo y ocupa un seat.") Tj ET
+BT /F1 10 Tf 54 686.00 Td (- "Puedes volver a ver o reenviar tu codigo desde ManyChat.") Tj ET
+BT /F1 10 Tf 54 673.00 Td () Tj ET
+BT /F1 10 Tf 54 660.00 Td (For billing recovery:) Tj ET
+BT /F1 10 Tf 54 647.00 Td () Tj ET
+BT /F1 10 Tf 54 634.00 Td (- "Te ayudo a resolver el pago.") Tj ET
+BT /F1 10 Tf 54 621.00 Td (- "Actualiza tu metodo de pago.") Tj ET
+BT /F1 10 Tf 54 608.00 Td (- "Intentar cobro otra vez.") Tj ET
+BT /F1 10 Tf 54 595.00 Td (- "Verificar estado.") Tj ET
+BT /F1 10 Tf 54 582.00 Td (- "Tu cuenta quedo recuperada.") Tj ET
+BT /F1 10 Tf 54 569.00 Td () Tj ET
+BT /F1 10 Tf 54 556.00 Td (For retention:) Tj ET
+BT /F1 10 Tf 54 543.00 Td () Tj ET
+BT /F1 10 Tf 54 530.00 Td (- "Antes de irte, revisemos lo que ya tienes en HabloTruck.") Tj ET
+BT /F1 10 Tf 54 517.00 Td (- "Puedes seguir, actualizar pago o hablar con soporte.") Tj ET
+BT /F1 10 Tf 54 504.00 Td (- "HabloTruck esta pensado para ayudarte con el ingles real del trabajo.") Tj ET
+BT /F1 10 Tf 54 491.00 Td () Tj ET
+BT /F2 14 Tf 54 478.00 Td (What Other Tools Should Do With This Context) Tj ET
+BT /F1 6 Tf 54 460.00 Td () Tj ET
+BT /F1 10 Tf 54 452.00 Td () Tj ET
+BT /F1 10 Tf 54 439.00 Td (When generating strategy, copy, designs, flows, API docs, pitch decks, landing pages, ) Tj ET
+BT /F1 10 Tf 54 426.00 Td (sales scripts, support scripts, or product plans for HabloTruck:) Tj ET
+BT /F1 10 Tf 54 413.00 Td () Tj ET
+BT /F1 10 Tf 54 400.00 Td (- Preserve the north-star ambition: HabloTruck should become the go-to solution for Latino) Tj ET
+BT /F1 10 Tf 54 387.00 Td ( truckers in America to learn practical road-truck English.) Tj ET
+BT /F1 10 Tf 54 374.00 Td (- Keep trucking-specific English at the center.) Tj ET
+BT /F1 10 Tf 54 361.00 Td (- Preserve the core lesson-message format: English phrase, Spanish translation, Cuban ) Tj ET
+BT /F1 10 Tf 54 348.00 Td (pronunciation guide, and 5-7 second native English audio.) Tj ET
+BT /F1 10 Tf 54 335.00 Td (- Preserve the product architecture: free daily phrases, locked modules, full-access ) Tj ET
+BT /F1 10 Tf 54 322.00 Td (module menu, mini-courses, and Next/Repeat interaction loop.) Tj ET
+BT /F1 10 Tf 54 309.00 Td (- Treat HabloTruck as situational job training, not a random phrase bot.) Tj ET
+BT /F1 10 Tf 54 296.00 Td (- Treat ManyChat as the primary conversational UX.) Tj ET
+BT /F1 10 Tf 54 283.00 Td (- Treat Stripe as the billing source of truth.) Tj ET
+BT /F1 10 Tf 54 270.00 Td (- Treat the backend as the authority for access, entitlements, seats, and recovery state.) Tj ET
+BT /F1 10 Tf 54 257.00 Td (- Include both B2C individual plans and B2B company/school seats.) Tj ET
+BT /F1 10 Tf 54 244.00 Td (- Include the core full-access modules: Police and Dispatchers, DOT Inspection, Loads, ) Tj ET
+BT /F1 10 Tf 54 231.00 Td (Fuel, Weigh Station, BOL, Parking/Truck Stops, Traffic Control, GPS/Directions, and ) Tj ET
+BT /F1 10 Tf 54 218.00 Td (Delivery.) Tj ET
+BT /F1 10 Tf 54 205.00 Td (- Include invite-code activation as a core product feature.) Tj ET
+BT /F1 10 Tf 54 192.00 Td (- Include billing recovery and retention as first-class product features.) Tj ET
+BT /F1 10 Tf 54 179.00 Td (- Use the confirmed prices: $12.99/month individual, $97/year individual, and ) Tj ET
+BT /F1 10 Tf 54 166.00 Td ($9.99/seat/month for company/school seats, all plus applicable taxes.) Tj ET
+BT /F1 10 Tf 54 153.00 Td (- Do not invent CDL cohort pricing.) Tj ET
+BT /F1 10 Tf 54 140.00 Td (- Keep Spanish-first driver copy practical and direct.) Tj ET
+BT /F1 10 Tf 54 127.00 Td (- Avoid generic language-learning claims.) Tj ET
+BT /F1 10 Tf 54 114.00 Td (- Avoid routing active users back to purchase.) Tj ET
+BT /F1 10 Tf 54 101.00 Td (- Include "verify access" after checkout.) Tj ET
+BT /F1 10 Tf 54 88.00 Td (- Include support fallbacks for payment, invite, and seat conflicts.) Tj ET
+BT /F1 10 Tf 54 75.00 Td () Tj ET
+endstream
+endobj
+67 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 66 0 R >>
+endobj
+68 0 obj
+<< /Length 2506 >>
+stream
+BT /F2 14 Tf 54 738.00 Td (Compact Context Block) Tj ET
+BT /F1 6 Tf 54 720.00 Td () Tj ET
+BT /F1 10 Tf 54 712.00 Td () Tj ET
+BT /F1 10 Tf 54 699.00 Td (HabloTruck is a Spanish-first, chat-centered trucking-English platform with a clear ) Tj ET
+BT /F1 10 Tf 54 686.00 Td (north-star ambition: become the go-to solution for Latino truckers in America to learn ) Tj ET
+BT /F1 10 Tf 54 673.00 Td (practical road-truck English. It is a structured, menu-based training system, not a random) Tj ET
+BT /F1 10 Tf 54 660.00 Td ( phrase bot. Free users get 5 daily phrases and see locked modules; full-access users ) Tj ET
+BT /F1 10 Tf 54 647.00 Td (unlock 10+ operational modules and, when the content library supports it, 1,000+ practical) Tj ET
+BT /F1 10 Tf 54 634.00 Td ( phrases. Core modules include Police and Dispatchers, DOT Inspection, Loads, Fuel, Weigh ) Tj ET
+BT /F1 10 Tf 54 621.00 Td (Station, BOL, Parking/Truck Stops, Traffic Control, GPS/Directions, and Delivery. Its core) Tj ET
+BT /F1 10 Tf 54 608.00 Td ( lesson message gives users an English phrase, Spanish translation, Cuban pronunciation ) Tj ET
+BT /F1 10 Tf 54 595.00 Td (guide, and short native English recording, usually 5-7 seconds maximum, with Next and ) Tj ET
+BT /F1 10 Tf 54 582.00 Td (Repeat interaction. It serves drivers, CDL students, fleets, trucking companies, and ) Tj ET
+BT /F1 10 Tf 54 569.00 Td (schools. It sells individual access at $12.99 USD/month + taxes or $97 USD/year + taxes, ) Tj ET
+BT /F1 10 Tf 54 556.00 Td (and company/school seats at $9.99 USD per seat/month + taxes. It sells through Stripe, ) Tj ET
+BT /F1 10 Tf 54 543.00 Td (routes users through ManyChat, creates invite codes for purchased seats, lets ) Tj ET
+BT /F1 10 Tf 54 530.00 Td (drivers/students join with those codes, assigns seats, computes Full/Grace/Blocked access,) Tj ET
+BT /F1 10 Tf 54 517.00 Td ( syncs access and billing state back to ManyChat, handles payment failure recovery with ) Tj ET
+BT /F1 10 Tf 54 504.00 Td (Billing Portal links and invoice retries, sends renewal reminders, and includes a "Stay ) Tj ET
+BT /F1 10 Tf 54 491.00 Td (with HabloTruck" retention journey. The product promise is practical English for the U.S. ) Tj ET
+BT /F1 10 Tf 54 478.00 Td (trucking road, not generic English. The backend defines plan types and Stripe price IDs, ) Tj ET
+BT /F1 10 Tf 54 465.00 Td (including individual monthly, individual yearly, fleet seat monthly, optional CDL cohort ) Tj ET
+BT /F1 10 Tf 54 452.00 Td (SKUs, and testing.) Tj ET
+endstream
+endobj
+69 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 68 0 R >>
+endobj
+xref
+0 70
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000338 00000 n 
+0000000408 00000 n 
+0000000483 00000 n 
+0000000551 00000 n 
+0000004486 00000 n 
+0000004632 00000 n 
+0000008925 00000 n 
+0000009071 00000 n 
+0000012878 00000 n 
+0000013026 00000 n 
+0000017099 00000 n 
+0000017247 00000 n 
+0000021308 00000 n 
+0000021456 00000 n 
+0000026090 00000 n 
+0000026238 00000 n 
+0000030736 00000 n 
+0000030884 00000 n 
+0000035484 00000 n 
+0000035632 00000 n 
+0000039562 00000 n 
+0000039710 00000 n 
+0000043384 00000 n 
+0000043532 00000 n 
+0000046692 00000 n 
+0000046840 00000 n 
+0000050101 00000 n 
+0000050249 00000 n 
+0000053099 00000 n 
+0000053247 00000 n 
+0000057121 00000 n 
+0000057269 00000 n 
+0000061215 00000 n 
+0000061363 00000 n 
+0000064525 00000 n 
+0000064673 00000 n 
+0000067885 00000 n 
+0000068033 00000 n 
+0000070993 00000 n 
+0000071141 00000 n 
+0000074490 00000 n 
+0000074638 00000 n 
+0000077972 00000 n 
+0000078120 00000 n 
+0000080888 00000 n 
+0000081036 00000 n 
+0000083722 00000 n 
+0000083870 00000 n 
+0000086978 00000 n 
+0000087126 00000 n 
+0000090025 00000 n 
+0000090173 00000 n 
+0000093044 00000 n 
+0000093192 00000 n 
+0000096332 00000 n 
+0000096480 00000 n 
+0000099287 00000 n 
+0000099435 00000 n 
+0000103117 00000 n 
+0000103265 00000 n 
+0000106921 00000 n 
+0000107069 00000 n 
+0000111011 00000 n 
+0000111159 00000 n 
+0000115383 00000 n 
+0000115531 00000 n 
+0000118090 00000 n 
+trailer
+<< /Size 70 /Root 1 0 R >>
+startxref
+118238
+%%EOF
