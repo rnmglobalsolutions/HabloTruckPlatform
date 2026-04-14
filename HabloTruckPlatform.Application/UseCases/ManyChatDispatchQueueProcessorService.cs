@@ -52,6 +52,7 @@ public sealed class ManyChatDispatchQueueProcessorService
 
             try
             {
+                _logger.LogInformation("#ManyChatDispatchQueueProcessorService - Entering Manychat Sync");
                 await _failedActionRetryService.DispatchAsync(
                     lease.Message.ActionType,
                     lease.Message.PayloadJson,
@@ -70,10 +71,12 @@ public sealed class ManyChatDispatchQueueProcessorService
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                _logger.LogError("#ManyChatDispatchQueueProcessorService - Error ManayChat Synching - Operation Canceled");
                 throw;
             }
             catch (ManyChatRequestException ex) when (ex.IsRetryable)
             {
+                _logger.LogError("#ManyChatDispatchQueueProcessorService - Error Manychat Sync. Trying now Plan B: Moving to Table: Failed Actions to Sync to ManyChat.");
                 await MoveToFailedActionsAsync(lease, "retryable_manychat_failure", ct);
                 await _queue.CompleteAsync(lease, ct);
                 _metrics?.ManyChatDispatchProcessed(lease.Message.ActionType, "moved_to_failed_actions");
@@ -90,6 +93,7 @@ public sealed class ManyChatDispatchQueueProcessorService
             }
             catch (ManyChatRequestException ex)
             {
+                _logger.LogError("#ManyChatDispatchQueueProcessorService - Error in Manychat. No Sync");
                 await _queue.CompleteAsync(lease, ct);
                 _metrics?.ManyChatDispatchProcessed(lease.Message.ActionType, "dropped_non_retryable");
 

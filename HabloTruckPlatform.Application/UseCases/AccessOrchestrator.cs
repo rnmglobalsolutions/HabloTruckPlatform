@@ -270,6 +270,7 @@ public sealed class AccessOrchestrator
             {
                 if (_manyChatDispatchQueue is not null)
                 {
+                    _logger.LogInformation("Sending ManyChat sync to dispatch queue. UserId={UserId} SubscriberId={SubscriberId}", user.UserId, subscriberId);
                     await _manyChatDispatchQueue.EnqueueAsync(
                         new ManyChatDispatchMessage(
                             FailedActionRetryService.ActionManyChatSync,
@@ -277,6 +278,7 @@ public sealed class AccessOrchestrator
                             user.UserId,
                             _clock.UtcNow),
                         ct);
+                    _logger.LogInformation("Enqueued ManyChat sync message. UserId={UserId} SubscriberId={SubscriberId}", user.UserId, subscriberId);
                     _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatSync);
 
                     _logger.LogDebug(
@@ -292,6 +294,7 @@ public sealed class AccessOrchestrator
                 }
 
                 await _manyChatSync.SyncUserAccessAsync(targetUser, decision, ct);
+                _logger.LogInformation("ManyChat sync completed in direct connection to ManyChat. UserId={UserId} SubscriberId={SubscriberId}", user.UserId, subscriberId);
 
                 _logger.LogDebug(
                     "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
@@ -304,6 +307,11 @@ public sealed class AccessOrchestrator
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                _logger.LogWarning(
+                    "Operation cancelled. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
+                    "warning",
+                    "operation_cancelled",
+                    "cancellation_requested");
                 throw;
             }
             catch (ManyChatRequestException ex) when (ex.IsRetryable)
@@ -412,7 +420,7 @@ public sealed class AccessOrchestrator
             var persistWatch = Stopwatch.StartNew();
             await _userStore.UpsertAsync(user, ct);
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Persistence write completed. LogCategory={LogCategory} PersistenceOperation={PersistenceOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
                 "persistence",
                 "user.upsert_manychat_watermark",

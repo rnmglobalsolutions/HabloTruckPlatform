@@ -227,6 +227,7 @@ public sealed class FailedActionRetryService
 
             var dependencyWatch = Stopwatch.StartNew();
             await _manyChat.SyncUserAccessAsync(CloneForSubscriber(user, targetSubscriberId), decision, ct);
+            _logger.LogInformation("#Failed_Action_Retry - Sync_User_To_Manychat - Completed");
 
             user.LastSyncedAccessMode = decision.Mode.ToString();
             user.LastSyncedAccessSource = (int)decision.Source;

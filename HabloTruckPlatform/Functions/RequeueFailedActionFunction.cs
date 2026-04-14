@@ -27,7 +27,7 @@ public sealed class RequeueFailedActionFunction
 
     [Function("RequeueFailedAction")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "admin/failed-actions/requeue")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "ops/failed-actions/requeue")] HttpRequestData req,
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;
