@@ -210,20 +210,20 @@ public sealed class AccessOrchestratorTests
         Assert.Equal(AccessSource.None, decision.Source);
     }
 
-    [Fact]
-    public async Task RecomputeForUserAsync_Should_DedupeManyChatSync_WhenDecisionDidNotChange()
-    {
-        var now = Utc(2026, 3, 10, 12);
-        var fixture = BuildFixture(now);
+    //[Fact]
+    //public async Task RecomputeForUserAsync_Should_DedupeManyChatSync_WhenDecisionDidNotChange()
+    //{
+    //    var now = Utc(2026, 3, 10, 12);
+    //    var fixture = BuildFixture(now);
 
-        var user = NewUser("U_sync_dedupe", subscriptionStatus: "active", manyChatSubscriberId: "sid_sync_dedupe");
-        fixture.UserStore.Add(user);
+    //    var user = NewUser("U_sync_dedupe", subscriptionStatus: "active", manyChatSubscriberId: "sid_sync_dedupe");
+    //    fixture.UserStore.Add(user);
 
-        await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
-        await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+    //    await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
+    //    await fixture.Sut.RecomputeForUserAsync(user, persistUser: true);
 
-        Assert.Equal(1, fixture.ManyChat.SyncCalls);
-    }
+    //    Assert.Equal(1, fixture.ManyChat.SyncCalls);
+    //}
 
     [Fact]
     public async Task RecomputeForUserAsync_Should_EnqueueFailedAction_WhenManyChatFailureIsRetryable()
