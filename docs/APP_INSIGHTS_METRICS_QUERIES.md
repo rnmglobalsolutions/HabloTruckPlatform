@@ -692,9 +692,71 @@ customMetrics
     "failed.actions.queued",
     "failed.actions.retried",
     "stripe.events.received",
+    "subscription.plan_change",
+    "company.seat_quantity_change",
     "access.decision")
 | summarize total = sum(value) by name
 | order by total desc
+```
+
+## 20. Subscription Plan Change Outcomes
+
+Purpose:
+Track individual upgrade/downgrade outcomes from `POST /api/stripe/subscription/change-plan`.
+
+```kusto
+customMetrics
+| where timestamp > ago(24h)
+| where name == "subscription.plan_change"
+| extend outcome = tostring(customDimensions["outcome"])
+| extend reason = tostring(customDimensions["reason"])
+| extend targetPlanType = tostring(customDimensions["targetPlanType"])
+| extend effectiveWhen = tostring(customDimensions["effectiveWhen"])
+| summarize total = sum(value) by outcome, reason, targetPlanType, effectiveWhen
+| order by total desc
+```
+
+## 21. Company Seat Quantity Change Outcomes
+
+Purpose:
+Track company/fleet seat quantity changes from `POST /api/stripe/subscription/update-seat-quantity`.
+
+```kusto
+customMetrics
+| where timestamp > ago(24h)
+| where name == "company.seat_quantity_change"
+| extend outcome = tostring(customDimensions["outcome"])
+| extend reason = tostring(customDimensions["reason"])
+| extend direction = tostring(customDimensions["direction"])
+| extend effectiveWhen = tostring(customDimensions["effectiveWhen"])
+| summarize total = sum(value) by outcome, reason, direction, effectiveWhen
+| order by total desc
+```
+
+## 22. Subscription Change Trace
+
+Purpose:
+Inspect logs for plan changes and seat quantity changes, including validation failures and Stripe dependency failures.
+
+```kusto
+traces
+| where timestamp > ago(24h)
+| extend operationName = tostring(customDimensions["OperationName"])
+| extend outcome = tostring(customDimensions["Outcome"])
+| extend reason = tostring(customDimensions["Reason"])
+| extend userId = tostring(customDimensions["UserId"])
+| extend companyId = tostring(customDimensions["CompanyId"])
+| extend subscriptionId = tostring(customDimensions["SubscriptionId"])
+| extend targetPlanType = tostring(customDimensions["TargetPlanType"])
+| extend targetSeats = tostring(customDimensions["TargetSeats"])
+| extend effectiveWhen = tostring(customDimensions["EffectiveWhen"])
+| where operationName in (
+    "subscription_plan_change",
+    "subscription_plan_change_http",
+    "company_seat_quantity_change",
+    "company_seat_quantity_change_http")
+| project timestamp, operationName, outcome, reason, userId, companyId, subscriptionId, targetPlanType, targetSeats, effectiveWhen, message, customDimensions
+| order by timestamp desc
 ```
 
 ## Recommended Daily Checks

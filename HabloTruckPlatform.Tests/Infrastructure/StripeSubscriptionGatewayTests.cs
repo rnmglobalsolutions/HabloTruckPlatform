@@ -60,6 +60,32 @@ public sealed class StripeSubscriptionGatewayTests
         Assert.Equal(new DateTimeOffset(item2End, TimeSpan.Zero), snapshot.CurrentPeriodEndUtc);
     }
 
+    [Fact]
+    public void BuildPriceChangeOptions_Should_RequireCompletedPayment_When_ImmediateInvoiceIsCreated()
+    {
+        var options = StripeSubscriptionGateway.BuildPriceChangeOptions(
+            "si_123",
+            "price_yearly",
+            "always_invoice",
+            "now");
+
+        Assert.Equal("error_if_incomplete", options.PaymentBehavior);
+        Assert.Equal("always_invoice", options.ProrationBehavior);
+        Assert.Equal(SubscriptionBillingCycleAnchor.Now, options.BillingCycleAnchor);
+    }
+
+    [Fact]
+    public void BuildQuantityChangeOptions_Should_NotRequirePayment_When_NoProrationIsUsed()
+    {
+        var options = StripeSubscriptionGateway.BuildQuantityChangeOptions(
+            "si_123",
+            8,
+            "none");
+
+        Assert.Null(options.PaymentBehavior);
+        Assert.Equal("none", options.ProrationBehavior);
+    }
+
     private static SubscriptionItem NewSubscriptionItem(DateTime currentPeriodEndUtc)
     {
         var item = new SubscriptionItem();

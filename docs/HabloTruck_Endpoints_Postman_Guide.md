@@ -784,3 +784,147 @@ x-correlation-id: <optional>
   "error": null
 }
 ```
+
+---
+
+## 19. Change Subscription Plan
+
+**Nombre**  
+`POST - Change Subscription Plan`
+
+**Endpoint Url**  
+`POST https://<func>.azurewebsites.net/api/stripe/subscription/change-plan?code=<FUNCTION_KEY>`
+
+**Headers (If any)**  
+```text
+x-api-key: <HTTP_API_KEY>
+Content-Type: application/json
+x-correlation-id: <optional>
+```
+
+**Request Object**  
+```json
+{
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
+  "subscriptionId": "sub_123",
+  "targetPlanType": "individual_yearly",
+  "effectiveWhen": "immediate"
+}
+```
+
+Valores soportados:
+
+- `targetPlanType`: `individual_monthly`, `individual_yearly`
+- `effectiveWhen`: `immediate`, `next_invoice`
+
+Reglas actuales:
+
+- Mensual a anual: `targetPlanType=individual_yearly`, `effectiveWhen=immediate`
+- Anual a mensual: `targetPlanType=individual_monthly`, `effectiveWhen=next_invoice`
+- Compatibilidad legacy: `period_end`, `period-end`, y `renewal` se aceptan como alias de `next_invoice`.
+- Nota critica: `next_invoice` no crea un Stripe subscription schedule; actualiza el item ahora con `proration_behavior=none` y deja que el cambio de billing aplique en la proxima factura.
+- Los cambios inmediatos que generan invoice usan `payment_behavior=error_if_incomplete`; si Stripe no puede cobrar, el endpoint falla y no se actualiza el estado local como exitoso.
+
+**Response Object**  
+```json
+{
+  "ok": true,
+  "subscriptionId": "sub_123",
+  "previousPlanType": "individual_monthly",
+  "targetPlanType": "individual_yearly",
+  "effectiveWhen": "immediate",
+  "stripePriceId": "price_123",
+  "interval": "year",
+  "subscriptionStatus": "active",
+  "currentPeriodEndUtc": "2027-04-14T00:00:00.0000000Z",
+  "cancelAtPeriodEnd": false,
+  "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
+  "error": null
+}
+```
+
+Errores comunes:
+
+- `actor_required`
+- `actor_not_found`
+- `subscription_id_required`
+- `invalid_target_plan_type`
+- `invalid_effective_when`
+- `price_id_not_configured_for_plan`
+- `subscription_not_found`
+- `forbidden`
+- `stripe_update_failed`
+
+---
+
+## 20. Update Company Seat Quantity
+
+**Nombre**  
+`POST - Update Company Seat Quantity`
+
+**Endpoint Url**  
+`POST https://<func>.azurewebsites.net/api/stripe/subscription/update-seat-quantity?code=<FUNCTION_KEY>`
+
+**Headers (If any)**  
+```text
+x-api-key: <HTTP_API_KEY>
+Content-Type: application/json
+x-correlation-id: <optional>
+```
+
+**Request Object**  
+```json
+{
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
+  "companyId": "C1",
+  "subscriptionId": "sub_123",
+  "targetSeats": 25,
+  "effectiveWhen": "immediate"
+}
+```
+
+Reglas actuales:
+
+- Aumentar seats: inmediato, con proration/invoice según Stripe.
+- Reducir seats: `effectiveWhen=next_invoice`, sin proration, y permitido solo si `targetSeats >= SeatsUsed`.
+- Aumentar seats usa `payment_behavior=error_if_incomplete`; si Stripe no puede cobrar la invoice inmediata, no se aumenta la capacidad local.
+- Si `targetSeats < SeatsUsed`, responde `target_below_seats_used` y no llama a Stripe.
+- Un aumento con `next_invoice` responde `invalid_effective_when_for_increase`.
+- Una reduccion con `immediate` responde `invalid_effective_when_for_decrease`.
+
+**Response Object**  
+```json
+{
+  "ok": true,
+  "companyId": "C1",
+  "entitlementId": "ent_sub_123",
+  "subscriptionId": "sub_123",
+  "previousSeatsTotal": 20,
+  "targetSeats": 25,
+  "seatsUsed": 18,
+  "isOverCapacity": false,
+  "direction": "increase",
+  "effectiveWhen": "immediate",
+  "currentPeriodEndUtc": "2026-05-14T00:00:00.0000000Z",
+  "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
+  "error": null
+}
+```
+
+Errores comunes:
+
+- `actor_required`
+- `actor_not_found`
+- `company_id_required`
+- `company_not_found`
+- `company_entitlement_not_found`
+- `subscription_id_required`
+- `target_seats_must_be_greater_than_zero`
+- `target_below_seats_used`
+- `invalid_effective_when_for_increase`
+- `invalid_effective_when_for_decrease`
+- `subscription_not_found`
+- `forbidden`
+- `stripe_update_failed`

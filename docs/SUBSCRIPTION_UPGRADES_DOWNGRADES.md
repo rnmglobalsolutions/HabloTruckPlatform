@@ -34,6 +34,9 @@ The backend currently supports:
 - Initial individual monthly checkout through `POST /api/stripe/payment-link`.
 - Initial individual yearly checkout through `POST /api/stripe/payment-link`.
 - Initial company/fleet seat checkout through the fleet checkout flow.
+- Individual monthly to yearly upgrade through `POST /api/stripe/subscription/change-plan`.
+- Individual yearly to monthly downgrade through `POST /api/stripe/subscription/change-plan`.
+- Company/fleet seat quantity changes through `POST /api/stripe/subscription/update-seat-quantity`.
 - Stripe webhook projection for `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`, and payment-failure events.
 - Access recomputation after subscription and seat changes.
 - ManyChat access sync through tags and custom fields.
@@ -42,16 +45,13 @@ The backend currently supports:
 
 ### Not Fully Implemented Yet
 
-The backend does not currently expose a dedicated self-serve endpoint for:
+The backend does not currently implement:
 
-- Monthly to yearly plan change.
-- Yearly to monthly plan change.
-- Company/fleet seat quantity increase.
-- Company/fleet seat quantity decrease.
-- Explicit proration handling.
-- Stripe subscription schedule creation for deferred downgrades.
+- Stripe subscription schedule creation for deferred downgrades. Current downgrades use `next_invoice` no-proration behavior, not a future Stripe phase.
+- Seat decreases below current `SeatsUsed`.
+- Automatic ManyChat confirmation messages for successful plan changes.
 
-The current Billing Portal endpoint is specifically a payment-method update flow. It should not be treated as a confirmed plan-management portal unless the Stripe Billing Portal configuration and backend flow are intentionally expanded for subscription updates.
+The current Billing Portal endpoint is specifically a payment-method update flow. Plan and seat changes should use the HabloTruck-owned endpoints above, not the payment-method portal link.
 
 ## Key Principle
 
@@ -105,12 +105,12 @@ ManyChat sync should update:
 | --- | --- | --- | --- |
 | Free to monthly | Immediate checkout | Supported | Send `individual_monthly` checkout link |
 | Free to yearly | Immediate checkout | Supported | Send `individual_yearly` checkout link |
-| Monthly to yearly | Immediate upgrade | Webhooks can project the result if Stripe changes the subscription, but no self-serve endpoint exists yet | Send to future upgrade flow or support |
-| Yearly to monthly | Downgrade at period end | Webhooks can project the result if Stripe changes the subscription, but no self-serve endpoint exists yet | Send to future downgrade flow or support |
+| Monthly to yearly | Immediate upgrade | Supported by `POST /api/stripe/subscription/change-plan` | Call change-plan with `targetPlanType=individual_yearly` |
+| Yearly to monthly | Downgrade for the next invoice, no proration | Supported by `POST /api/stripe/subscription/change-plan` | Call change-plan with `targetPlanType=individual_monthly`, `effectiveWhen=next_invoice` |
 | Monthly/yearly to company seat | Allow both access sources | Company join/access recompute exists | Let driver claim invite; optionally offer cancel individual plan |
 | Company seat to individual | Allow individual checkout | Supported as new individual checkout, if user is linked correctly | Send individual checkout link |
-| Add fleet seats | Increase immediately | No dedicated quantity-update endpoint yet | Send to support/admin flow |
-| Reduce fleet seats | Defer or require admin review | No dedicated quantity-update endpoint yet | Send to support/admin flow |
+| Add fleet seats | Increase immediately | Supported by `POST /api/stripe/subscription/update-seat-quantity` | Call update-seat-quantity |
+| Reduce fleet seats | Safe decrease only when `targetSeats >= SeatsUsed` | Supported by `POST /api/stripe/subscription/update-seat-quantity` | Call update-seat-quantity or route to support |
 | Cancel individual | Cancel at period end | Supported | Call cancel-at-period-end endpoint |
 | Cancel company subscription | Cancel at period end | Endpoint supports company scope with authorization checks | Use admin/support flow |
 
@@ -123,7 +123,8 @@ This should be treated as an upgrade.
 Recommended behavior:
 
 - Apply the yearly plan immediately.
-- Let Stripe calculate proration or invoice the difference according to the final Stripe billing policy.
+- Let Stripe calculate proration and invoice the difference immediately.
+- Require Stripe to complete the immediate payment; if Stripe returns an incomplete-payment error, do not update local plan hints.
 - Keep user access as `Full`.
 - Update the user plan term to annual after Stripe confirms the subscription update.
 - Sync ManyChat state after backend recompute.
@@ -135,6 +136,24 @@ Expected events may include:
 - `customer.subscription.updated`
 - `invoice.paid`
 - optionally `invoice.payment_failed` if the upgrade payment fails
+
+### Endpoint
+
+```text
+POST /api/stripe/subscription/change-plan
+```
+
+Request:
+
+```json
+{
+  "actorUserPk": "{{backend_user_pk}}",
+  "actorUserId": "{{backend_user_id}}",
+  "subscriptionId": "sub_...",
+  "targetPlanType": "individual_yearly",
+  "effectiveWhen": "immediate"
+}
+```
 
 ### Expected Backend State
 
@@ -176,9 +195,10 @@ This should be treated as a downgrade.
 Recommended behavior:
 
 - Do not remove paid yearly value immediately.
-- Keep the user on yearly access until the current paid period ends.
-- Schedule the change to monthly at period end.
+- Keep the user paid through the current yearly period.
+- Change the Stripe subscription item to monthly with no proration, so the monthly billing impact starts on the next invoice.
 - Avoid surprise refunds, credits, and confusing partial-period billing unless explicitly handled.
+- Do not describe this as a true Stripe subscription schedule unless schedule support is added later.
 
 ### Expected Stripe Events
 
@@ -187,12 +207,38 @@ Expected events may include:
 - `customer.subscription.updated`
 - future `invoice.paid` when the monthly renewal begins
 
+### Endpoint
+
+```text
+POST /api/stripe/subscription/change-plan
+```
+
+Request:
+
+```json
+{
+  "actorUserPk": "{{backend_user_pk}}",
+  "actorUserId": "{{backend_user_id}}",
+  "subscriptionId": "sub_...",
+  "targetPlanType": "individual_monthly",
+  "effectiveWhen": "next_invoice"
+}
+```
+
+Implementation note:
+
+- The endpoint updates the subscription price with no proration for yearly to monthly.
+- `period_end`, `period-end`, and `renewal` are accepted as legacy aliases, but new clients should send `next_invoice`.
+- The paid-through `current_period_end` remains the guardrail that keeps access `Full`.
+- Stripe webhooks remain the source of truth after the update.
+
 ### Expected Backend State Before Period End
 
 Before the yearly period ends:
 
 - Effective access should remain `Full`.
-- The user should not enter grace just because a downgrade is scheduled.
+- The user should not enter grace just because the recurring price changed.
+- The local `PlanType` can become `individual_monthly` immediately because the Stripe item has changed immediately; access is still protected by the paid-through period.
 - Current period end should remain the paid-through date.
 
 ### Expected Backend State After Period End
@@ -215,7 +261,7 @@ Tu plan anual ya esta pagado hasta la fecha de renovacion. Podemos programar el 
 After confirmation:
 
 ```text
-Listo. Tu cambio al plan mensual quedo programado para tu proxima renovacion.
+Listo. Tu cambio al plan mensual quedo preparado para tu proxima factura, sin cobro extra hoy.
 ```
 
 ## Individual Access Plus Company Seat
@@ -287,6 +333,26 @@ After Stripe confirms the quantity increase:
 - `SeatsUsed` should remain the number of already claimed seats.
 - `IsOverCapacity` should be false if `SeatsUsed <= SeatsTotal`.
 - Existing users should keep access.
+- Stripe must accept the immediate invoice without an incomplete payment state before local capacity is increased.
+
+### Endpoint
+
+```text
+POST /api/stripe/subscription/update-seat-quantity
+```
+
+Request:
+
+```json
+{
+  "actorUserPk": "{{backend_user_pk}}",
+  "actorUserId": "{{backend_user_id}}",
+  "companyId": "{{cf_company_id}}",
+  "subscriptionId": "sub_...",
+  "targetSeats": 25,
+  "effectiveWhen": "immediate"
+}
+```
 
 ### ManyChat Copy
 
@@ -303,7 +369,7 @@ Seat decreases should be handled carefully.
 Recommended behavior:
 
 - Do not reduce seats below current `SeatsUsed` without admin review.
-- Prefer scheduling decreases at period end.
+- Use no proration for safe decreases.
 - If the requested quantity is below active assigned seats, show a support/admin path.
 
 Reason:
@@ -318,23 +384,48 @@ After a valid decrease:
 - If `SeatsUsed > SeatsTotal`, the company should be treated as over capacity and needs admin action.
 - Existing active drivers should not be randomly removed without an explicit seat removal policy.
 
+The endpoint rejects unsafe decreases with:
+
+```text
+target_below_seats_used
+```
+
+### Endpoint
+
+```text
+POST /api/stripe/subscription/update-seat-quantity
+```
+
+Request:
+
+```json
+{
+  "actorUserPk": "{{backend_user_pk}}",
+  "actorUserId": "{{backend_user_id}}",
+  "companyId": "{{cf_company_id}}",
+  "subscriptionId": "sub_...",
+  "targetSeats": 8,
+  "effectiveWhen": "next_invoice"
+}
+```
+
 ### ManyChat Copy
 
 ```text
 Para bajar la cantidad de seats, primero revisemos cuantos drivers activos tienes para no cortar acceso por error.
 ```
 
-## Recommended Future Backend Endpoints
+## Backend Endpoints
 
 ### Change Individual Plan
 
-Recommended endpoint:
+Endpoint:
 
 ```text
 POST /api/stripe/subscription/change-plan
 ```
 
-Recommended request:
+Request:
 
 ```json
 {
@@ -355,25 +446,25 @@ Recommended `targetPlanType` values:
 Recommended `effectiveWhen` values:
 
 - `immediate`
-- `period_end`
+- `next_invoice`
 
-Recommended validation:
+Validation:
 
 - Actor must own the subscription.
 - Target plan must be different from current plan.
 - Monthly to yearly can allow `immediate`.
-- Yearly to monthly should default to `period_end`.
+- Yearly to monthly should default to `next_invoice`.
 - Stripe customer ownership must match local user state.
 
 ### Update Company Seat Quantity
 
-Recommended endpoint:
+Endpoint:
 
 ```text
 POST /api/stripe/subscription/update-seat-quantity
 ```
 
-Recommended request:
+Request:
 
 ```json
 {
@@ -386,13 +477,13 @@ Recommended request:
 }
 ```
 
-Recommended validation:
+Validation:
 
 - Actor must be company admin or authorized operator.
 - Target seats must be greater than zero.
-- Immediate decrease below `SeatsUsed` should be rejected or escalated.
-- Increase can be immediate.
-- Decrease should default to `period_end`.
+- Decrease below `SeatsUsed` should be rejected or escalated.
+- Increase must be immediate.
+- Decrease must use `next_invoice` billing behavior and no proration.
 
 ## ManyChat Routing
 
@@ -432,22 +523,21 @@ Useful queries:
 - `docs/APP_INSIGHTS_METRICS_QUERIES.md / 6N. Drill Into One Stripe Webhook Operation`
 - `docs/APP_INSIGHTS_METRICS_QUERIES.md / 6Q. Classify Stripe Webhooks By Storage Activity`
 - `docs/APP_INSIGHTS_METRICS_QUERIES.md / 6B. Did Access Sync Get Queued And Processed`
+- `docs/APP_INSIGHTS_METRICS_QUERIES.md / 20. Subscription Plan Change Outcomes`
+- `docs/APP_INSIGHTS_METRICS_QUERIES.md / 21. Company Seat Quantity Change Outcomes`
 
 ## Current Product Decision Needed
 
-Before building the self-serve flow, decide:
+Remaining product decisions:
 
 - Should monthly to yearly charge immediately with proration, or switch at renewal?
-- Should yearly to monthly always happen at period end?
-- Should company seat decreases be allowed self-serve?
 - What happens when a company reduces seats below active drivers?
 - Should ManyChat send users to Stripe Billing Portal for plan management, or should HabloTruck own plan-change endpoints?
 
 Recommended default:
 
 - Monthly to yearly: immediate upgrade.
-- Yearly to monthly: period-end downgrade.
+- Yearly to monthly: next-invoice no-proration downgrade.
 - Add seats: immediate.
-- Reduce seats: period-end, and only if target seats are not below active seats.
+- Reduce seats: no proration, and only if target seats are not below active seats.
 - Use HabloTruck-owned endpoints for plan and quantity changes so access, telemetry, and ManyChat sync remain predictable.
-

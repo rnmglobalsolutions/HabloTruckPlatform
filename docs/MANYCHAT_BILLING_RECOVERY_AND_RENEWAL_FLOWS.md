@@ -37,6 +37,7 @@ It does not cover:
 For post-payment plan changes, see:
 
 - `docs/SUBSCRIPTION_UPGRADES_DOWNGRADES.md`
+- `docs/SUBSCRIPTION_CHANGE_PROCESS.md`
 
 ## Key Backend Reality
 

@@ -59,4 +59,16 @@ public sealed class Metrics : IAppMetrics
         _telemetry.GetMetric("manychat.dispatch.processed", "actionType", "outcome")
                   .TrackValue(1, actionType, outcome);
     }
+
+    public void SubscriptionPlanChange(string outcome, string reason, string targetPlanType, string effectiveWhen)
+    {
+        _telemetry.GetMetric("subscription.plan_change", "outcome", "reason", "targetPlanType", "effectiveWhen")
+                  .TrackValue(1, outcome, reason, targetPlanType, effectiveWhen);
+    }
+
+    public void CompanySeatQuantityChange(string outcome, string reason, string direction, string effectiveWhen)
+    {
+        _telemetry.GetMetric("company.seat_quantity_change", "outcome", "reason", "direction", "effectiveWhen")
+                  .TrackValue(1, outcome, reason, direction, effectiveWhen);
+    }
 }

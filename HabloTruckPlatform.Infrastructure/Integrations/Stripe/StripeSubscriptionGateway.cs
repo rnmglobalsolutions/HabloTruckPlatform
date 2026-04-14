@@ -87,6 +87,183 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
         return MapSnapshot(sub);
     }
 
+    public async Task<StripeSubscriptionSnapshot?> ChangeSubscriptionPriceAsync(
+        string subscriptionId,
+        string targetPriceId,
+        string prorationBehavior,
+        string? billingCycleAnchor,
+        string idempotencyKey,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(subscriptionId) || string.IsNullOrWhiteSpace(targetPriceId))
+            return null;
+
+        var normalized = subscriptionId.Trim();
+        var getWatch = Stopwatch.StartNew();
+        var current = await _subscriptions.GetAsync(normalized, cancellationToken: ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId}",
+            "dependency",
+            "stripe",
+            "get_subscription_for_price_change",
+            "Stripe API",
+            getWatch.ElapsedMilliseconds,
+            true,
+            current is not null,
+            normalized);
+
+        var item = current?.Items?.Data?.FirstOrDefault();
+        if (current is null || item is null || string.IsNullOrWhiteSpace(item.Id))
+            return null;
+
+        var options = BuildPriceChangeOptions(
+            item.Id,
+            targetPriceId.Trim(),
+            prorationBehavior,
+            billingCycleAnchor);
+
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim()
+        };
+
+        var updateWatch = Stopwatch.StartNew();
+        var updated = await _subscriptions.UpdateAsync(normalized, options, requestOptions, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId} TargetPriceId={TargetPriceId} ProrationBehavior={ProrationBehavior} BillingCycleAnchor={BillingCycleAnchor}",
+            "dependency",
+            "stripe",
+            "update_subscription_price",
+            "Stripe API",
+            updateWatch.ElapsedMilliseconds,
+            true,
+            updated is not null,
+            normalized,
+            targetPriceId.Trim(),
+            prorationBehavior,
+            billingCycleAnchor);
+
+        return updated is null ? null : MapSnapshot(updated);
+    }
+
+    public async Task<StripeSubscriptionSnapshot?> UpdateSubscriptionQuantityAsync(
+        string subscriptionId,
+        int targetQuantity,
+        string prorationBehavior,
+        string idempotencyKey,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(subscriptionId) || targetQuantity <= 0)
+            return null;
+
+        var normalized = subscriptionId.Trim();
+        var getWatch = Stopwatch.StartNew();
+        var current = await _subscriptions.GetAsync(normalized, cancellationToken: ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId}",
+            "dependency",
+            "stripe",
+            "get_subscription_for_quantity_change",
+            "Stripe API",
+            getWatch.ElapsedMilliseconds,
+            true,
+            current is not null,
+            normalized);
+
+        var item = current?.Items?.Data?.FirstOrDefault();
+        if (current is null || item is null || string.IsNullOrWhiteSpace(item.Id))
+            return null;
+
+        var options = BuildQuantityChangeOptions(item.Id, targetQuantity, prorationBehavior);
+
+        var requestOptions = new RequestOptions
+        {
+            IdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim()
+        };
+
+        var updateWatch = Stopwatch.StartNew();
+        var updated = await _subscriptions.UpdateAsync(normalized, options, requestOptions, ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId} TargetQuantity={TargetQuantity} ProrationBehavior={ProrationBehavior}",
+            "dependency",
+            "stripe",
+            "update_subscription_quantity",
+            "Stripe API",
+            updateWatch.ElapsedMilliseconds,
+            true,
+            updated is not null,
+            normalized,
+            targetQuantity,
+            prorationBehavior);
+
+        return updated is null ? null : MapSnapshot(updated);
+    }
+
+    internal static SubscriptionUpdateOptions BuildPriceChangeOptions(
+        string subscriptionItemId,
+        string targetPriceId,
+        string prorationBehavior,
+        string? billingCycleAnchor)
+    {
+        var options = new SubscriptionUpdateOptions
+        {
+            ProrationBehavior = string.IsNullOrWhiteSpace(prorationBehavior) ? null : prorationBehavior.Trim(),
+            PaymentBehavior = ResolvePaymentBehavior(prorationBehavior),
+            Items =
+            [
+                new SubscriptionItemOptions
+                {
+                    Id = subscriptionItemId,
+                    Price = targetPriceId
+                }
+            ]
+        };
+
+        options.BillingCycleAnchor = NormalizeBillingCycleAnchor(billingCycleAnchor);
+
+        return options;
+    }
+
+    internal static SubscriptionUpdateOptions BuildQuantityChangeOptions(
+        string subscriptionItemId,
+        int targetQuantity,
+        string prorationBehavior)
+        => new()
+        {
+            ProrationBehavior = string.IsNullOrWhiteSpace(prorationBehavior) ? null : prorationBehavior.Trim(),
+            PaymentBehavior = ResolvePaymentBehavior(prorationBehavior),
+            Items =
+            [
+                new SubscriptionItemOptions
+                {
+                    Id = subscriptionItemId,
+                    Quantity = targetQuantity
+                }
+            ]
+        };
+
+    private static string? ResolvePaymentBehavior(string? prorationBehavior)
+        => string.Equals(prorationBehavior?.Trim(), "always_invoice", StringComparison.OrdinalIgnoreCase)
+            ? "error_if_incomplete"
+            : null;
+
+    private static SubscriptionBillingCycleAnchor? NormalizeBillingCycleAnchor(string? value)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+
+        return normalized switch
+        {
+            null or "" => null,
+            "now" => SubscriptionBillingCycleAnchor.Now,
+            "unchanged" => SubscriptionBillingCycleAnchor.Unchanged,
+            _ => null
+        };
+    }
+
     internal static StripeSubscriptionSnapshot MapSnapshot(Subscription sub)
     {
         var item = sub.Items?.Data?.FirstOrDefault();
