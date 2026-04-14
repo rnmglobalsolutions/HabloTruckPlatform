@@ -259,12 +259,13 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             if (priceId is not null)
             {
                 user.StripePriceId = priceId;
-                user.IndividualPlanTerm = DeriveTermFromPriceId(priceId) ?? DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
-                user.PlanType = planFromPrice ?? user.PlanType;
+                user.IndividualPlanTerm = DeriveTermFromPriceId(priceId) ?? DeriveTermFromInterval(interval) ?? DeriveTermFromMeta(planFromMeta) ?? user.IndividualPlanTerm;
+                user.PlanType = planFromPrice ?? planFromMeta ?? user.PlanType;
             }
             else
             {
-                user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
+                user.PlanType = planFromMeta ?? user.PlanType;
+                user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? DerivePlanTypeFromMeta(planFromMeta) ?? user.IndividualPlanTerm;
             }
 
             if (string.IsNullOrWhiteSpace(user.PlanType))
@@ -273,7 +274,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         else if (string.IsNullOrWhiteSpace(user.PlanType))
         {
             user.PlanType = planFromPrice ?? planFromMeta ?? user.PlanType;
-            user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? user.IndividualPlanTerm;
+            user.IndividualPlanTerm = DeriveTermFromInterval(interval) ?? DerivePlanTypeFromMeta(planFromMeta) ?? user.IndividualPlanTerm;
         }
 
         _logger.LogInformation("Plan determined. LogCategory={LogCategory} PriceId={PriceId} Interval={Interval} PlanFromPrice={PlanFromPrice} PlanFromMeta={PlanFromMeta} FinalPlan={FinalPlan} Term={Term}",
@@ -1421,6 +1422,25 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         {
             "month" => "monthly",
             "year" => "annual",
+            _ => null
+        };
+    }
+
+    private static string? DeriveTermFromMeta(string? planTypeMeta)
+    {
+        var p = (planTypeMeta ?? "").Trim().ToLowerInvariant();
+
+        return p switch
+        {
+            "individual_monthly" => "monthly",
+            "individual_yearly" => "yearly",
+            "annual" => "yearly",
+            "monthly" => "monthly",
+            "fleet" => "company_seat",
+            "fleet_seat" => "company_seat",
+            "company_seat" => "company_seat",
+            "cdl_cohort" => "cdl_cohort",
+            "cdl_english_cohort" => "cdl_english_cohort",
             _ => null
         };
     }
