@@ -35,7 +35,7 @@ GET https://<func>/api/admin/failed-actions?status=dead&lookbackHours=48&take=20
 
     [Function("ListFailedActions")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "admin/failed-actions")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "ops/failed-actions")] HttpRequestData req,
         FunctionContext ctx)
     {
         var ct = ctx.CancellationToken;

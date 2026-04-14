@@ -32,7 +32,7 @@ public sealed class StripeReplayFunction
 
     [Function("StripeReplayEvent")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "admin/stripe/replay")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "ops/stripe/replay")] HttpRequestData req,
         FunctionContext ctx)
     {
         var unauthorized = await ApiKeyAuthorizationHelper.AuthorizeAsync(
