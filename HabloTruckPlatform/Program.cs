@@ -28,23 +28,15 @@ var host = new HostBuilder()
     {
         logging.AddConfiguration(ctx.Configuration.GetSection("Logging"));
 
-        // Production baseline: keep app logs at Information, suppress framework noise.
         logging.SetMinimumLevel(LogLevel.Information);
         logging.AddFilter("Microsoft", LogLevel.Warning);
         logging.AddFilter("System", LogLevel.Warning);
         logging.AddFilter("Azure", LogLevel.Warning);
 
-        // Remove AI provider default Warning filter so Information logs can flow per category rules.
-        logging.Services.Configure<LoggerFilterOptions>(options =>
-        {
-            var defaultAiRule = options.Rules.FirstOrDefault(rule =>
-                rule.ProviderName == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
-
-            if (defaultAiRule is not null)
-            {
-                options.Rules.Remove(defaultAiRule);
-            }
-        });
+        // Explicitly allow Information logs for Application Insights provider.
+        logging.AddFilter(
+            "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider",
+            LogLevel.Information);
     })
     .ConfigureAppConfiguration(config =>
     {
@@ -55,8 +47,32 @@ var host = new HostBuilder()
     {
         var cfg = ctx.Configuration;
 
+        services.AddApplicationInsightsTelemetryWorkerService();
+        services.ConfigureFunctionsApplicationInsights();
+
+        // Remove the default AI Warning-only rule after AI is registered.
+        services.Configure<LoggerFilterOptions>(options =>
+        {
+            var aiRules = options.Rules
+                .Where(rule => rule.ProviderName ==
+                    "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider")
+                .ToList();
+
+            foreach (var rule in aiRules)
+            {
+                options.Rules.Remove(rule);
+            }
+
+            options.Rules.Add(new LoggerFilterRule(
+                providerName: "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider",
+                categoryName: null,
+                logLevel: LogLevel.Information,
+                filter: null));
+        });
+
         // ---- Clock
         services.AddSingleton<IClock, SystemClock>();
+
         // ---- HTTP security
         services.AddOptions<HttpSecurityOptions>()
             .Configure<IConfiguration>((options, configuration) =>
@@ -65,17 +81,13 @@ var host = new HostBuilder()
             });
         services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
 
-        // ---- App Insights (needed if Metrics uses TelemetryClient)
-        services.AddApplicationInsightsTelemetryWorkerService();
-        services.ConfigureFunctionsApplicationInsights();
-
         // ---- Policies
         var graceHours = int.Parse(cfg["GracePolicy__Hours"] ?? "72");
         var companyGraceDays = int.Parse(cfg["CompanyGracePolicy__Days"] ?? "7");
         services.AddSingleton(new GracePolicy(graceHours));
         services.AddSingleton(new CompanyGracePolicy(companyGraceDays));
 
-        // ---- Table Storage (Azure Tables)
+        // ---- Table Storage
         var tableConn = cfg["TableStorageConnection"]
             ?? cfg["TableConnectionString"]
             ?? cfg["AzureWebJobsStorage"];
@@ -90,7 +102,6 @@ var host = new HostBuilder()
         services.AddSingleton<ITableRepository, TableRepository>();
         services.AddSingleton<StorageInitializer>();
 
-        // ---- Stores (Infrastructure implementations)
         services.AddSingleton<IUserStore, TableUserStore>();
         services.AddSingleton<IUserResolver, TableUserResolver>();
         services.AddSingleton<IExternalIdentityStore, TableExternalIdentityStore>();
@@ -120,7 +131,6 @@ var host = new HostBuilder()
         services.AddSingleton<IStripeCheckoutService, StripeCheckoutService>();
         services.AddSingleton<IManyChatDispatchQueue>(_ => new AzureQueueManyChatDispatchQueue(tableConn));
 
-        // ---- UseCases / Handlers (Application layer)
         services.AddSingleton<AccessOrchestrator>();
         services.AddSingleton<GraceSweeperService>();
         services.AddSingleton<CompanyJoinHandler>();
@@ -138,10 +148,8 @@ var host = new HostBuilder()
         services.AddSingleton<SubscriptionReminderService>();
         services.AddSingleton<ManyChatDispatchQueueProcessorService>();
 
-        // Stripe orchestration handler
         services.AddSingleton<IStripeSubscriptionHandler, StripeSubscriptionHandler>();
 
-        // Stripe configuration
         services.Configure<StripeOptions>(ctx.Configuration.GetSection("Stripe"));
         services.AddSingleton(sp =>
         {
@@ -154,11 +162,9 @@ var host = new HostBuilder()
         services.AddSingleton<StripeSignatureValidator>();
         services.AddSingleton<StripeEventParser>();
 
-        // ---- Telemetry
         services.AddSingleton<Metrics>();
         services.AddSingleton<IAppMetrics>(sp => sp.GetRequiredService<Metrics>());
 
-        // ---- ManyChat
         services.Configure<ManyChatOptions>(ctx.Configuration.GetSection("ManyChat"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<ManyChatOptions>>().Value);
         services.AddHttpClient<IManyChatSync, ManyChatSyncClient>(client =>
@@ -168,7 +174,6 @@ var host = new HostBuilder()
     })
     .Build();
 
-// Ensure tables on startup
 using (var scope = host.Services.CreateScope())
 {
     var init = scope.ServiceProvider.GetRequiredService<StorageInitializer>();
