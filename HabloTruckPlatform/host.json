@@ -9,12 +9,12 @@
       "Host.Triggers": "Information",
       "Microsoft": "Warning",
       "System": "Warning",
-      "Worker": "Warning",
+      "Worker": "Information",
       "Azure": "Warning"
     },
     "applicationInsights": {
       "samplingSettings": {
-        "isEnabled": true,
+        "isEnabled": false,
         "excludedTypes": "Request",
         "maxTelemetryItemsPerSecond": 10
       },
