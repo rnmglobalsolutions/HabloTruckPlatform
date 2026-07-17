@@ -95,6 +95,10 @@ public sealed class ChangeSubscriptionPlanFunction
         {
             ActorUserPk = body?.ActorUserPk?.Trim() ?? string.Empty,
             ActorUserId = body?.ActorUserId?.Trim() ?? string.Empty,
+            ManyChatSubscriberId = string.IsNullOrWhiteSpace(body?.ManyChatSubscriberId) ? null : body!.ManyChatSubscriberId!.Trim(),
+            EmailNormalized = string.IsNullOrWhiteSpace(body?.EmailNormalized) ? null : body!.EmailNormalized!.Trim(),
+            Email = string.IsNullOrWhiteSpace(body?.Email) ? null : body!.Email!.Trim(),
+            PhoneE164 = string.IsNullOrWhiteSpace(body?.PhoneE164) ? null : body!.PhoneE164!.Trim(),
             SubscriptionId = string.IsNullOrWhiteSpace(body?.SubscriptionId) ? null : body!.SubscriptionId!.Trim(),
             TargetPlanType = body?.TargetPlanType?.Trim(),
             EffectiveWhen = body?.EffectiveWhen?.Trim()
@@ -118,6 +122,8 @@ public sealed class ChangeSubscriptionPlanFunction
         return await Json(req, status, new
         {
             ok = result.Result,
+            actorUserPk = result.ActorUserPk ?? "",
+            actorUserId = result.ActorUserId ?? "",
             subscriptionId = result.SubscriptionId ?? "",
             previousPlanType = result.PreviousPlanType ?? "",
             targetPlanType = result.TargetPlanType ?? "",
@@ -126,6 +132,7 @@ public sealed class ChangeSubscriptionPlanFunction
             interval = result.Interval ?? "",
             subscriptionStatus = result.SubscriptionStatus ?? "",
             currentPeriodEndUtc = result.CurrentPeriodEndUtc?.UtcDateTime.ToString("O") ?? "",
+            scheduledChangeEffectiveAtUtc = result.ScheduledChangeEffectiveAtUtc?.UtcDateTime.ToString("O") ?? "",
             cancelAtPeriodEnd = result.CancelAtPeriodEnd,
             requestedAtUtc = result.RequestedAtUtc.UtcDateTime.ToString("O"),
             error = result.Error
@@ -165,4 +172,3 @@ public sealed class ChangeSubscriptionPlanFunction
         return null;
     }
 }
-

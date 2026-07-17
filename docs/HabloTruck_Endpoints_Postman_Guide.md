@@ -805,31 +805,38 @@ x-correlation-id: <optional>
 **Request Object**  
 ```json
 {
-  "actorUserPk": "U_20260331",
-  "actorUserId": "USER_123",
-  "subscriptionId": "sub_123",
+  "manyChatSubscriberId": "123456789",
+  "email": "driver@example.com",
+  "phoneE164": "+13055551212",
   "targetPlanType": "individual_yearly",
   "effectiveWhen": "immediate"
 }
 ```
 
+ManyChat-friendly identity:
+
+- `actorUserPk`, `actorUserId`, and `subscriptionId` are optional when the backend can resolve the existing user from `manyChatSubscriberId`, `email` / `emailNormalized`, or `phoneE164`.
+- The response returns `actorUserPk`, `actorUserId`, and `subscriptionId`; store them as ManyChat custom fields when available.
+
 Valores soportados:
 
 - `targetPlanType`: `individual_monthly`, `individual_yearly`
-- `effectiveWhen`: `immediate`, `next_invoice`
+- `effectiveWhen`: `immediate`, `period_end`
 
 Reglas actuales:
 
 - Mensual a anual: `targetPlanType=individual_yearly`, `effectiveWhen=immediate`
-- Anual a mensual: `targetPlanType=individual_monthly`, `effectiveWhen=next_invoice`
-- Compatibilidad legacy: `period_end`, `period-end`, y `renewal` se aceptan como alias de `next_invoice`.
-- Nota critica: `next_invoice` no crea un Stripe subscription schedule; actualiza el item ahora con `proration_behavior=none` y deja que el cambio de billing aplique en la proxima factura.
+- Anual a mensual: `targetPlanType=individual_monthly`, `effectiveWhen=period_end`
+- Compatibilidad legacy: `next_invoice`, `period-end`, y `renewal` se aceptan como alias de `period_end`.
+- Nota critica: `period_end` crea/actualiza un Stripe subscription schedule; mantiene el plan anual hasta la fecha ya pagada y empieza el plan mensual despues.
 - Los cambios inmediatos que generan invoice usan `payment_behavior=error_if_incomplete`; si Stripe no puede cobrar, el endpoint falla y no se actualiza el estado local como exitoso.
 
 **Response Object**  
 ```json
 {
   "ok": true,
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
   "subscriptionId": "sub_123",
   "previousPlanType": "individual_monthly",
   "targetPlanType": "individual_yearly",
@@ -838,6 +845,7 @@ Reglas actuales:
   "interval": "year",
   "subscriptionStatus": "active",
   "currentPeriodEndUtc": "2027-04-14T00:00:00.0000000Z",
+  "scheduledChangeEffectiveAtUtc": "",
   "cancelAtPeriodEnd": false,
   "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
   "error": null
@@ -852,6 +860,7 @@ Errores comunes:
 - `invalid_target_plan_type`
 - `invalid_effective_when`
 - `price_id_not_configured_for_plan`
+- `current_subscription_not_individual`
 - `subscription_not_found`
 - `forbidden`
 - `stripe_update_failed`

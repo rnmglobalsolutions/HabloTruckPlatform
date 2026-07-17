@@ -760,7 +760,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetPlanType\": \"individual_yearly\",\n  \"effectiveWhen\": \"immediate\"\n}",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_yearly\",\n  \"effectiveWhen\": \"immediate\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -803,7 +803,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetPlanType\": \"individual_monthly\",\n  \"effectiveWhen\": \"next_invoice\"\n}",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_monthly\",\n  \"effectiveWhen\": \"period_end\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -4,6 +4,8 @@ public sealed class ChangeSubscriptionPlanResult
 {
     public bool Result { get; set; }
     public string? Error { get; set; }
+    public string? ActorUserPk { get; set; }
+    public string? ActorUserId { get; set; }
     public string? SubscriptionId { get; set; }
     public string? PreviousPlanType { get; set; }
     public string? TargetPlanType { get; set; }
@@ -12,7 +14,7 @@ public sealed class ChangeSubscriptionPlanResult
     public string? Interval { get; set; }
     public string? SubscriptionStatus { get; set; }
     public DateTimeOffset? CurrentPeriodEndUtc { get; set; }
+    public DateTimeOffset? ScheduledChangeEffectiveAtUtc { get; set; }
     public bool CancelAtPeriodEnd { get; set; }
     public DateTimeOffset RequestedAtUtc { get; set; }
 }
-

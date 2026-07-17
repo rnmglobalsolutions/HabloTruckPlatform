@@ -19,13 +19,15 @@ Required body:
 
 ```json
 {
-  "actorUserPk": "U_20260331",
-  "actorUserId": "USER_123",
-  "subscriptionId": "sub_123",
+  "manyChatSubscriberId": "123456789",
+  "email": "driver@example.com",
+  "phoneE164": "+13055551212",
   "targetPlanType": "individual_yearly",
   "effectiveWhen": "immediate"
 }
 ```
+
+`actorUserPk`, `actorUserId`, and `subscriptionId` are optional for ManyChat calls when the user already exists from checkout or company join. The backend can resolve the user by `manyChatSubscriberId`, `email` / `emailNormalized`, or `phoneE164`, then use the stored `StripeSubscriptionId`.
 
 Supported `targetPlanType` values:
 
@@ -35,21 +37,21 @@ Supported `targetPlanType` values:
 Supported `effectiveWhen` values:
 
 - `immediate`
-- `next_invoice`
+- `period_end`
 
 Current rules:
 
 - Monthly to yearly uses `immediate`.
-- Yearly to monthly uses `next_invoice`.
+- Yearly to monthly uses `period_end`.
 - Monthly to yearly sends Stripe `proration_behavior=always_invoice` and `billing_cycle_anchor=now`.
 - Immediate invoice changes also send Stripe `payment_behavior=error_if_incomplete` so local state is not updated when Stripe cannot collect the required payment.
-- Yearly to monthly sends Stripe `proration_behavior=none`. This is not a Stripe subscription schedule; the subscription item is updated now and billing changes on the next invoice without proration.
+- Yearly to monthly creates or updates a Stripe subscription schedule. The current yearly phase stays active through the paid-through date and the monthly price starts in the next phase.
 - The endpoint validates that the actor owns the subscription/customer context before changing Stripe.
 
 Legacy compatibility:
 
-- Incoming `period_end`, `period-end`, and `renewal` are accepted as aliases for `next_invoice`.
-- New ManyChat, Postman, and application clients should send `next_invoice`.
+- Incoming `next_invoice`, `period-end`, and `renewal` are accepted as aliases for `period_end`.
+- New ManyChat, Postman, and application clients should send `period_end`.
 
 ### Company Seat Quantity Change
 
@@ -114,6 +116,7 @@ Expected response:
   "interval": "year",
   "subscriptionStatus": "active",
   "currentPeriodEndUtc": "2027-04-14T00:00:00.0000000Z",
+  "scheduledChangeEffectiveAtUtc": "",
   "cancelAtPeriodEnd": false,
   "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
   "error": null
@@ -127,17 +130,19 @@ Example: yearly to monthly.
 1. ManyChat or ManageApp calls `POST /api/stripe/subscription/change-plan`.
 2. Backend validates the actor and subscription ownership.
 3. Backend maps `individual_monthly` to the configured monthly price ID.
-4. Backend updates Stripe with no proration.
+4. Backend creates or updates a Stripe subscription schedule with the current yearly price through the paid-through date and the monthly price in the next phase.
 5. Backend preserves the current paid-through period end from Stripe.
-6. Backend stores local user subscription hints.
+6. Backend stores current subscription hints without changing the user to monthly yet.
 7. Stripe webhooks continue to reconcile final state.
 
 Important:
 
 - Access should remain `Full` while the user is paid through.
 - The current period end is the guardrail that prevents accidental grace/blocking.
-- ManyChat should describe this as a no-proration downgrade for the next invoice, not as a true scheduled Stripe phase.
-- The backend does not create Stripe subscription schedules for this flow.
+- ManyChat should describe this as a period-end downgrade. The user has already paid for the annual period.
+- The backend creates a Stripe subscription schedule for this flow.
+- `scheduledChangeEffectiveAtUtc` tells ManyChat/support when the monthly plan should start.
+- `current_subscription_not_individual` means the stored/requested subscription is not an individual monthly/yearly subscription; route company-seat users to individual checkout or company admin flows instead.
 
 Expected response:
 
@@ -147,11 +152,12 @@ Expected response:
   "subscriptionId": "sub_123",
   "previousPlanType": "individual_yearly",
   "targetPlanType": "individual_monthly",
-  "effectiveWhen": "next_invoice",
-  "stripePriceId": "price_monthly",
-  "interval": "month",
+  "effectiveWhen": "period_end",
+  "stripePriceId": "price_yearly",
+  "interval": "year",
   "subscriptionStatus": "active",
   "currentPeriodEndUtc": "2026-12-31T00:00:00.0000000Z",
+  "scheduledChangeEffectiveAtUtc": "2026-12-31T00:00:00.0000000Z",
   "cancelAtPeriodEnd": false,
   "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
   "error": null

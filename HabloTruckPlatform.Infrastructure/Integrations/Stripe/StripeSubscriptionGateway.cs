@@ -10,11 +10,13 @@ namespace HabloTruckPlatform.Infrastructure.Stripe;
 public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
 {
     private readonly SubscriptionService _subscriptions;
+    private readonly SubscriptionScheduleService _subscriptionSchedules;
     private readonly ILogger<StripeSubscriptionGateway> _logger;
 
     public StripeSubscriptionGateway(ILogger<StripeSubscriptionGateway>? logger = null)
     {
         _subscriptions = new SubscriptionService();
+        _subscriptionSchedules = new SubscriptionScheduleService();
         _logger = logger ?? NullLogger<StripeSubscriptionGateway>.Instance;
     }
 
@@ -203,6 +205,110 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
         return updated is null ? null : MapSnapshot(updated);
     }
 
+    public async Task<StripeSubscriptionSnapshot?> ScheduleSubscriptionPriceChangeAtPeriodEndAsync(
+        string subscriptionId,
+        string targetPriceId,
+        string idempotencyKey,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(subscriptionId) || string.IsNullOrWhiteSpace(targetPriceId))
+            return null;
+
+        var normalized = subscriptionId.Trim();
+        var getWatch = Stopwatch.StartNew();
+        var current = await _subscriptions.GetAsync(normalized, cancellationToken: ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId}",
+            "dependency",
+            "stripe",
+            "get_subscription_for_scheduled_price_change",
+            "Stripe API",
+            getWatch.ElapsedMilliseconds,
+            true,
+            current is not null,
+            normalized);
+
+        var item = current?.Items?.Data?.FirstOrDefault();
+        var currentPeriodStart = ToDateTimeOffsetUtc(item?.CurrentPeriodStart ?? default);
+        var currentPeriodEnd = ToDateTimeOffsetUtc(item?.CurrentPeriodEnd ?? default);
+        var currentPriceId = item?.Price?.Id;
+        var quantity = item?.Quantity is long q ? checked((int)q) : 1;
+
+        if (current is null
+            || item is null
+            || currentPeriodStart is null
+            || currentPeriodEnd is null
+            || string.IsNullOrWhiteSpace(currentPriceId))
+        {
+            return null;
+        }
+
+        var requestOptionsBase = string.IsNullOrWhiteSpace(idempotencyKey)
+            ? "scheduled-subscription-price-change"
+            : idempotencyKey.Trim();
+
+        var scheduleId = current.ScheduleId;
+        if (string.IsNullOrWhiteSpace(scheduleId))
+        {
+            var createWatch = Stopwatch.StartNew();
+            var created = await _subscriptionSchedules.CreateAsync(
+                new SubscriptionScheduleCreateOptions
+                {
+                    FromSubscription = normalized
+                },
+                new RequestOptions { IdempotencyKey = $"{requestOptionsBase}:create" },
+                ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId} ScheduleId={ScheduleId}",
+                "dependency",
+                "stripe",
+                "create_subscription_schedule_from_subscription",
+                "Stripe API",
+                createWatch.ElapsedMilliseconds,
+                true,
+                created is not null,
+                normalized,
+                created?.Id);
+
+            scheduleId = created?.Id;
+        }
+
+        if (string.IsNullOrWhiteSpace(scheduleId))
+            return null;
+
+        var options = BuildScheduledPriceChangeOptions(
+            currentPriceId!,
+            targetPriceId.Trim(),
+            quantity <= 0 ? 1 : quantity,
+            currentPeriodStart.Value,
+            currentPeriodEnd.Value);
+
+        var updateWatch = Stopwatch.StartNew();
+        var updatedSchedule = await _subscriptionSchedules.UpdateAsync(
+            scheduleId,
+            options,
+            new RequestOptions { IdempotencyKey = $"{requestOptionsBase}:update" },
+            ct);
+
+        _logger.LogDebug(
+            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found} SubscriptionId={SubscriptionId} ScheduleId={ScheduleId} TargetPriceId={TargetPriceId}",
+            "dependency",
+            "stripe",
+            "update_subscription_schedule_price_change",
+            "Stripe API",
+            updateWatch.ElapsedMilliseconds,
+            true,
+            updatedSchedule is not null,
+            normalized,
+            scheduleId,
+            targetPriceId.Trim());
+
+        var refreshed = await _subscriptions.GetAsync(normalized, cancellationToken: ct);
+        return refreshed is null ? null : MapSnapshot(refreshed);
+    }
+
     internal static SubscriptionUpdateOptions BuildPriceChangeOptions(
         string subscriptionItemId,
         string targetPriceId,
@@ -242,6 +348,53 @@ public sealed class StripeSubscriptionGateway : IStripeSubscriptionGateway
                 {
                     Id = subscriptionItemId,
                     Quantity = targetQuantity
+                }
+            ]
+        };
+
+    internal static SubscriptionScheduleUpdateOptions BuildScheduledPriceChangeOptions(
+        string currentPriceId,
+        string targetPriceId,
+        int quantity,
+        DateTimeOffset currentPeriodStart,
+        DateTimeOffset currentPeriodEnd)
+        => new()
+        {
+            EndBehavior = "release",
+            ProrationBehavior = "none",
+            Phases =
+            [
+                new SubscriptionSchedulePhaseOptions
+                {
+                    StartDate = currentPeriodStart.UtcDateTime,
+                    EndDate = currentPeriodEnd.UtcDateTime,
+                    ProrationBehavior = "none",
+                    Items =
+                    [
+                        new SubscriptionSchedulePhaseItemOptions
+                        {
+                            Price = currentPriceId,
+                            Quantity = quantity
+                        }
+                    ]
+                },
+                new SubscriptionSchedulePhaseOptions
+                {
+                    StartDate = currentPeriodEnd.UtcDateTime,
+                    Duration = new SubscriptionSchedulePhaseDurationOptions
+                    {
+                        Interval = "month",
+                        IntervalCount = 1
+                    },
+                    ProrationBehavior = "none",
+                    Items =
+                    [
+                        new SubscriptionSchedulePhaseItemOptions
+                        {
+                            Price = targetPriceId,
+                            Quantity = quantity
+                        }
+                    ]
                 }
             ]
         };

@@ -53,7 +53,7 @@ public sealed class SubscriptionPlanChangeUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Should_DowngradeYearlyToMonthly_NextInvoiceWithoutProration()
+    public async Task ExecuteAsync_Should_ScheduleDowngradeYearlyToMonthly_AtPeriodEnd()
     {
         var now = Utc(2026, 4, 14);
         var users = new InMemoryUserStore();
@@ -72,7 +72,7 @@ public sealed class SubscriptionPlanChangeUseCaseTests
         var gateway = new FakeStripeSubscriptionGateway
         {
             Current = new StripeSubscriptionSnapshot("sub_1", "cus_1", "active", "price_yearly", "year", 1, false, periodEnd, null, null),
-            Changed = new StripeSubscriptionSnapshot("sub_1", "cus_1", "active", "price_monthly", "month", 1, false, periodEnd, null, null)
+            Changed = new StripeSubscriptionSnapshot("sub_1", "cus_1", "active", "price_yearly", "year", 1, false, periodEnd, null, null)
         };
         var sut = BuildSut(users, gateway, now);
 
@@ -84,13 +84,48 @@ public sealed class SubscriptionPlanChangeUseCaseTests
         });
 
         Assert.True(result.Result);
-        Assert.Equal("next_invoice", result.EffectiveWhen);
-        Assert.Equal("price_monthly", gateway.LastTargetPriceId);
-        Assert.Equal("none", gateway.LastProrationBehavior);
+        Assert.Equal("period_end", result.EffectiveWhen);
+        Assert.Equal(periodEnd, result.ScheduledChangeEffectiveAtUtc);
+        Assert.Equal("price_monthly", gateway.LastScheduledTargetPriceId);
+        Assert.Null(gateway.LastTargetPriceId);
         Assert.Null(gateway.LastBillingCycleAnchor);
-        Assert.Equal("individual_monthly", users.Users[("U_PK", "U1")].PlanType);
-        Assert.Equal("monthly", users.Users[("U_PK", "U1")].IndividualPlanTerm);
+        Assert.Equal("individual_yearly", users.Users[("U_PK", "U1")].PlanType);
+        Assert.Equal("annual", users.Users[("U_PK", "U1")].IndividualPlanTerm);
         Assert.Equal(periodEnd, users.Users[("U_PK", "U1")].StripeCurrentPeriodEndUtc);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Reject_WhenCurrentStripePriceIsNotIndividual()
+    {
+        var now = Utc(2026, 4, 14);
+        var users = new InMemoryUserStore();
+        users.Users[("U_PK", "ADMIN")] = new User
+        {
+            UserId = "ADMIN",
+            StripeCustomerId = "cus_company",
+            StripeSubscriptionId = "sub_fleet",
+            StripePriceId = "price_fleet",
+            PlanType = "fleet",
+            SubscriptionStatus = "active"
+        };
+
+        var gateway = new FakeStripeSubscriptionGateway
+        {
+            Current = new StripeSubscriptionSnapshot("sub_fleet", "cus_company", "active", "price_fleet", "month", 10, false, now.AddDays(20), null, null)
+        };
+        var sut = BuildSut(users, gateway, now);
+
+        var result = await sut.ExecuteAsync(new ChangeSubscriptionPlanRequest
+        {
+            ActorUserPk = "U_PK",
+            ActorUserId = "ADMIN",
+            TargetPlanType = "individual_yearly"
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("current_subscription_not_individual", result.Error);
+        Assert.Null(gateway.LastTargetPriceId);
+        Assert.Null(gateway.LastScheduledTargetPriceId);
     }
 
     [Fact]
@@ -125,8 +160,8 @@ public sealed class SubscriptionPlanChangeUseCaseTests
         });
 
         Assert.True(result.Result);
-        Assert.Equal("next_invoice", result.EffectiveWhen);
-        Assert.Equal("none", gateway.LastProrationBehavior);
+        Assert.Equal("period_end", result.EffectiveWhen);
+        Assert.Equal("price_monthly", gateway.LastScheduledTargetPriceId);
     }
 
     [Fact]
@@ -197,11 +232,52 @@ public sealed class SubscriptionPlanChangeUseCaseTests
         Assert.Null(gateway.LastTargetPriceId);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_ResolveActorFromManyChatSubscriberId_WhenInternalIdsAreNotProvided()
+    {
+        var now = Utc(2026, 4, 14);
+        var users = new InMemoryUserStore();
+        users.Users[("U_PK", "U1")] = new User
+        {
+            UserId = "U1",
+            ManyChatSubscriberId = "mc_123",
+            StripeCustomerId = "cus_1",
+            StripeSubscriptionId = "sub_1",
+            StripePriceId = "price_monthly",
+            PlanType = "individual_monthly",
+            IndividualPlanTerm = "monthly",
+            SubscriptionStatus = "active"
+        };
+
+        var resolver = new InMemoryUserResolver();
+        resolver.ManyChat["mc_123"] = new UserRef("U_PK", "U1");
+
+        var gateway = new FakeStripeSubscriptionGateway
+        {
+            Current = new StripeSubscriptionSnapshot("sub_1", "cus_1", "active", "price_monthly", "month", 1, false, now.AddDays(20), null, null),
+            Changed = new StripeSubscriptionSnapshot("sub_1", "cus_1", "active", "price_yearly", "year", 1, false, now.AddYears(1), null, null)
+        };
+        var sut = BuildSut(users, gateway, now, userResolver: resolver);
+
+        var result = await sut.ExecuteAsync(new ChangeSubscriptionPlanRequest
+        {
+            ManyChatSubscriberId = "mc_123",
+            TargetPlanType = "individual_yearly"
+        });
+
+        Assert.True(result.Result);
+        Assert.Equal("U_PK", result.ActorUserPk);
+        Assert.Equal("U1", result.ActorUserId);
+        Assert.Equal("sub_1", result.SubscriptionId);
+        Assert.Equal("individual_yearly", users.Users[("U_PK", "U1")].PlanType);
+    }
+
     private static ChangeSubscriptionPlanUseCase BuildSut(
         InMemoryUserStore users,
         FakeStripeSubscriptionGateway gateway,
         DateTimeOffset now,
-        IAppMetrics? metrics = null)
+        IAppMetrics? metrics = null,
+        IUserResolver? userResolver = null)
         => new(
             users,
             gateway,
@@ -213,7 +289,8 @@ public sealed class SubscriptionPlanChangeUseCaseTests
             },
             new FixedClock(now),
             NullLogger<ChangeSubscriptionPlanUseCase>.Instance,
-            metrics);
+            metrics,
+            userResolver);
 
     private static DateTimeOffset Utc(int year, int month, int day)
         => new(year, month, day, 12, 0, 0, TimeSpan.Zero);
@@ -255,6 +332,7 @@ public sealed class SubscriptionPlanChangeUseCaseTests
         public StripeSubscriptionSnapshot? Current { get; set; }
         public StripeSubscriptionSnapshot? Changed { get; set; }
         public string? LastTargetPriceId { get; private set; }
+        public string? LastScheduledTargetPriceId { get; private set; }
         public string? LastProrationBehavior { get; private set; }
         public string? LastBillingCycleAnchor { get; private set; }
 
@@ -271,6 +349,32 @@ public sealed class SubscriptionPlanChangeUseCaseTests
             LastBillingCycleAnchor = billingCycleAnchor;
             return Task.FromResult(Changed);
         }
+
+        public Task<StripeSubscriptionSnapshot?> ScheduleSubscriptionPriceChangeAtPeriodEndAsync(string subscriptionId, string targetPriceId, string idempotencyKey, CancellationToken ct = default)
+        {
+            LastScheduledTargetPriceId = targetPriceId;
+            LastProrationBehavior = "none";
+            return Task.FromResult(Changed ?? Current);
+        }
+    }
+
+    private sealed class InMemoryUserResolver : IUserResolver
+    {
+        public Dictionary<string, UserRef> ManyChat { get; } = [];
+        public Dictionary<string, UserRef> Emails { get; } = [];
+        public Dictionary<string, UserRef> Phones { get; } = [];
+
+        public Task<UserRef?> ResolveByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
+            => Task.FromResult<UserRef?>(null);
+
+        public Task<UserRef?> ResolveByManyChatSubscriberIdAsync(string subscriberId, CancellationToken ct = default)
+            => Task.FromResult(ManyChat.TryGetValue(subscriberId, out var userRef) ? userRef : (UserRef?)null);
+
+        public Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
+            => Task.FromResult(Emails.TryGetValue(emailNormalized, out var userRef) ? userRef : (UserRef?)null);
+
+        public Task<UserRef?> ResolveByPhoneE164Async(string phoneE164, CancellationToken ct = default)
+            => Task.FromResult(Phones.TryGetValue(phoneE164, out var userRef) ? userRef : (UserRef?)null);
     }
 
     private sealed class RecordingMetrics : IAppMetrics

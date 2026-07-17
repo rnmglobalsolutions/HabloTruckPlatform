@@ -22,6 +22,13 @@ public interface IStripeSubscriptionGateway
         CancellationToken ct = default)
         => throw new NotSupportedException("Subscription price changes are not supported by this gateway.");
 
+    Task<StripeSubscriptionSnapshot?> ScheduleSubscriptionPriceChangeAtPeriodEndAsync(
+        string subscriptionId,
+        string targetPriceId,
+        string idempotencyKey,
+        CancellationToken ct = default)
+        => throw new NotSupportedException("Scheduled subscription price changes are not supported by this gateway.");
+
     Task<StripeSubscriptionSnapshot?> UpdateSubscriptionQuantityAsync(
         string subscriptionId,
         int targetQuantity,

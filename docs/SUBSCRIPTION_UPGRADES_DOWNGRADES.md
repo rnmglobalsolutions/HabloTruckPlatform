@@ -47,7 +47,7 @@ The backend currently supports:
 
 The backend does not currently implement:
 
-- Stripe subscription schedule creation for deferred downgrades. Current downgrades use `next_invoice` no-proration behavior, not a future Stripe phase.
+- Local pending-plan-change records. Stripe subscription schedules are used for individual yearly-to-monthly downgrades.
 - Seat decreases below current `SeatsUsed`.
 - Automatic ManyChat confirmation messages for successful plan changes.
 
@@ -106,7 +106,7 @@ ManyChat sync should update:
 | Free to monthly | Immediate checkout | Supported | Send `individual_monthly` checkout link |
 | Free to yearly | Immediate checkout | Supported | Send `individual_yearly` checkout link |
 | Monthly to yearly | Immediate upgrade | Supported by `POST /api/stripe/subscription/change-plan` | Call change-plan with `targetPlanType=individual_yearly` |
-| Yearly to monthly | Downgrade for the next invoice, no proration | Supported by `POST /api/stripe/subscription/change-plan` | Call change-plan with `targetPlanType=individual_monthly`, `effectiveWhen=next_invoice` |
+| Yearly to monthly | Schedule monthly billing after the paid yearly period ends | Supported by `POST /api/stripe/subscription/change-plan` | Call change-plan with `targetPlanType=individual_monthly`, `effectiveWhen=period_end` |
 | Monthly/yearly to company seat | Allow both access sources | Company join/access recompute exists | Let driver claim invite; optionally offer cancel individual plan |
 | Company seat to individual | Allow individual checkout | Supported as new individual checkout, if user is linked correctly | Send individual checkout link |
 | Add fleet seats | Increase immediately | Supported by `POST /api/stripe/subscription/update-seat-quantity` | Call update-seat-quantity |
@@ -147,9 +147,9 @@ Request:
 
 ```json
 {
-  "actorUserPk": "{{backend_user_pk}}",
-  "actorUserId": "{{backend_user_id}}",
-  "subscriptionId": "sub_...",
+  "manyChatSubscriberId": "{{manyChatSubscriberId}}",
+  "email": "{{email}}",
+  "phoneE164": "{{phoneE164}}",
   "targetPlanType": "individual_yearly",
   "effectiveWhen": "immediate"
 }
@@ -196,9 +196,9 @@ Recommended behavior:
 
 - Do not remove paid yearly value immediately.
 - Keep the user paid through the current yearly period.
-- Change the Stripe subscription item to monthly with no proration, so the monthly billing impact starts on the next invoice.
+- Create or update a Stripe subscription schedule so the yearly phase remains active until the paid-through date and the monthly phase starts after.
 - Avoid surprise refunds, credits, and confusing partial-period billing unless explicitly handled.
-- Do not describe this as a true Stripe subscription schedule unless schedule support is added later.
+- Do not charge monthly until the annual paid period ends.
 
 ### Expected Stripe Events
 
@@ -217,18 +217,18 @@ Request:
 
 ```json
 {
-  "actorUserPk": "{{backend_user_pk}}",
-  "actorUserId": "{{backend_user_id}}",
-  "subscriptionId": "sub_...",
+  "manyChatSubscriberId": "{{manyChatSubscriberId}}",
+  "email": "{{email}}",
+  "phoneE164": "{{phoneE164}}",
   "targetPlanType": "individual_monthly",
-  "effectiveWhen": "next_invoice"
+  "effectiveWhen": "period_end"
 }
 ```
 
 Implementation note:
 
-- The endpoint updates the subscription price with no proration for yearly to monthly.
-- `period_end`, `period-end`, and `renewal` are accepted as legacy aliases, but new clients should send `next_invoice`.
+- The endpoint creates or updates a Stripe subscription schedule for yearly to monthly.
+- `next_invoice`, `period-end`, and `renewal` are accepted as legacy aliases, but new clients should send `period_end`.
 - The paid-through `current_period_end` remains the guardrail that keeps access `Full`.
 - Stripe webhooks remain the source of truth after the update.
 
@@ -238,7 +238,7 @@ Before the yearly period ends:
 
 - Effective access should remain `Full`.
 - The user should not enter grace just because the recurring price changed.
-- The local `PlanType` can become `individual_monthly` immediately because the Stripe item has changed immediately; access is still protected by the paid-through period.
+- The local `PlanType` should remain `individual_yearly` until Stripe enters the monthly phase and webhook projection updates the user.
 - Current period end should remain the paid-through date.
 
 ### Expected Backend State After Period End
@@ -429,12 +429,11 @@ Request:
 
 ```json
 {
-  "actorUserPk": "{{backend_user_pk}}",
-  "actorUserId": "{{backend_user_id}}",
-  "subscriptionId": "sub_...",
+  "manyChatSubscriberId": "{{manyChatSubscriberId}}",
+  "email": "{{email}}",
+  "phoneE164": "{{phoneE164}}",
   "targetPlanType": "individual_yearly",
-  "effectiveWhen": "immediate",
-  "returnUrl": "https://<static-website-host>/billing-return.html"
+  "effectiveWhen": "immediate"
 }
 ```
 
@@ -446,14 +445,15 @@ Recommended `targetPlanType` values:
 Recommended `effectiveWhen` values:
 
 - `immediate`
-- `next_invoice`
+- `period_end`
 
 Validation:
 
 - Actor must own the subscription.
+- Current Stripe price must be one of the configured individual monthly/yearly prices.
 - Target plan must be different from current plan.
 - Monthly to yearly can allow `immediate`.
-- Yearly to monthly should default to `next_invoice`.
+- Yearly to monthly should default to `period_end`.
 - Stripe customer ownership must match local user state.
 
 ### Update Company Seat Quantity
@@ -537,7 +537,7 @@ Remaining product decisions:
 Recommended default:
 
 - Monthly to yearly: immediate upgrade.
-- Yearly to monthly: next-invoice no-proration downgrade.
+- Yearly to monthly: period-end scheduled downgrade.
 - Add seats: immediate.
 - Reduce seats: no proration, and only if target seats are not below active seats.
 - Use HabloTruck-owned endpoints for plan and quantity changes so access, telemetry, and ManyChat sync remain predictable.

@@ -86,6 +86,29 @@ public sealed class StripeSubscriptionGatewayTests
         Assert.Equal("none", options.ProrationBehavior);
     }
 
+    [Fact]
+    public void BuildScheduledPriceChangeOptions_Should_CreateCurrentAndFuturePhases()
+    {
+        var start = new DateTimeOffset(2026, 4, 14, 12, 0, 0, TimeSpan.Zero);
+        var end = start.AddMonths(9);
+
+        var options = StripeSubscriptionGateway.BuildScheduledPriceChangeOptions(
+            "price_yearly",
+            "price_monthly",
+            1,
+            start,
+            end);
+
+        Assert.Equal("release", options.EndBehavior);
+        Assert.Equal("none", options.ProrationBehavior);
+        Assert.Equal(2, options.Phases.Count);
+        Assert.Equal("price_yearly", options.Phases[0].Items[0].Price);
+        Assert.Equal("price_monthly", options.Phases[1].Items[0].Price);
+        Assert.Equal(1, options.Phases[1].Items[0].Quantity);
+        Assert.Equal("month", options.Phases[1].Duration!.Interval);
+        Assert.Equal(1, options.Phases[1].Duration!.IntervalCount);
+    }
+
     private static SubscriptionItem NewSubscriptionItem(DateTime currentPeriodEndUtc)
     {
         var item = new SubscriptionItem();
