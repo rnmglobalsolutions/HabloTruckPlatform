@@ -10,4 +10,6 @@ public interface IAppMetrics
     void CompanyJoinSeatRefresh(bool refreshed, string reason);
     void ManyChatDispatchQueued(string actionType);
     void ManyChatDispatchProcessed(string actionType, string outcome);
+    void SubscriptionPlanChange(string outcome, string reason, string targetPlanType, string effectiveWhen);
+    void CompanySeatQuantityChange(string outcome, string reason, string direction, string effectiveWhen);
 }

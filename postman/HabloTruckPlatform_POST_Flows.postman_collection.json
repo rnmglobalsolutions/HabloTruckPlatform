@@ -66,6 +66,10 @@
       "value": "sub_123"
     },
     {
+      "key": "targetPlanType",
+      "value": "individual_yearly"
+    },
+    {
       "key": "stripeEventId",
       "value": "evt_123"
     },
@@ -741,7 +745,179 @@
           }
         },
         {
-          "name": "01.13 Get Payment Method Update Link",
+          "name": "01.13 Change Individual Plan - Upgrade Monthly To Yearly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_yearly\",\n  \"effectiveWhen\": \"immediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/change-plan?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "change-plan"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.14 Change Individual Plan - Downgrade Yearly To Monthly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_monthly\",\n  \"effectiveWhen\": \"period_end\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/change-plan?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "change-plan"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.15 Update Company Seat Quantity - Increase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetSeats\": {{seatQuantity}},\n  \"effectiveWhen\": \"immediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/update-seat-quantity?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "update-seat-quantity"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.16 Update Company Seat Quantity - Decrease",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetSeats\": {{seatQuantity}},\n  \"effectiveWhen\": \"next_invoice\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/update-seat-quantity?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "update-seat-quantity"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.17 Get Payment Method Update Link",
           "request": {
             "method": "POST",
             "header": [
@@ -784,7 +960,7 @@
           }
         },
         {
-          "name": "01.14 Retry Open Invoice",
+          "name": "01.18 Retry Open Invoice",
           "request": {
             "method": "POST",
             "header": [

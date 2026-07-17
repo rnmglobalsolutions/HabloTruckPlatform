@@ -784,3 +784,156 @@ x-correlation-id: <optional>
   "error": null
 }
 ```
+
+---
+
+## 19. Change Subscription Plan
+
+**Nombre**  
+`POST - Change Subscription Plan`
+
+**Endpoint Url**  
+`POST https://<func>.azurewebsites.net/api/stripe/subscription/change-plan?code=<FUNCTION_KEY>`
+
+**Headers (If any)**  
+```text
+x-api-key: <HTTP_API_KEY>
+Content-Type: application/json
+x-correlation-id: <optional>
+```
+
+**Request Object**  
+```json
+{
+  "manyChatSubscriberId": "123456789",
+  "email": "driver@example.com",
+  "phoneE164": "+13055551212",
+  "targetPlanType": "individual_yearly",
+  "effectiveWhen": "immediate"
+}
+```
+
+ManyChat-friendly identity:
+
+- `actorUserPk`, `actorUserId`, and `subscriptionId` are optional when the backend can resolve the existing user from `manyChatSubscriberId`, `email` / `emailNormalized`, or `phoneE164`.
+- The response returns `actorUserPk`, `actorUserId`, and `subscriptionId`; store them as ManyChat custom fields when available.
+
+Valores soportados:
+
+- `targetPlanType`: `individual_monthly`, `individual_yearly`
+- `effectiveWhen`: `immediate`, `period_end`
+
+Reglas actuales:
+
+- Mensual a anual: `targetPlanType=individual_yearly`, `effectiveWhen=immediate`
+- Anual a mensual: `targetPlanType=individual_monthly`, `effectiveWhen=period_end`
+- Compatibilidad legacy: `next_invoice`, `period-end`, y `renewal` se aceptan como alias de `period_end`.
+- Nota critica: `period_end` crea/actualiza un Stripe subscription schedule; mantiene el plan anual hasta la fecha ya pagada y empieza el plan mensual despues.
+- Los cambios inmediatos que generan invoice usan `payment_behavior=error_if_incomplete`; si Stripe no puede cobrar, el endpoint falla y no se actualiza el estado local como exitoso.
+
+**Response Object**  
+```json
+{
+  "ok": true,
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
+  "subscriptionId": "sub_123",
+  "previousPlanType": "individual_monthly",
+  "targetPlanType": "individual_yearly",
+  "effectiveWhen": "immediate",
+  "stripePriceId": "price_123",
+  "interval": "year",
+  "subscriptionStatus": "active",
+  "currentPeriodEndUtc": "2027-04-14T00:00:00.0000000Z",
+  "scheduledChangeEffectiveAtUtc": "",
+  "cancelAtPeriodEnd": false,
+  "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
+  "error": null
+}
+```
+
+Errores comunes:
+
+- `actor_required`
+- `actor_not_found`
+- `subscription_id_required`
+- `invalid_target_plan_type`
+- `invalid_effective_when`
+- `price_id_not_configured_for_plan`
+- `current_subscription_not_individual`
+- `subscription_not_found`
+- `forbidden`
+- `stripe_update_failed`
+
+---
+
+## 20. Update Company Seat Quantity
+
+**Nombre**  
+`POST - Update Company Seat Quantity`
+
+**Endpoint Url**  
+`POST https://<func>.azurewebsites.net/api/stripe/subscription/update-seat-quantity?code=<FUNCTION_KEY>`
+
+**Headers (If any)**  
+```text
+x-api-key: <HTTP_API_KEY>
+Content-Type: application/json
+x-correlation-id: <optional>
+```
+
+**Request Object**  
+```json
+{
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
+  "companyId": "C1",
+  "subscriptionId": "sub_123",
+  "targetSeats": 25,
+  "effectiveWhen": "immediate"
+}
+```
+
+Reglas actuales:
+
+- Aumentar seats: inmediato, con proration/invoice según Stripe.
+- Reducir seats: `effectiveWhen=next_invoice`, sin proration, y permitido solo si `targetSeats >= SeatsUsed`.
+- Aumentar seats usa `payment_behavior=error_if_incomplete`; si Stripe no puede cobrar la invoice inmediata, no se aumenta la capacidad local.
+- Si `targetSeats < SeatsUsed`, responde `target_below_seats_used` y no llama a Stripe.
+- Un aumento con `next_invoice` responde `invalid_effective_when_for_increase`.
+- Una reduccion con `immediate` responde `invalid_effective_when_for_decrease`.
+
+**Response Object**  
+```json
+{
+  "ok": true,
+  "companyId": "C1",
+  "entitlementId": "ent_sub_123",
+  "subscriptionId": "sub_123",
+  "previousSeatsTotal": 20,
+  "targetSeats": 25,
+  "seatsUsed": 18,
+  "isOverCapacity": false,
+  "direction": "increase",
+  "effectiveWhen": "immediate",
+  "currentPeriodEndUtc": "2026-05-14T00:00:00.0000000Z",
+  "requestedAtUtc": "2026-04-14T00:00:00.0000000Z",
+  "error": null
+}
+```
+
+Errores comunes:
+
+- `actor_required`
+- `actor_not_found`
+- `company_id_required`
+- `company_not_found`
+- `company_entitlement_not_found`
+- `subscription_id_required`
+- `target_seats_must_be_greater_than_zero`
+- `target_below_seats_used`
+- `invalid_effective_when_for_increase`
+- `invalid_effective_when_for_decrease`
+- `subscription_not_found`
+- `forbidden`
+- `stripe_update_failed`

@@ -60,6 +60,55 @@ public sealed class StripeSubscriptionGatewayTests
         Assert.Equal(new DateTimeOffset(item2End, TimeSpan.Zero), snapshot.CurrentPeriodEndUtc);
     }
 
+    [Fact]
+    public void BuildPriceChangeOptions_Should_RequireCompletedPayment_When_ImmediateInvoiceIsCreated()
+    {
+        var options = StripeSubscriptionGateway.BuildPriceChangeOptions(
+            "si_123",
+            "price_yearly",
+            "always_invoice",
+            "now");
+
+        Assert.Equal("error_if_incomplete", options.PaymentBehavior);
+        Assert.Equal("always_invoice", options.ProrationBehavior);
+        Assert.Equal(SubscriptionBillingCycleAnchor.Now, options.BillingCycleAnchor);
+    }
+
+    [Fact]
+    public void BuildQuantityChangeOptions_Should_NotRequirePayment_When_NoProrationIsUsed()
+    {
+        var options = StripeSubscriptionGateway.BuildQuantityChangeOptions(
+            "si_123",
+            8,
+            "none");
+
+        Assert.Null(options.PaymentBehavior);
+        Assert.Equal("none", options.ProrationBehavior);
+    }
+
+    [Fact]
+    public void BuildScheduledPriceChangeOptions_Should_CreateCurrentAndFuturePhases()
+    {
+        var start = new DateTimeOffset(2026, 4, 14, 12, 0, 0, TimeSpan.Zero);
+        var end = start.AddMonths(9);
+
+        var options = StripeSubscriptionGateway.BuildScheduledPriceChangeOptions(
+            "price_yearly",
+            "price_monthly",
+            1,
+            start,
+            end);
+
+        Assert.Equal("release", options.EndBehavior);
+        Assert.Equal("none", options.ProrationBehavior);
+        Assert.Equal(2, options.Phases.Count);
+        Assert.Equal("price_yearly", options.Phases[0].Items[0].Price);
+        Assert.Equal("price_monthly", options.Phases[1].Items[0].Price);
+        Assert.Equal(1, options.Phases[1].Items[0].Quantity);
+        Assert.Equal("month", options.Phases[1].Duration!.Interval);
+        Assert.Equal(1, options.Phases[1].Duration!.IntervalCount);
+    }
+
     private static SubscriptionItem NewSubscriptionItem(DateTime currentPeriodEndUtc)
     {
         var item = new SubscriptionItem();

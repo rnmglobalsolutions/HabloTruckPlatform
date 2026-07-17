@@ -143,6 +143,8 @@ var host = new HostBuilder()
         services.AddSingleton<CompanyAdminInviteService>();
         services.AddSingleton<BillingRecoveryManyChatNotifier>();
         services.AddSingleton<CancelSubscriptionAtPeriodEndUseCase>();
+        services.AddSingleton<ChangeSubscriptionPlanUseCase>();
+        services.AddSingleton<UpdateCompanySeatQuantityUseCase>();
         services.AddSingleton<CreateStripePaymentMethodUpdateLinkUseCase>();
         services.AddSingleton<RetryStripeOpenInvoiceUseCase>();
         services.AddSingleton<SubscriptionReminderService>();
