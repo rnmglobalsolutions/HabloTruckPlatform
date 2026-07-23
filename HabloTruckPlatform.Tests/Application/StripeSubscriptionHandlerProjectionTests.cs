@@ -117,6 +117,46 @@ public sealed class StripeSubscriptionHandlerProjectionTests
     }
 
     [Fact]
+    public async Task HandleCheckoutCompletedAsync_Should_ActivateExistingManyChatUser_WhenSubscriptionStatusIsBlank()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_checkout_existing_blank",
+            EmailNormalized = "driver@example.com",
+            ManyChatSubscriberId = "sid_checkout_existing_blank",
+            SubscriptionStatus = ""
+        };
+
+        fixture.UserStore.Add(user);
+
+        await fixture.Handler.HandleCheckoutCompletedAsync(new StripeEventData
+        {
+            StripeEventId = "evt_checkout_existing_blank",
+            StripeEventCreatedUtc = now,
+            CustomerId = "cus_checkout_existing_blank",
+            SubscriptionId = "sub_checkout_existing_blank",
+            CustomerEmail = "driver@example.com",
+            CheckoutMode = "subscription",
+            Metadata = new Dictionary<string, string>
+            {
+                ["planType"] = "individual_yearly",
+                ["manychatSubscriberId"] = "sid_checkout_existing_blank",
+                ["manychatChannel"] = "facebook"
+            }
+        });
+
+        var saved = fixture.UserStore.GetById("U_checkout_existing_blank");
+
+        Assert.NotNull(saved);
+        Assert.Equal("active", saved!.SubscriptionStatus);
+        Assert.Equal(AccessMode.Full, saved.EffectiveAccess!.Mode);
+        Assert.True(fixture.ManyChatSync.SyncCalls > 0);
+    }
+
+    [Fact]
     public async Task HandleCheckoutCompletedAsync_Should_GrantDirectAccess_ForCdlEnglishCohortPayment()
     {
         var now = Utc(2026, 3, 10, 12);
