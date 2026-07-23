@@ -7,6 +7,7 @@ using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 using System.Net;
 
 namespace HabloTruckPlatform.Functions.Functions;
@@ -21,6 +22,7 @@ public sealed class StripeWebhookFunction
     private readonly IStripeEventAuditStore _auditStore;
     private readonly IStripeSubscriptionHandler _subscriptionHandler;
     private readonly IUserResolver _userResolver;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly Metrics _metrics;
     private readonly ILogger<StripeWebhookFunction> _logger;
 
@@ -32,7 +34,8 @@ public sealed class StripeWebhookFunction
         IStripeSubscriptionHandler subscriptionHandler,
         IUserResolver userResolver,
         Metrics metrics,
-        ILogger<StripeWebhookFunction> logger)
+        ILogger<StripeWebhookFunction> logger,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _sigValidator = sigValidator;
         _parser = parser;
@@ -40,6 +43,7 @@ public sealed class StripeWebhookFunction
         _auditStore = auditStore;
         _subscriptionHandler = subscriptionHandler;
         _userResolver = userResolver;
+        _adminPaymentAlerts = adminPaymentAlerts;
         _metrics = metrics;
         _logger = logger;
     }
@@ -217,6 +221,15 @@ public sealed class StripeWebhookFunction
                 LogContext.Outcomes.ValidationFailed,
                 stripeEvent.Type);
 
+            if (IsPaymentFailureEvent(stripeEvent.Type))
+            {
+                await NotifyUnhandledPaymentFailureAsync(
+                    stripeEvent,
+                    createdUtc,
+                    "payment_failure_event_parse_failed",
+                    ct);
+            }
+
             await AppendAuditSafeAsync(new StripeEventAuditItem(
                 StripeEventId: stripeEvent.Id,
                 EventType: stripeEvent.Type,
@@ -249,6 +262,15 @@ public sealed class StripeWebhookFunction
 
         if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
         {
+            if (IsPaymentFailureEvent(parsed.EventType))
+            {
+                await NotifyUnhandledPaymentFailureAsync(
+                    stripeEvent,
+                    createdUtc,
+                    parsed.Data is null ? "unhandled_payment_failure_event" : "payment_failure_event_customer_missing",
+                    ct);
+            }
+
             _logger.LogInformation(
                 "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} EventType={EventType}",
                 LogContext.Categories.Decision,
@@ -538,6 +560,78 @@ public sealed class StripeWebhookFunction
             "applied" => LogContext.Outcomes.Applied,
             _ => LogContext.Outcomes.Completed
         };
+    }
+
+    private async Task NotifyUnhandledPaymentFailureAsync(
+        Stripe.Event stripeEvent,
+        DateTimeOffset createdUtc,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        var obj = stripeEvent.RawJObject?["data"]?["object"];
+        var lastPaymentError = obj?["last_payment_error"];
+        var outcome = obj?["outcome"];
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_payment_failure_webhook",
+            FailureStage = stripeEvent.Type ?? "stripe_payment_failure",
+            FailureReason = reason,
+            Severity = "Critical",
+            OccurredAtUtc = createdUtc,
+            StripeCustomerId = FirstRawString(obj, "customer"),
+            StripeSubscriptionId =
+                FirstRawString(obj, "subscription")
+                ?? FirstRawString(obj?["parent"]?["subscription_details"], "subscription"),
+            StripeInvoiceId = FirstRawString(obj, "invoice"),
+            StripeEventId = stripeEvent.Id,
+            StripeCheckoutSessionId = stripeEvent.Type == "checkout.session.async_payment_failed"
+                ? FirstRawString(obj, "id")
+                : null,
+            Details =
+            {
+                ["stripeEventType"] = stripeEvent.Type,
+                ["objectId"] = FirstRawString(obj, "id"),
+                ["objectType"] = FirstRawString(obj, "object"),
+                ["paymentIntentId"] = stripeEvent.Type == "payment_intent.payment_failed" ? FirstRawString(obj, "id") : FirstRawString(obj, "payment_intent"),
+                ["chargeId"] = stripeEvent.Type == "charge.failed" ? FirstRawString(obj, "id") : FirstRawString(obj, "latest_charge"),
+                ["status"] = FirstRawString(obj, "status"),
+                ["amount"] = FirstRawString(obj, "amount"),
+                ["currency"] = FirstRawString(obj, "currency"),
+                ["failureCode"] = FirstRawString(obj, "failure_code") ?? FirstRawString(outcome, "reason"),
+                ["failureMessage"] = FirstRawString(obj, "failure_message"),
+                ["declineCode"] = FirstRawString(lastPaymentError, "decline_code"),
+                ["lastPaymentErrorCode"] = FirstRawString(lastPaymentError, "code"),
+                ["lastPaymentErrorMessage"] = FirstRawString(lastPaymentError, "message"),
+                ["paymentMethod"] = FirstRawString(obj, "payment_method")
+            }
+        }, ct);
+    }
+
+    private static bool IsPaymentFailureEvent(string? eventType)
+    {
+        var normalized = eventType?.Trim().ToLowerInvariant();
+        return normalized is "invoice.payment_failed"
+            or "payment_intent.payment_failed"
+            or "charge.failed"
+            or "checkout.session.async_payment_failed"
+            or "checkout.session.expired";
+    }
+
+    private static string? FirstRawString(JToken? token, string propertyName)
+    {
+        var value = token?[propertyName];
+        if (value is null || value.Type == JTokenType.Null)
+            return null;
+
+        if (value.Type == JTokenType.Object)
+            return value["id"]?.ToString();
+
+        var text = value.ToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
     private static string? FirstHeader(HttpRequestData req, params string[] names)
