@@ -240,7 +240,37 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             manyChatChannel,
             ct);
 
+        if (IsDuplicateByEventId(user, data.StripeEventId))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserId={UserId}",
+                "decision",
+                "duplicate_event_skipped",
+                "skipped_duplicate",
+                "last_stripe_event_id_matches",
+                user.UserId);
+
+            return;
+        }
+
+        if (IsOutOfOrder(user, data.StripeEventCreatedUtc))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserId={UserId} EventCreatedUtc={EventCreatedUtc} LastEventCreatedUtc={LastEventCreatedUtc}",
+                "decision",
+                "out_of_order_event_skipped",
+                "skipped_out_of_order",
+                "stripe_event_created_before_last_processed",
+                user.UserId,
+                data.StripeEventCreatedUtc,
+                user.LastStripeEventCreatedUtc);
+
+            return;
+        }
+
         user.StripeCustomerId = data.CustomerId!.Trim();
+        user.LastStripeEventId = NullIfBlank(data.StripeEventId) ?? user.LastStripeEventId;
+        user.LastStripeEventCreatedUtc = data.StripeEventCreatedUtc;
 
         user.CohortId = string.IsNullOrWhiteSpace(cohortId) ? user.CohortId : cohortId;
         user.SchoolId = string.IsNullOrWhiteSpace(schoolId) ? user.SchoolId : schoolId;
@@ -299,7 +329,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             case "individual":
                 {
                     // Bootstrap only. subscription.updated is the source of truth.
-                    user.SubscriptionStatus ??= "active";
+                    user.SubscriptionStatus = "active";
                     user.UpdatedAtUtc = nowUtc;
 
                     await _userStore.UpsertAsync(user, ct);
