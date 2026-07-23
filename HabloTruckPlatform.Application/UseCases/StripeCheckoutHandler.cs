@@ -11,15 +11,18 @@ public sealed class StripeCheckoutHandler
 {
     private readonly IStripeCheckoutService _stripeCheckoutService;
     private readonly StripeOptions _stripeOptions;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly ILogger<StripeCheckoutHandler> _logger;
 
     public StripeCheckoutHandler(
         IStripeCheckoutService stripeCheckoutService,
         StripeOptions stripeOptions,
-        ILogger<StripeCheckoutHandler> logger)
+        ILogger<StripeCheckoutHandler> logger,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _stripeCheckoutService = stripeCheckoutService;
         _stripeOptions = stripeOptions;
+        _adminPaymentAlerts = adminPaymentAlerts;
         _logger = logger;
     }
 
@@ -40,27 +43,27 @@ public sealed class StripeCheckoutHandler
             return Fail("invalid_request", opWatch, null, null);
 
         if (string.IsNullOrWhiteSpace(request.PlanType))
-            return Fail("plan_type_required", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("plan_type_required", opWatch, request, ct);
 
         if (request.Quantity <= 0)
-            return Fail("quantity_must_be_greater_than_zero", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("quantity_must_be_greater_than_zero", opWatch, request, ct);
 
         if (string.IsNullOrWhiteSpace(request.SuccessUrl))
-            return Fail("success_url_required", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("success_url_required", opWatch, request, ct);
 
         if (string.IsNullOrWhiteSpace(request.CancelUrl))
-            return Fail("cancel_url_required", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("cancel_url_required", opWatch, request, ct);
 
         if (!IsAllowedRedirectUrl(request.SuccessUrl, out var successUrlError))
-            return Fail(successUrlError, opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync(successUrlError, opWatch, request, ct);
 
         if (!IsAllowedRedirectUrl(request.CancelUrl, out var cancelUrlError))
-            return Fail(cancelUrlError, opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync(cancelUrlError, opWatch, request, ct);
 
         request.PriceId = GetPriceIdForPlanType(request.PlanType);
 
         if (string.IsNullOrWhiteSpace(request.PriceId))
-            return Fail("price_id_not_configured_for_plan", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("price_id_not_configured_for_plan", opWatch, request, ct);
 
         var dependencyWatch = Stopwatch.StartNew();
 
@@ -89,6 +92,14 @@ public sealed class StripeCheckoutHandler
                 request.PriceId,
                 opWatch.ElapsedMilliseconds);
 
+            if (!result.Result)
+            {
+                await NotifyCheckoutFailureAsync(
+                    request,
+                    string.IsNullOrWhiteSpace(result.Error) ? "stripe_checkout_session_create_failed" : result.Error,
+                    ct);
+            }
+
             return result;
         }
         catch (Exception ex)
@@ -104,8 +115,51 @@ public sealed class StripeCheckoutHandler
                 request.PriceId,
                 dependencyWatch.ElapsedMilliseconds);
 
-            return Fail("stripe_checkout_session_create_failed", opWatch, request.PlanType, request.PriceId);
+            return await FailCheckoutAsync("stripe_checkout_session_create_failed", opWatch, request, ct);
         }
+    }
+
+    private async Task<StripeCheckoutSessionResult> FailCheckoutAsync(
+        string error,
+        Stopwatch opWatch,
+        StripeCheckoutSessionRequest request,
+        CancellationToken ct)
+    {
+        await NotifyCheckoutFailureAsync(request, error, ct);
+        return Fail(error, opWatch, request.PlanType, request.PriceId);
+    }
+
+    private async Task NotifyCheckoutFailureAsync(
+        StripeCheckoutSessionRequest request,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_checkout_create_session",
+            FailureStage = "checkout_link_creation",
+            FailureReason = reason,
+            OccurredAtUtc = DateTimeOffset.UtcNow,
+            Email = request.Email,
+            PhoneE164 = request.PhoneE164,
+            ManyChatSubscriberId = request.ManyChatSubscriberId,
+            CompanyId = request.CompanyId,
+            PlanType = request.PlanType,
+            PriceId = request.PriceId,
+            Details =
+            {
+                ["quantity"] = request.Quantity.ToString(),
+                ["successUrl"] = request.SuccessUrl,
+                ["cancelUrl"] = request.CancelUrl,
+                ["manyChatChannel"] = request.ManyChatChannel,
+                ["companyName"] = request.CompanyName,
+                ["schoolId"] = request.SchoolId,
+                ["cohortId"] = request.CohortId
+            }
+        }, ct);
     }
 
     private string NormalizePlanType(string? planType)

@@ -59,6 +59,7 @@ jobs:
           MANYCHAT_API_KEY_PROD: ${{ secrets.MANYCHAT_API_KEY_PROD }}
           STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
           STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+          ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD: ${{ secrets.ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD }}
           STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD: ${{ vars.STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD }}
           STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD: ${{ vars.STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD }}
           STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD: ${{ vars.STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD }}
@@ -88,6 +89,11 @@ jobs:
                 manyChatApiKey="$MANYCHAT_API_KEY_PROD" \
                 stripeSecretKey="$STRIPE_SECRET_KEY_PROD" \
                 stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_PROD" \
+                adminPaymentAlertsEnabled=true \
+                adminPaymentAlertsSendGridApiKey="$ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD" \
+                adminPaymentAlertsToEmail="info@rnmglobalsolutions.com" \
+                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_PROD:-alerts-platform@rnmglobalsolutions.com}" \
+                adminPaymentAlertsFromName="HabloTruck Production Alerts" \
                 stripeIndividualMonthlyPriceId="$STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD" \
                 stripeIndividualYearlyPriceId="$STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD" \
                 stripeFleetSeatMonthlyPriceId="$STRIPE_FLEET_SEAT_MONTHLY_PRICE_ID_PROD" \

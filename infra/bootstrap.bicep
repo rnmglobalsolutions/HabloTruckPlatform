@@ -89,6 +89,15 @@ param stripeSecretKey string
 @secure()
 param stripeWebhookSecret string
 
+param adminPaymentAlertsEnabled bool = false
+
+@secure()
+param adminPaymentAlertsSendGridApiKey string = ''
+
+param adminPaymentAlertsToEmail string = 'info@rnmglobalsolutions.com'
+param adminPaymentAlertsFromEmail string = 'alerts-platform@rnmglobalsolutions.com'
+param adminPaymentAlertsFromName string = 'HabloTruck Production Alerts'
+
 param manyChatBaseUrl string = 'https://api.manychat.com'
 param manyChatAddTagByNamePath string = 'fb/subscriber/addTagByName'
 param manyChatRemoveTagByNamePath string = 'fb/subscriber/removeTagByName'
@@ -159,6 +168,11 @@ module environmentDeployment './main.bicep' = {
     manyChatApiKey: manyChatApiKey
     stripeSecretKey: stripeSecretKey
     stripeWebhookSecret: stripeWebhookSecret
+    adminPaymentAlertsEnabled: adminPaymentAlertsEnabled
+    adminPaymentAlertsSendGridApiKey: adminPaymentAlertsSendGridApiKey
+    adminPaymentAlertsToEmail: adminPaymentAlertsToEmail
+    adminPaymentAlertsFromEmail: adminPaymentAlertsFromEmail
+    adminPaymentAlertsFromName: adminPaymentAlertsFromName
     manyChatBaseUrl: manyChatBaseUrl
     manyChatAddTagByNamePath: manyChatAddTagByNamePath
     manyChatRemoveTagByNamePath: manyChatRemoveTagByNamePath

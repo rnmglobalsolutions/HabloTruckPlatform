@@ -35,6 +35,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
     private readonly IFailedActionStore _failedActionStore;
     private readonly IStripeAdminClient _stripeAdminClient;
     private readonly BillingRecoveryManyChatNotifier _billingRecoveryNotifier;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly IAppMetrics? _metrics;
     private readonly ILogger<StripeSubscriptionHandler> _logger;
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -58,7 +59,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         ILogger<StripeSubscriptionHandler> logger,
         IManyChatDispatchQueue? manyChatDispatchQueue = null,
         IAppMetrics? metrics = null,
-        IManyChatAudienceResolver? manyChatAudienceResolver = null)
+        IManyChatAudienceResolver? manyChatAudienceResolver = null,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _userResolver = userResolver;
         _userStore = userStore;
@@ -77,6 +79,7 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         _failedActionStore = failedActionStore;
         _stripeAdminClient = stripeAdminClient;
         _billingRecoveryNotifier = billingRecoveryNotifier;
+        _adminPaymentAlerts = adminPaymentAlerts;
         _metrics = metrics;
         _logger = logger;
     }
@@ -523,6 +526,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (userRef is null)
         {
+            if (signal.Kind == StripeSignalKind.InvoicePaymentFailed)
+                await NotifyInvoicePaymentFailedAsync(signal, null, "user_not_found_by_stripe_customer_id", ct);
+
             await TryProjectCompanyEntitlementWithoutUserAsync(signal, _clock.UtcNow, ct);
 
             _logger.LogInformation(
@@ -547,6 +553,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
 
         if (user is null)
         {
+            if (signal.Kind == StripeSignalKind.InvoicePaymentFailed)
+                await NotifyInvoicePaymentFailedAsync(signal, null, "user_not_found_after_resolve", ct);
+
             await TryProjectCompanyEntitlementWithoutUserAsync(signal, _clock.UtcNow, ct);
 
             _logger.LogInformation(
@@ -708,6 +717,9 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
         if (paymentRecoveryJustStarted)
         {
             await _billingRecoveryNotifier.NotifyRecoveryActiveAsync(user, signal.StripeEventId, ct);
+
+            if (signal.Kind == StripeSignalKind.InvoicePaymentFailed)
+                await NotifyInvoicePaymentFailedAsync(signal, user, "payment_recovery_started", ct);
         }
 
         if (paymentRecoveryJustEnded)
@@ -858,6 +870,47 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             opWatch.ElapsedMilliseconds);
 
         return decision;
+    }
+
+    private async Task NotifyInvoicePaymentFailedAsync(
+        StripeSignal signal,
+        User? user,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_invoice_payment_failed",
+            FailureStage = "subscription_renewal_or_invoice_payment",
+            FailureReason = reason,
+            Severity = "Critical",
+            OccurredAtUtc = signal.StripeEventCreatedUtc,
+            UserPk = user is null ? null : Buckets.UserBucketPk(user.UserId),
+            UserId = user?.UserId,
+            Email = user?.EmailNormalized,
+            PhoneE164 = user?.PhoneE164,
+            ManyChatSubscriberId = user?.ManyChatSubscriberId,
+            CompanyId = user?.CompanyId,
+            StripeCustomerId = signal.StripeCustomerId,
+            StripeSubscriptionId = signal.StripeSubscriptionId,
+            StripeEventId = signal.StripeEventId,
+            PlanType = user?.PlanType,
+            PriceId = signal.PriceId,
+            Details =
+            {
+                ["stripeStatus"] = signal.Status,
+                ["stripeInterval"] = signal.Interval,
+                ["quantity"] = signal.Quantity?.ToString(),
+                ["currentPeriodEndUtc"] = signal.CurrentPeriodEndUtc?.UtcDateTime.ToString("O"),
+                ["cancelAtPeriodEnd"] = signal.CancelAtPeriodEnd?.ToString(),
+                ["localSubscriptionStatus"] = user?.SubscriptionStatus,
+                ["localPlanTerm"] = user?.IndividualPlanTerm,
+                ["paymentRecoveryStartedAtUtc"] = user?.PaymentRecoveryStartedAtUtc?.UtcDateTime.ToString("O")
+            }
+        }, ct);
     }
 
     private async Task<string?> ResolvePreferredManyChatSubscriberIdAsync(User user, CancellationToken ct)

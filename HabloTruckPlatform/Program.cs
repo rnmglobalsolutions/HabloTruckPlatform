@@ -7,6 +7,7 @@ using HabloTruckPlatform.Domain.Abstractions;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Domain.Abstractions;
 using HabloTruckPlatform.Security;
+using HabloTruckPlatform.Infrastructure.Integrations.Email;
 using HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 using HabloTruckPlatform.Infrastructure.Storage;
 using HabloTruckPlatform.Infrastructure.Storage.Factory;
@@ -170,6 +171,12 @@ var host = new HostBuilder()
         services.Configure<ManyChatOptions>(ctx.Configuration.GetSection("ManyChat"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<ManyChatOptions>>().Value);
         services.AddHttpClient<IManyChatSync, ManyChatSyncClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(20);
+        });
+
+        services.Configure<AdminPaymentAlertEmailOptions>(ctx.Configuration.GetSection("AdminPaymentAlerts"));
+        services.AddHttpClient<IAdminPaymentAlertNotifier, SendGridAdminPaymentAlertNotifier>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(20);
         });

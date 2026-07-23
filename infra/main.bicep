@@ -90,6 +90,22 @@ param stripeSecretKey string
 @secure()
 param stripeWebhookSecret string
 
+@description('Whether admin payment failure email alerts should be sent.')
+param adminPaymentAlertsEnabled bool = false
+
+@description('SendGrid API key used for admin payment failure email alerts.')
+@secure()
+param adminPaymentAlertsSendGridApiKey string = ''
+
+@description('Admin recipient for payment failure email alerts.')
+param adminPaymentAlertsToEmail string = 'info@rnmglobalsolutions.com'
+
+@description('Sender email for payment failure email alerts.')
+param adminPaymentAlertsFromEmail string = 'alerts-platform@rnmglobalsolutions.com'
+
+@description('Sender name for payment failure email alerts.')
+param adminPaymentAlertsFromName string = 'HabloTruck Production Alerts'
+
 @description('ManyChat base URL.')
 param manyChatBaseUrl string = 'https://api.manychat.com'
 
@@ -303,6 +319,14 @@ resource stripeWebhookSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   }
 }
 
+resource adminPaymentAlertsSendGridApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'AdminPaymentAlertsSendGridApiKey'
+  properties: {
+    value: adminPaymentAlertsSendGridApiKey
+  }
+}
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: appServicePlanName
   location: location
@@ -368,6 +392,30 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'CompanyGracePolicy__Days'
           value: string(companyGracePolicyDays)
+        }
+        {
+          name: 'AdminPaymentAlerts__Enabled'
+          value: string(adminPaymentAlertsEnabled)
+        }
+        {
+          name: 'AdminPaymentAlerts__EnvironmentName'
+          value: environmentName == 'prod' ? 'Production' : environmentName
+        }
+        {
+          name: 'AdminPaymentAlerts__ToEmail'
+          value: adminPaymentAlertsToEmail
+        }
+        {
+          name: 'AdminPaymentAlerts__FromEmail'
+          value: adminPaymentAlertsFromEmail
+        }
+        {
+          name: 'AdminPaymentAlerts__FromName'
+          value: adminPaymentAlertsFromName
+        }
+        {
+          name: 'AdminPaymentAlerts__SendGridApiKey'
+          value: '@Microsoft.KeyVault(SecretUri=${adminPaymentAlertsSendGridApiKeySecret.properties.secretUriWithVersion})'
         }
         {
           name: 'ManyChat__AddTagByNamePath'
