@@ -92,6 +92,7 @@ Create these repository secrets for `dev`:
 - `MANYCHAT_API_KEY_DEV`
 - `STRIPE_SECRET_KEY_DEV`
 - `STRIPE_WEBHOOK_SECRET_DEV`
+- `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV`
 
 Create these repository secrets for `prod`:
 
@@ -99,6 +100,7 @@ Create these repository secrets for `prod`:
 - `MANYCHAT_API_KEY_PROD`
 - `STRIPE_SECRET_KEY_PROD`
 - `STRIPE_WEBHOOK_SECRET_PROD`
+- `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD`
 
 ## 6. Configure GitHub repository variables for dev
 

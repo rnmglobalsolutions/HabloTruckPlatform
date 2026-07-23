@@ -85,6 +85,7 @@ El despliegue queda reservado al merge sobre la rama destino.
 - `MANYCHAT_API_KEY_DEV`
 - `STRIPE_SECRET_KEY_DEV`
 - `STRIPE_WEBHOOK_SECRET_DEV`
+- `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV`
 
 ### `prod`
 
@@ -92,6 +93,10 @@ El despliegue queda reservado al merge sobre la rama destino.
 - `MANYCHAT_API_KEY_PROD`
 - `STRIPE_SECRET_KEY_PROD`
 - `STRIPE_WEBHOOK_SECRET_PROD`
+- `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD`
+
+`ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD` se usa para enviar alertas administrativas de fallos de pago en producción a `info@rnmglobalsolutions.com`.
+`ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV` se usa para probar esas mismas alertas en desarrollo.
 
 ## 5. Configurar Variables en GitHub
 

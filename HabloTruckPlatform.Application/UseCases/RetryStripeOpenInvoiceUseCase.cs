@@ -1,6 +1,7 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
+using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,6 +16,7 @@ public sealed class RetryStripeOpenInvoiceUseCase
     private readonly IStripeAdminClient _stripeAdmin;
     private readonly BillingRecoveryManyChatNotifier _billingRecoveryNotifier;
     private readonly IClock _clock;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly ILogger<RetryStripeOpenInvoiceUseCase> _logger;
 
     public RetryStripeOpenInvoiceUseCase(
@@ -23,13 +25,15 @@ public sealed class RetryStripeOpenInvoiceUseCase
         IStripeAdminClient stripeAdmin,
         BillingRecoveryManyChatNotifier billingRecoveryNotifier,
         IClock clock,
-        ILogger<RetryStripeOpenInvoiceUseCase>? logger = null)
+        ILogger<RetryStripeOpenInvoiceUseCase>? logger = null,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _users = users;
         _stripeSubscriptions = stripeSubscriptions;
         _stripeAdmin = stripeAdmin;
         _billingRecoveryNotifier = billingRecoveryNotifier;
         _clock = clock;
+        _adminPaymentAlerts = adminPaymentAlerts;
         _logger = logger ?? NullLogger<RetryStripeOpenInvoiceUseCase>.Instance;
     }
 
@@ -119,6 +123,15 @@ public sealed class RetryStripeOpenInvoiceUseCase
             if (IsActivePaymentRecovery(actor))
                 await _billingRecoveryNotifier.NotifyRetryOutcomeAsync(actor, attempt, actor.UserId, ct);
 
+            if (!attempt.InvoicePaid)
+            {
+                await NotifyRetryFailureAsync(
+                    actor,
+                    attempt,
+                    attempt.InvoiceFound ? "invoice_retry_did_not_pay" : "open_invoice_not_found",
+                    ct);
+            }
+
             _logger.LogDebug(
                 "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} InvoiceId={InvoiceId}",
                 "dependency",
@@ -162,8 +175,49 @@ public sealed class RetryStripeOpenInvoiceUseCase
                 "stripe",
                 "retry_open_invoice");
 
+            await NotifyRetryFailureAsync(actor, null, "stripe_retry_failed", ct);
+
             return Fail("stripe_retry_failed", opWatch, actorId, subscriptionId);
         }
+    }
+
+    private async Task NotifyRetryFailureAsync(
+        User actor,
+        StripeOpenInvoiceRetryAttempt? attempt,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_retry_open_invoice",
+            FailureStage = "manual_or_self_service_payment_retry",
+            FailureReason = reason,
+            Severity = "High",
+            OccurredAtUtc = _clock.UtcNow,
+            UserPk = Buckets.UserBucketPk(actor.UserId),
+            UserId = actor.UserId,
+            Email = actor.EmailNormalized,
+            PhoneE164 = actor.PhoneE164,
+            ManyChatSubscriberId = actor.ManyChatSubscriberId,
+            CompanyId = actor.CompanyId,
+            StripeCustomerId = attempt?.CustomerId ?? actor.StripeCustomerId,
+            StripeSubscriptionId = attempt?.SubscriptionId ?? actor.StripeSubscriptionId,
+            StripeInvoiceId = attempt?.InvoiceId,
+            PlanType = actor.PlanType,
+            PriceId = actor.StripePriceId,
+            Details =
+            {
+                ["invoiceFound"] = attempt?.InvoiceFound.ToString(),
+                ["invoiceStatus"] = attempt?.InvoiceStatus,
+                ["collectionMethod"] = attempt?.CollectionMethod,
+                ["paymentAttempted"] = attempt?.PaymentAttempted.ToString(),
+                ["invoicePaid"] = attempt?.InvoicePaid.ToString(),
+                ["paymentRecoveryStartedAtUtc"] = actor.PaymentRecoveryStartedAtUtc?.UtcDateTime.ToString("O")
+            }
+        }, ct);
     }
 
     private StripeRetryOpenInvoiceResult Fail(

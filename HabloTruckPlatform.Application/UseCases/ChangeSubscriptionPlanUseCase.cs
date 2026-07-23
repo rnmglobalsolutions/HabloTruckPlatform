@@ -2,6 +2,7 @@ using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
+using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,6 +24,7 @@ public sealed class ChangeSubscriptionPlanUseCase
     private readonly IClock _clock;
     private readonly IAppMetrics? _metrics;
     private readonly IUserResolver? _userResolver;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly ILogger<ChangeSubscriptionPlanUseCase> _logger;
 
     public ChangeSubscriptionPlanUseCase(
@@ -32,7 +34,8 @@ public sealed class ChangeSubscriptionPlanUseCase
         IClock clock,
         ILogger<ChangeSubscriptionPlanUseCase>? logger = null,
         IAppMetrics? metrics = null,
-        IUserResolver? userResolver = null)
+        IUserResolver? userResolver = null,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _users = users;
         _stripeSubscriptions = stripeSubscriptions;
@@ -41,6 +44,7 @@ public sealed class ChangeSubscriptionPlanUseCase
         _logger = logger ?? NullLogger<ChangeSubscriptionPlanUseCase>.Instance;
         _metrics = metrics;
         _userResolver = userResolver;
+        _adminPaymentAlerts = adminPaymentAlerts;
     }
 
     public async Task<ChangeSubscriptionPlanResult> ExecuteAsync(
@@ -214,11 +218,15 @@ public sealed class ChangeSubscriptionPlanUseCase
                 subscriptionId,
                 requestedTarget);
 
+            await NotifyPlanChangeFailureAsync(user, subscriptionId, requestedTarget, targetPriceId, effectiveWhen, "stripe_update_failed", ct);
             return Fail("stripe_update_failed", opWatch, nowUtc, requestedTarget, effectiveWhen, subscriptionId, actorPk, actorId);
         }
 
         if (updated is null)
+        {
+            await NotifyPlanChangeFailureAsync(user, subscriptionId, requestedTarget, targetPriceId, effectiveWhen, "stripe_update_returned_null", ct);
             return Fail("stripe_update_failed", opWatch, nowUtc, requestedTarget, effectiveWhen, subscriptionId, actorPk, actorId);
+        }
 
         if (requestedTarget == PlanYearly)
             ApplyLocalSubscriptionHint(user, updated, requestedTarget, nowUtc);
@@ -257,6 +265,45 @@ public sealed class ChangeSubscriptionPlanUseCase
             effectiveWhen);
 
         return Success(updated, actorPk, actorId, currentPlan, requestedTarget, effectiveWhen, nowUtc);
+    }
+
+    private async Task NotifyPlanChangeFailureAsync(
+        User user,
+        string subscriptionId,
+        string? targetPlanType,
+        string targetPriceId,
+        string? effectiveWhen,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = OperationName,
+            FailureStage = "subscription_plan_change",
+            FailureReason = reason,
+            Severity = "High",
+            OccurredAtUtc = _clock.UtcNow,
+            UserPk = Buckets.UserBucketPk(user.UserId),
+            UserId = user.UserId,
+            Email = user.EmailNormalized,
+            PhoneE164 = user.PhoneE164,
+            ManyChatSubscriberId = user.ManyChatSubscriberId,
+            CompanyId = user.CompanyId,
+            StripeCustomerId = user.StripeCustomerId,
+            StripeSubscriptionId = subscriptionId,
+            PlanType = targetPlanType,
+            PriceId = targetPriceId,
+            Details =
+            {
+                ["currentPlanType"] = user.PlanType,
+                ["currentStripePriceId"] = user.StripePriceId,
+                ["effectiveWhen"] = effectiveWhen,
+                ["subscriptionStatus"] = user.SubscriptionStatus
+            }
+        }, ct);
     }
 
     private ChangeSubscriptionPlanResult Fail(

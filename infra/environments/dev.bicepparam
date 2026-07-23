@@ -25,6 +25,12 @@ param manyChatApiKey = ''
 param stripeSecretKey = ''
 param stripeWebhookSecret = ''
 
+param adminPaymentAlertsEnabled = true
+param adminPaymentAlertsSendGridApiKey = ''
+param adminPaymentAlertsToEmail = 'info@rnmglobalsolutions.com'
+param adminPaymentAlertsFromEmail = 'alerts-platform@rnmglobalsolutions.com'
+param adminPaymentAlertsFromName = 'HabloTruck Development Alerts'
+
 param manyChatBaseUrl = 'https://api.manychat.com'
 param manyChatAddTagByNamePath = 'fb/subscriber/addTagByName'
 param manyChatRemoveTagByNamePath = 'fb/subscriber/removeTagByName'

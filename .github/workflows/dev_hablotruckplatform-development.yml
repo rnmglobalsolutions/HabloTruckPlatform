@@ -61,6 +61,7 @@ jobs:
           MANYCHAT_API_KEY_DEV: ${{ secrets.MANYCHAT_API_KEY_DEV }}
           STRIPE_SECRET_KEY_DEV: ${{ secrets.STRIPE_SECRET_KEY_DEV }}
           STRIPE_WEBHOOK_SECRET_DEV: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEV }}
+          ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV: ${{ secrets.ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV }}
         run: |
           set -euo pipefail
 
@@ -77,6 +78,11 @@ jobs:
                 manyChatApiKey="$MANYCHAT_API_KEY_DEV" \
                 stripeSecretKey="$STRIPE_SECRET_KEY_DEV" \
                 stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_DEV" \
+                adminPaymentAlertsEnabled=true \
+                adminPaymentAlertsSendGridApiKey="$ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV" \
+                adminPaymentAlertsToEmail="info@rnmglobalsolutions.com" \
+                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_DEV:-alerts-platform@rnmglobalsolutions.com}" \
+                adminPaymentAlertsFromName="HabloTruck Development Alerts" \
               --query "properties.outputs" \
               --output json
           )"

@@ -1,6 +1,8 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
+using HabloTruckPlatform.Domain.Ids;
+using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
@@ -13,6 +15,7 @@ public sealed class CreateStripePaymentMethodUpdateLinkUseCase
     private readonly IStripeSubscriptionGateway _stripeSubscriptions;
     private readonly IStripeAdminClient _stripeAdmin;
     private readonly IClock _clock;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly ILogger<CreateStripePaymentMethodUpdateLinkUseCase> _logger;
 
     public CreateStripePaymentMethodUpdateLinkUseCase(
@@ -20,12 +23,14 @@ public sealed class CreateStripePaymentMethodUpdateLinkUseCase
         IStripeSubscriptionGateway stripeSubscriptions,
         IStripeAdminClient stripeAdmin,
         IClock clock,
-        ILogger<CreateStripePaymentMethodUpdateLinkUseCase>? logger = null)
+        ILogger<CreateStripePaymentMethodUpdateLinkUseCase>? logger = null,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _users = users;
         _stripeSubscriptions = stripeSubscriptions;
         _stripeAdmin = stripeAdmin;
         _clock = clock;
+        _adminPaymentAlerts = adminPaymentAlerts;
         _logger = logger ?? NullLogger<CreateStripePaymentMethodUpdateLinkUseCase>.Instance;
     }
 
@@ -148,6 +153,9 @@ public sealed class CreateStripePaymentMethodUpdateLinkUseCase
                 result.Result ? "payment_method_update_link_created" : result.Error,
                 opWatch.ElapsedMilliseconds);
 
+            if (!result.Result)
+                await NotifyPortalFailureAsync(actor, customerId, subscriptionId, "stripe_portal_session_failed", ct);
+
             return result;
         }
         catch (Exception ex)
@@ -160,8 +168,45 @@ public sealed class CreateStripePaymentMethodUpdateLinkUseCase
                 "stripe",
                 "create_payment_method_update_session");
 
+            await NotifyPortalFailureAsync(actor, customerId, subscriptionId, "stripe_portal_session_failed", ct);
+
             return Fail("stripe_portal_session_failed", opWatch, actorId, subscriptionId);
         }
+    }
+
+    private async Task NotifyPortalFailureAsync(
+        User actor,
+        string customerId,
+        string subscriptionId,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_payment_method_update_link",
+            FailureStage = "billing_portal_session_creation",
+            FailureReason = reason,
+            Severity = "High",
+            OccurredAtUtc = _clock.UtcNow,
+            UserPk = Buckets.UserBucketPk(actor.UserId),
+            UserId = actor.UserId,
+            Email = actor.EmailNormalized,
+            PhoneE164 = actor.PhoneE164,
+            ManyChatSubscriberId = actor.ManyChatSubscriberId,
+            CompanyId = actor.CompanyId,
+            StripeCustomerId = customerId,
+            StripeSubscriptionId = subscriptionId,
+            PlanType = actor.PlanType,
+            PriceId = actor.StripePriceId,
+            Details =
+            {
+                ["paymentRecoveryStartedAtUtc"] = actor.PaymentRecoveryStartedAtUtc?.UtcDateTime.ToString("O"),
+                ["subscriptionStatus"] = actor.SubscriptionStatus
+            }
+        }, ct);
     }
 
     private StripePaymentMethodUpdateLinkResult Fail(
