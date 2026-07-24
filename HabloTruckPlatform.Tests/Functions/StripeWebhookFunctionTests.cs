@@ -208,6 +208,102 @@ public sealed class StripeWebhookFunctionTests
     }
 
     [Fact]
+    public async Task Run_Should_SendAdminAlert_ForPaymentIntentPaymentFailed()
+    {
+        var alerts = new RecordingAdminPaymentAlertNotifier(AdminPaymentAlertDeliveryResult.Sent());
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts);
+        var json = BuildPaymentIntentFailedEventJson(
+            "evt_pi_failed",
+            "cus_pi_failed",
+            "pi_failed",
+            "ch_failed",
+            "insufficient_funds");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(fixture.Handler.Calls);
+
+        var alert = Assert.Single(alerts.Alerts);
+        Assert.Equal("stripe_payment_failure_webhook", alert.OperationName);
+        Assert.Equal("payment_intent.payment_failed", alert.FailureStage);
+        Assert.Equal("cus_pi_failed", alert.StripeCustomerId);
+        Assert.Equal("evt_pi_failed", alert.StripeEventId);
+        Assert.Equal("pi_failed", alert.Details["paymentIntentId"]);
+        Assert.Equal("ch_failed", alert.Details["chargeId"]);
+        Assert.Equal("insufficient_funds", alert.Details["declineCode"]);
+
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("stripe_payment_failure_alert_sent", audit.Outcome);
+        Assert.Equal("payment_intent.payment_failed:sendgrid_accepted", audit.Reason);
+    }
+
+    [Fact]
+    public async Task Run_Should_SendAdminAlert_ForChargeFailed()
+    {
+        var alerts = new RecordingAdminPaymentAlertNotifier(AdminPaymentAlertDeliveryResult.Sent());
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts);
+        var json = BuildChargeFailedEventJson("evt_charge_failed", "cus_charge_failed", "pi_charge_failed", "ch_charge_failed");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var alert = Assert.Single(alerts.Alerts);
+        Assert.Equal("charge.failed", alert.FailureStage);
+        Assert.Equal("ch_charge_failed", alert.Details["chargeId"]);
+        Assert.Equal("pi_charge_failed", alert.Details["paymentIntentId"]);
+        Assert.Equal("generic_decline", alert.Details["failureCode"]);
+        Assert.Equal("generic_decline", alert.Details["declineCode"]);
+    }
+
+    [Fact]
+    public async Task Run_Should_SendAdminAlert_ForCheckoutExpiredWithoutCustomer()
+    {
+        var alerts = new RecordingAdminPaymentAlertNotifier(AdminPaymentAlertDeliveryResult.Sent());
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts);
+        var json = BuildCheckoutExpiredEventJson("evt_checkout_expired", "cs_expired_123");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(fixture.Handler.Calls);
+
+        var alert = Assert.Single(alerts.Alerts);
+        Assert.Equal("checkout.session.expired", alert.FailureStage);
+        Assert.Equal("cs_expired_123", alert.StripeCheckoutSessionId);
+        Assert.Equal("checkout_session_expired", alert.Details["failureCode"]);
+
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("stripe_payment_failure_alert_sent", audit.Outcome);
+    }
+
+    [Fact]
+    public async Task Run_Should_AuditSkipped_WhenPaymentFailureAlertIsDisabled()
+    {
+        var alerts = new RecordingAdminPaymentAlertNotifier(
+            AdminPaymentAlertDeliveryResult.Skipped("admin_payment_alert_email_disabled"));
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts);
+        var json = BuildPaymentIntentFailedEventJson(
+            "evt_pi_skipped",
+            "cus_pi_skipped",
+            "pi_skipped",
+            "ch_skipped",
+            "generic_decline");
+        var req = NewSignedRequest(json, fixture.WebhookSecret);
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var audit = Assert.Single(fixture.AuditStore.Items);
+        Assert.Equal("stripe_payment_failure_alert_skipped", audit.Outcome);
+        Assert.Equal("payment_intent.payment_failed:admin_payment_alert_email_disabled", audit.Reason);
+    }
+
+    [Fact]
     public async Task Run_Should_DispatchCustomerUpdated_ToCorrectHandler()
     {
         var fixture = BuildFixture(eventStoreResult: true);
@@ -350,7 +446,7 @@ public sealed class StripeWebhookFunctionTests
             ? StripeEventProcessingStartResult.Started
             : StripeEventProcessingStartResult.AlreadyProcessed));
 
-    private static Fixture BuildFixture(IStripeEventStore eventStore)
+    private static Fixture BuildFixture(IStripeEventStore eventStore, IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         const string webhookSecret = "whsec_test_webhook";
 
@@ -375,7 +471,8 @@ public sealed class StripeWebhookFunctionTests
             handler,
             userResolver,
             metrics,
-            NullLogger<StripeWebhookFunction>.Instance);
+            NullLogger<StripeWebhookFunction>.Instance,
+            adminPaymentAlerts);
 
         return new Fixture(function, handler, auditStore, webhookSecret);
     }
@@ -587,6 +684,127 @@ public sealed class StripeWebhookFunctionTests
       "invoice_settings": {
         "default_payment_method": "pm_old_123"
       }
+    }
+  }
+}
+""";
+
+    private static string BuildPaymentIntentFailedEventJson(
+        string eventId,
+        string customerId,
+        string paymentIntentId,
+        string chargeId,
+        string declineCode)
+        => $$"""
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "payment_intent.payment_failed",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_pi_failed",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "{{paymentIntentId}}",
+      "object": "payment_intent",
+      "customer": "{{customerId}}",
+      "latest_charge": "{{chargeId}}",
+      "payment_method": "pm_failed",
+      "payment_method_types": ["card"],
+      "amount": 10340,
+      "currency": "usd",
+      "status": "requires_payment_method",
+      "last_payment_error": {
+        "code": "card_declined",
+        "decline_code": "{{declineCode}}",
+        "message": "Your card was declined.",
+        "payment_method": {
+          "id": "pm_failed",
+          "object": "payment_method",
+          "type": "card"
+        }
+      }
+    }
+  }
+}
+""";
+
+    private static string BuildChargeFailedEventJson(
+        string eventId,
+        string customerId,
+        string paymentIntentId,
+        string chargeId)
+        => $$"""
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "charge.failed",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_charge_failed",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "{{chargeId}}",
+      "object": "charge",
+      "customer": "{{customerId}}",
+      "payment_intent": "{{paymentIntentId}}",
+      "payment_method": "pm_charge_failed",
+      "amount": 10340,
+      "currency": "usd",
+      "status": "failed",
+      "failure_code": "generic_decline",
+      "failure_message": "Your card was declined.",
+      "outcome": {
+        "reason": "generic_decline",
+        "type": "issuer_declined"
+      },
+      "payment_method_details": {
+        "type": "card"
+      },
+      "billing_details": {
+        "email": "driver@example.com"
+      }
+    }
+  }
+}
+""";
+
+    private static string BuildCheckoutExpiredEventJson(string eventId, string checkoutSessionId)
+        => $$"""
+{
+  "id": "{{eventId}}",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "checkout.session.expired",
+  "created": 1770000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": {
+    "id": "req_test_checkout_expired",
+    "idempotency_key": null
+  },
+  "data": {
+    "object": {
+      "id": "{{checkoutSessionId}}",
+      "object": "checkout.session",
+      "customer": null,
+      "customer_details": {
+        "email": "driver@example.com"
+      },
+      "mode": "subscription",
+      "status": "expired",
+      "amount_total": 10340,
+      "currency": "usd"
     }
   }
 }
@@ -861,6 +1079,22 @@ public sealed class StripeWebhookFunctionTests
 
         public Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
             => Task.FromResult<UserRef?>(null);
+    }
+
+    private sealed class RecordingAdminPaymentAlertNotifier : IAdminPaymentAlertNotifier
+    {
+        private readonly AdminPaymentAlertDeliveryResult _result;
+
+        public RecordingAdminPaymentAlertNotifier(AdminPaymentAlertDeliveryResult result)
+            => _result = result;
+
+        public List<AdminPaymentAlert> Alerts { get; } = new();
+
+        public Task<AdminPaymentAlertDeliveryResult> NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default)
+        {
+            Alerts.Add(alert);
+            return Task.FromResult(_result);
+        }
     }
 
     private sealed class TestHttpRequestData : HttpRequestData
