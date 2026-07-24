@@ -4,5 +4,5 @@ namespace HabloTruckPlatform.Application.Abstractions;
 
 public interface IAdminPaymentAlertNotifier
 {
-    Task NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default);
+    Task<AdminPaymentAlertDeliveryResult> NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default);
 }

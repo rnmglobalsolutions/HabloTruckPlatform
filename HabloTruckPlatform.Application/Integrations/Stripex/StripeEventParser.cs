@@ -14,6 +14,10 @@ public sealed class StripeEventParser
             "checkout.session.completed" => ParseCheckout(stripeEvent),
             "invoice.paid" => ParseInvoicePaid(stripeEvent),
             "invoice.payment_failed" => ParseInvoiceFailed(stripeEvent),
+            "payment_intent.payment_failed" => ParsePaymentIntentFailed(stripeEvent),
+            "charge.failed" => ParseChargeFailed(stripeEvent),
+            "checkout.session.async_payment_failed" => ParseCheckoutAsyncPaymentFailed(stripeEvent),
+            "checkout.session.expired" => ParseCheckoutExpired(stripeEvent),
             "customer.updated" => ParseCustomerUpdated(stripeEvent),
             "customer.subscription.updated" => ParseSubUpdated(stripeEvent),
             "customer.subscription.deleted" => ParseSubDeleted(stripeEvent),
@@ -42,6 +46,64 @@ public sealed class StripeEventParser
                 PriceId = priceId,
                 Interval = interval,
                 Quantity = TryGetCheckoutQuantity(raw)
+            }));
+    }
+
+    private static StripeParsedEvent ParseCheckoutAsyncPaymentFailed(Event e)
+    {
+        var session = e.Data.Object as Stripe.Checkout.Session
+                      ?? throw new InvalidOperationException("Invalid checkout.session");
+
+        var raw = session.RawJObject;
+
+        return new StripeParsedEvent(
+            e.Type,
+            Stamp(e, new StripeEventData
+            {
+                EventType = e.Type,
+                CustomerId = FirstRawString(raw, "customer") ?? session.CustomerId,
+                CustomerEmail = session.CustomerDetails?.Email
+                                ?? FirstRawString(raw?["customer_details"], "email")
+                                ?? FirstRawString(raw, "customer_email"),
+                SubscriptionId = FirstRawString(raw, "subscription") ?? session.SubscriptionId,
+                CheckoutSessionId = FirstRawString(raw, "id") ?? session.Id,
+                CheckoutMode = session.Mode ?? FirstRawString(raw, "mode"),
+                PaymentIntentId = FirstRawString(raw, "payment_intent"),
+                Status = session.Status ?? FirstRawString(raw, "status"),
+                Amount = FirstRawLong(raw, "amount_total") ?? FirstRawLong(raw, "amount_subtotal"),
+                Currency = FirstRawString(raw, "currency"),
+                FailureCode = "checkout_async_payment_failed",
+                FailureMessage = "Checkout async payment failed after the hosted session was created.",
+                Metadata = session.Metadata
+            }));
+    }
+
+    private static StripeParsedEvent ParseCheckoutExpired(Event e)
+    {
+        var session = e.Data.Object as Stripe.Checkout.Session
+                      ?? throw new InvalidOperationException("Invalid checkout.session");
+
+        var raw = session.RawJObject;
+
+        return new StripeParsedEvent(
+            e.Type,
+            Stamp(e, new StripeEventData
+            {
+                EventType = e.Type,
+                CustomerId = FirstRawString(raw, "customer") ?? session.CustomerId,
+                CustomerEmail = session.CustomerDetails?.Email
+                                ?? FirstRawString(raw?["customer_details"], "email")
+                                ?? FirstRawString(raw, "customer_email"),
+                SubscriptionId = FirstRawString(raw, "subscription") ?? session.SubscriptionId,
+                CheckoutSessionId = FirstRawString(raw, "id") ?? session.Id,
+                CheckoutMode = session.Mode ?? FirstRawString(raw, "mode"),
+                PaymentIntentId = FirstRawString(raw, "payment_intent"),
+                Status = session.Status ?? FirstRawString(raw, "status"),
+                Amount = FirstRawLong(raw, "amount_total") ?? FirstRawLong(raw, "amount_subtotal"),
+                Currency = FirstRawString(raw, "currency"),
+                FailureCode = "checkout_session_expired",
+                FailureMessage = "Checkout session expired before payment was successfully completed.",
+                Metadata = session.Metadata
             }));
     }
 
@@ -101,6 +163,65 @@ public sealed class StripeEventParser
                 Quantity = quantity,
                 // Status optional here; handler can treat invoice.payment_failed as past_due signal
                 Status = "payment_failed"
+            }));
+    }
+
+    private static StripeParsedEvent ParsePaymentIntentFailed(Event e)
+    {
+        var paymentIntent = e.Data.Object as PaymentIntent
+                            ?? throw new InvalidOperationException("Invalid payment_intent");
+
+        var raw = paymentIntent.RawJObject;
+        var lastPaymentError = raw?["last_payment_error"];
+
+        return new StripeParsedEvent(
+            e.Type,
+            Stamp(e, new StripeEventData
+            {
+                EventType = e.Type,
+                CustomerId = FirstRawString(raw, "customer") ?? paymentIntent.CustomerId,
+                CustomerEmail = FirstRawString(raw, "receipt_email"),
+                PaymentIntentId = FirstRawString(raw, "id") ?? paymentIntent.Id,
+                ChargeId = FirstRawString(raw, "latest_charge") ?? FirstRawString(lastPaymentError, "charge"),
+                PaymentMethod = FirstRawString(lastPaymentError?["payment_method"], "id")
+                                ?? FirstRawString(raw, "payment_method"),
+                PaymentMethodType = FirstRawString(lastPaymentError?["payment_method"], "type")
+                                    ?? FirstRawString(raw?["payment_method_types"]?.First),
+                Amount = FirstRawLong(raw, "amount"),
+                Currency = FirstRawString(raw, "currency"),
+                Status = paymentIntent.Status ?? FirstRawString(raw, "status"),
+                FailureCode = FirstRawString(lastPaymentError, "code"),
+                FailureMessage = FirstRawString(lastPaymentError, "message"),
+                DeclineCode = FirstRawString(lastPaymentError, "decline_code")
+            }));
+    }
+
+    private static StripeParsedEvent ParseChargeFailed(Event e)
+    {
+        var charge = e.Data.Object as Charge
+                     ?? throw new InvalidOperationException("Invalid charge");
+
+        var raw = charge.RawJObject;
+        var outcome = raw?["outcome"];
+        var paymentMethodDetails = raw?["payment_method_details"];
+
+        return new StripeParsedEvent(
+            e.Type,
+            Stamp(e, new StripeEventData
+            {
+                EventType = e.Type,
+                CustomerId = FirstRawString(raw, "customer") ?? charge.CustomerId,
+                CustomerEmail = FirstRawString(raw?["billing_details"], "email"),
+                PaymentIntentId = FirstRawString(raw, "payment_intent"),
+                ChargeId = FirstRawString(raw, "id") ?? charge.Id,
+                PaymentMethod = FirstRawString(raw, "payment_method"),
+                PaymentMethodType = FirstRawString(paymentMethodDetails, "type"),
+                Amount = FirstRawLong(raw, "amount"),
+                Currency = FirstRawString(raw, "currency"),
+                Status = charge.Status ?? FirstRawString(raw, "status"),
+                FailureCode = FirstRawString(raw, "failure_code"),
+                FailureMessage = FirstRawString(raw, "failure_message"),
+                DeclineCode = FirstRawString(outcome, "reason")
             }));
     }
 
@@ -345,6 +466,30 @@ public sealed class StripeEventParser
     private static string? NullIfBlank(string? s)
         => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
+    private static string? FirstRawString(JToken? token)
+    {
+        if (token is null || token.Type == JTokenType.Null)
+            return null;
+
+        if (token.Type == JTokenType.Object)
+            return FirstRawString(token, "id");
+
+        var text = token.ToString();
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+    }
+
+    private static string? FirstRawString(JToken? token, string propertyName)
+        => FirstRawString(token?[propertyName]);
+
+    private static long? FirstRawLong(JToken? token, string propertyName)
+    {
+        var value = token?[propertyName];
+        if (value is null || value.Type == JTokenType.Null)
+            return null;
+
+        return value.Value<long?>();
+    }
+
     private static bool HasUpdatedDefaultPaymentMethod(JObject? current, JToken? previousAttributes)
     {
         var currentDefaultPaymentMethod = current?["invoice_settings"]?["default_payment_method"]?.ToString();
@@ -370,6 +515,7 @@ public sealed class StripeEventData
     // Core identifiers
     public string? CustomerId { get; set; }
     public string? SubscriptionId { get; set; }
+    public string? EventType { get; set; }
 
     // Status (subscription.updated/deleted etc)
     public string? Status { get; set; }
@@ -387,6 +533,16 @@ public sealed class StripeEventData
     // Checkout extras
     public string? CustomerEmail { get; set; }
     public string? CheckoutMode { get; set; }
+    public string? CheckoutSessionId { get; set; }
+    public string? PaymentIntentId { get; set; }
+    public string? ChargeId { get; set; }
+    public string? FailureCode { get; set; }
+    public string? FailureMessage { get; set; }
+    public string? DeclineCode { get; set; }
+    public long? Amount { get; set; }
+    public string? Currency { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? PaymentMethodType { get; set; }
     public int? Quantity { get; set; }
     public Dictionary<string, string>? Metadata { get; set; }
     public bool? PaymentMethodUpdated { get; set; }

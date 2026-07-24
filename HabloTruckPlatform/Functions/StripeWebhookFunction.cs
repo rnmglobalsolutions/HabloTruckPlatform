@@ -260,7 +260,7 @@ public sealed class StripeWebhookFunction
                 started.ElapsedMilliseconds);
         }
 
-        if (string.IsNullOrWhiteSpace(parsed.Data?.CustomerId))
+        if (parsed.Data is null)
         {
             if (IsPaymentFailureEvent(parsed.EventType))
             {
@@ -282,17 +282,17 @@ public sealed class StripeWebhookFunction
                 StripeEventId: stripeEvent.Id,
                 EventType: parsed.EventType,
                 CustomerId: null,
-                SubscriptionId: parsed.Data?.SubscriptionId,
-                PriceId: parsed.Data?.PriceId,
-                Status: parsed.Data?.Status,
+                SubscriptionId: null,
+                PriceId: null,
+                Status: null,
                 EventCreatedUtc: createdUtc,
                 ProcessedUtc: DateTimeOffset.UtcNow,
                 Outcome: "skipped_no_customer",
-                Reason: "Parsed event had no customer id",
+                Reason: "Parsed event had no data",
                 UserPk: null,
                 UserId: null,
-                CurrentPeriodEndUtc: parsed.Data?.CurrentPeriodEndUtc,
-                CancelAtPeriodEnd: parsed.Data?.CancelAtPeriodEnd,
+                CurrentPeriodEndUtc: null,
+                CancelAtPeriodEnd: null,
                 AccessMode: null,
                 AccessSource: null,
                 Error: null
@@ -309,21 +309,74 @@ public sealed class StripeWebhookFunction
         }
 
         // Inject metadata if parser didn't already.
-        parsed.Data!.StripeEventId = stripeEvent.Id;
+        parsed.Data.StripeEventId = stripeEvent.Id;
         parsed.Data.StripeEventCreatedUtc = createdUtc;
 
-        var resolveUserWatch = Stopwatch.StartNew();
-        var userRef = await _userResolver.ResolveByStripeCustomerIdAsync(parsed.Data.CustomerId!, ct);
+        if (string.IsNullOrWhiteSpace(parsed.Data.CustomerId) && !IsPaymentFailureEvent(parsed.EventType))
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} EventType={EventType}",
+                LogContext.Categories.Decision,
+                "skipped_without_customer",
+                LogContext.Outcomes.SkippedNoCustomer,
+                parsed.EventType);
 
-        _logger.LogDebug(
-            "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
-            LogContext.Categories.Dependency,
-            "table_storage",
-            "user_resolver.resolve_by_stripe_customer_id",
-            "UserStripeCustomerLookup",
-            resolveUserWatch.ElapsedMilliseconds,
-            true,
-            userRef is not null);
+            await AppendAuditSafeAsync(new StripeEventAuditItem(
+                StripeEventId: stripeEvent.Id,
+                EventType: parsed.EventType,
+                CustomerId: null,
+                SubscriptionId: parsed.Data.SubscriptionId,
+                PriceId: parsed.Data.PriceId,
+                Status: parsed.Data.Status,
+                EventCreatedUtc: createdUtc,
+                ProcessedUtc: DateTimeOffset.UtcNow,
+                Outcome: "skipped_no_customer",
+                Reason: "Parsed event had no customer id",
+                UserPk: null,
+                UserId: null,
+                CurrentPeriodEndUtc: parsed.Data.CurrentPeriodEndUtc,
+                CancelAtPeriodEnd: parsed.Data.CancelAtPeriodEnd,
+                AccessMode: null,
+                AccessSource: null,
+                Error: null
+            ), ct);
+
+            await _eventStore.MarkProcessedAsync(stripeEvent.Id, ct);
+
+            return BuildOutcomeResponse(
+                req,
+                HttpStatusCode.OK,
+                LogContext.Outcomes.SkippedNoCustomer,
+                "customer_missing",
+                started.ElapsedMilliseconds);
+        }
+
+        UserRef? userRef = null;
+        if (!string.IsNullOrWhiteSpace(parsed.Data.CustomerId))
+        {
+            var resolveUserWatch = Stopwatch.StartNew();
+            userRef = await _userResolver.ResolveByStripeCustomerIdAsync(parsed.Data.CustomerId!, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success} Found={Found}",
+                LogContext.Categories.Dependency,
+                "table_storage",
+                "user_resolver.resolve_by_stripe_customer_id",
+                "UserStripeCustomerLookup",
+                resolveUserWatch.ElapsedMilliseconds,
+                true,
+                userRef is not null);
+        }
+        else
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} EventType={EventType}",
+                LogContext.Categories.Decision,
+                "user_resolution",
+                "no_action_needed",
+                "payment_failure_event_without_customer",
+                parsed.EventType);
+        }
 
         using var processingScope = LogContext.BeginOperationScope(
             _logger,
@@ -443,6 +496,15 @@ public sealed class StripeWebhookFunction
                     return ToDispatchResult(decision, "Invoice payment failed handled");
                 }
 
+            case "payment_intent.payment_failed":
+            case "charge.failed":
+            case "checkout.session.async_payment_failed":
+            case "checkout.session.expired":
+                {
+                    var delivery = await NotifyPaymentFailureAsync(parsed.Data!, parsed.EventType, ct);
+                    return ToPaymentFailureDispatchResult(delivery, parsed.EventType);
+                }
+
             case "customer.updated":
                 await _subscriptionHandler.HandleCustomerUpdatedAsync(parsed.Data!, ct);
                 return new DispatchResult("applied", "Customer updated handled", null, null);
@@ -558,6 +620,9 @@ public sealed class StripeWebhookFunction
             "failed_parse" => LogContext.Outcomes.ValidationFailed,
             "failed" => LogContext.Outcomes.DependencyFailed,
             "applied" => LogContext.Outcomes.Applied,
+            "stripe_payment_failure_alert_sent" => LogContext.Outcomes.Applied,
+            "stripe_payment_failure_alert_skipped" => LogContext.Outcomes.NoActionNeeded,
+            "stripe_payment_failure_alert_failed" => LogContext.Outcomes.DependencyFailed,
             _ => LogContext.Outcomes.Completed
         };
     }
@@ -569,13 +634,26 @@ public sealed class StripeWebhookFunction
         CancellationToken ct)
     {
         if (_adminPaymentAlerts is null)
+        {
+            LogPaymentFailureAlertOutcome(
+                "stripe_payment_failure_alert_skipped",
+                "admin_payment_alert_not_registered",
+                stripeEvent.Id,
+                stripeEvent.Type,
+                stripeCustomerId: null,
+                paymentIntentId: null,
+                chargeId: null,
+                checkoutSessionId: null,
+                failureCode: null,
+                declineCode: null);
             return;
+        }
 
         var obj = stripeEvent.RawJObject?["data"]?["object"];
         var lastPaymentError = obj?["last_payment_error"];
         var outcome = obj?["outcome"];
 
-        await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+        var alert = new AdminPaymentAlert
         {
             OperationName = "stripe_payment_failure_webhook",
             FailureStage = stripeEvent.Type ?? "stripe_payment_failure",
@@ -608,8 +686,169 @@ public sealed class StripeWebhookFunction
                 ["lastPaymentErrorMessage"] = FirstRawString(lastPaymentError, "message"),
                 ["paymentMethod"] = FirstRawString(obj, "payment_method")
             }
-        }, ct);
+        };
+
+        var delivery = await _adminPaymentAlerts.NotifyAsync(alert, ct);
+        LogPaymentFailureAlertOutcome(
+            ToPaymentFailureTelemetryOutcome(delivery.Status),
+            delivery.Reason,
+            stripeEvent.Id,
+            stripeEvent.Type,
+            alert.StripeCustomerId,
+            alert.Details.GetValueOrDefault("paymentIntentId"),
+            alert.Details.GetValueOrDefault("chargeId"),
+            alert.StripeCheckoutSessionId,
+            alert.Details.GetValueOrDefault("failureCode") ?? alert.Details.GetValueOrDefault("lastPaymentErrorCode"),
+            alert.Details.GetValueOrDefault("declineCode"));
     }
+
+    private async Task<AdminPaymentAlertDeliveryResult> NotifyPaymentFailureAsync(
+        StripeEventData data,
+        string eventType,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+        {
+            LogPaymentFailureAlertOutcome(
+                "stripe_payment_failure_alert_skipped",
+                "admin_payment_alert_not_registered",
+                data.StripeEventId,
+                eventType,
+                data.CustomerId,
+                data.PaymentIntentId,
+                data.ChargeId,
+                data.CheckoutSessionId,
+                data.FailureCode,
+                data.DeclineCode);
+            return AdminPaymentAlertDeliveryResult.Skipped("admin_payment_alert_not_registered");
+        }
+
+        var alert = BuildPaymentFailureAlert(data, eventType);
+        var delivery = await _adminPaymentAlerts.NotifyAsync(alert, ct);
+        LogPaymentFailureAlertOutcome(
+            ToPaymentFailureTelemetryOutcome(delivery.Status),
+            delivery.Reason,
+            data.StripeEventId,
+            eventType,
+            data.CustomerId,
+            data.PaymentIntentId,
+            data.ChargeId,
+            data.CheckoutSessionId,
+            data.FailureCode,
+            data.DeclineCode);
+
+        return delivery;
+    }
+
+    private static AdminPaymentAlert BuildPaymentFailureAlert(StripeEventData data, string eventType)
+    {
+        var failureReason = FirstNonBlank(
+            data.DeclineCode,
+            data.FailureCode,
+            eventType == "checkout.session.expired" ? "checkout_session_expired" : null,
+            "stripe_payment_failure");
+
+        var alert = new AdminPaymentAlert
+        {
+            OperationName = "stripe_payment_failure_webhook",
+            FailureStage = eventType,
+            FailureReason = failureReason,
+            Severity = eventType == "checkout.session.expired" ? "High" : "Critical",
+            OccurredAtUtc = data.StripeEventCreatedUtc == default ? DateTimeOffset.UtcNow : data.StripeEventCreatedUtc,
+            StripeCustomerId = data.CustomerId,
+            StripeSubscriptionId = data.SubscriptionId,
+            StripeEventId = data.StripeEventId,
+            StripeCheckoutSessionId = data.CheckoutSessionId,
+            Email = data.CustomerEmail,
+            PriceId = data.PriceId
+        };
+
+        AddDetail(alert, "stripeEventType", eventType);
+        AddDetail(alert, "paymentIntentId", data.PaymentIntentId);
+        AddDetail(alert, "chargeId", data.ChargeId);
+        AddDetail(alert, "checkoutSessionId", data.CheckoutSessionId);
+        AddDetail(alert, "status", data.Status);
+        AddDetail(alert, "amount", data.Amount?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        AddDetail(alert, "currency", data.Currency);
+        AddDetail(alert, "failureCode", data.FailureCode);
+        AddDetail(alert, "failureMessage", data.FailureMessage);
+        AddDetail(alert, "declineCode", data.DeclineCode);
+        AddDetail(alert, "paymentMethod", data.PaymentMethod);
+        AddDetail(alert, "paymentMethodType", data.PaymentMethodType);
+        AddDetail(alert, "checkoutMode", data.CheckoutMode);
+
+        return alert;
+    }
+
+    private static DispatchResult ToPaymentFailureDispatchResult(AdminPaymentAlertDeliveryResult delivery, string eventType)
+        => delivery.Status switch
+        {
+            AdminPaymentAlertDeliveryStatus.Sent => new DispatchResult(
+                "stripe_payment_failure_alert_sent",
+                $"{eventType}:{delivery.Reason}",
+                null,
+                null),
+            AdminPaymentAlertDeliveryStatus.Skipped => new DispatchResult(
+                "stripe_payment_failure_alert_skipped",
+                $"{eventType}:{delivery.Reason}",
+                null,
+                null),
+            _ => new DispatchResult(
+                "stripe_payment_failure_alert_failed",
+                $"{eventType}:{delivery.Reason}",
+                null,
+                null)
+        };
+
+    private void LogPaymentFailureAlertOutcome(
+        string telemetryOutcome,
+        string reason,
+        string? stripeEventId,
+        string? eventType,
+        string? stripeCustomerId,
+        string? paymentIntentId,
+        string? chargeId,
+        string? checkoutSessionId,
+        string? failureCode,
+        string? declineCode)
+    {
+        var level = telemetryOutcome == "stripe_payment_failure_alert_sent"
+            ? LogLevel.Information
+            : telemetryOutcome == "stripe_payment_failure_alert_skipped"
+                ? LogLevel.Warning
+                : LogLevel.Error;
+
+        _logger.Log(
+            level,
+            "Stripe payment failure admin alert outcome. Outcome={Outcome} Reason={Reason} EventType={EventType} StripeEventId={StripeEventId} StripeCustomerId={StripeCustomerId} PaymentIntentId={PaymentIntentId} ChargeId={ChargeId} CheckoutSessionId={CheckoutSessionId} FailureCode={FailureCode} DeclineCode={DeclineCode}",
+            telemetryOutcome,
+            reason,
+            eventType,
+            stripeEventId,
+            stripeCustomerId,
+            paymentIntentId,
+            chargeId,
+            checkoutSessionId,
+            failureCode,
+            declineCode);
+    }
+
+    private static string ToPaymentFailureTelemetryOutcome(AdminPaymentAlertDeliveryStatus status)
+        => status switch
+        {
+            AdminPaymentAlertDeliveryStatus.Sent => "stripe_payment_failure_alert_sent",
+            AdminPaymentAlertDeliveryStatus.Skipped => "stripe_payment_failure_alert_skipped",
+            _ => "stripe_payment_failure_alert_failed"
+        };
+
+    private static void AddDetail(AdminPaymentAlert alert, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            alert.Details[key] = value.Trim();
+    }
+
+    private static string FirstNonBlank(params string?[] values)
+        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? "unknown";
 
     private static bool IsPaymentFailureEvent(string? eventType)
     {

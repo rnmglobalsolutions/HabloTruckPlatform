@@ -231,6 +231,157 @@ public sealed class StripeEventParserTests
         Assert.NotNull(parsed.Data.Metadata);
         Assert.Equal("individual_monthly", parsed.Data.Metadata!["planType"]);
     }
+
+    [Fact]
+    public void Parse_PaymentIntentPaymentFailed_Should_ExtractFailureDetails()
+    {
+        var paymentIntent = new PaymentIntent();
+        SetProperty(paymentIntent, "Id", "pi_failed_123");
+        SetProperty(paymentIntent, "CustomerId", "cus_failed_123");
+        SetProperty(paymentIntent, "Status", "requires_payment_method");
+        SetProperty(paymentIntent, "RawJObject", JObject.Parse(@"{
+  'id': 'pi_failed_123',
+  'customer': 'cus_failed_123',
+  'latest_charge': 'ch_failed_123',
+  'payment_method': 'pm_failed_123',
+  'payment_method_types': ['card'],
+  'amount': 10340,
+  'currency': 'usd',
+  'status': 'requires_payment_method',
+  'last_payment_error': {
+    'code': 'card_declined',
+    'decline_code': 'insufficient_funds',
+    'message': 'Your card was declined.',
+    'payment_method': {
+      'id': 'pm_failed_123',
+      'type': 'card'
+    }
+  }
+}"));
+
+        var evt = NewEvent("payment_intent.payment_failed", paymentIntent, Utc(2026, 3, 10));
+
+        var parsed = _sut.Parse(evt);
+
+        Assert.NotNull(parsed.Data);
+        Assert.Equal("payment_intent.payment_failed", parsed.Data!.EventType);
+        Assert.Equal("cus_failed_123", parsed.Data.CustomerId);
+        Assert.Equal("pi_failed_123", parsed.Data.PaymentIntentId);
+        Assert.Equal("ch_failed_123", parsed.Data.ChargeId);
+        Assert.Equal("card_declined", parsed.Data.FailureCode);
+        Assert.Equal("insufficient_funds", parsed.Data.DeclineCode);
+        Assert.Equal(10340, parsed.Data.Amount);
+        Assert.Equal("usd", parsed.Data.Currency);
+        Assert.Equal("card", parsed.Data.PaymentMethodType);
+    }
+
+    [Fact]
+    public void Parse_ChargeFailed_Should_ExtractFailureDetails()
+    {
+        var charge = new Charge();
+        SetProperty(charge, "Id", "ch_failed_456");
+        SetProperty(charge, "CustomerId", "cus_failed_456");
+        SetProperty(charge, "Status", "failed");
+        SetProperty(charge, "RawJObject", JObject.Parse(@"{
+  'id': 'ch_failed_456',
+  'customer': 'cus_failed_456',
+  'payment_intent': 'pi_failed_456',
+  'payment_method': 'pm_failed_456',
+  'amount': 10340,
+  'currency': 'usd',
+  'status': 'failed',
+  'failure_code': 'generic_decline',
+  'failure_message': 'Your card was declined.',
+  'outcome': {
+    'reason': 'generic_decline'
+  },
+  'payment_method_details': {
+    'type': 'card'
+  },
+  'billing_details': {
+    'email': 'driver@example.com'
+  }
+}"));
+
+        var evt = NewEvent("charge.failed", charge, Utc(2026, 3, 10));
+
+        var parsed = _sut.Parse(evt);
+
+        Assert.NotNull(parsed.Data);
+        Assert.Equal("charge.failed", parsed.Data!.EventType);
+        Assert.Equal("cus_failed_456", parsed.Data.CustomerId);
+        Assert.Equal("pi_failed_456", parsed.Data.PaymentIntentId);
+        Assert.Equal("ch_failed_456", parsed.Data.ChargeId);
+        Assert.Equal("generic_decline", parsed.Data.FailureCode);
+        Assert.Equal("generic_decline", parsed.Data.DeclineCode);
+        Assert.Equal("card", parsed.Data.PaymentMethodType);
+        Assert.Equal("driver@example.com", parsed.Data.CustomerEmail);
+    }
+
+    [Fact]
+    public void Parse_CheckoutAsyncPaymentFailed_Should_ExtractSessionFacts()
+    {
+        var session = new global::Stripe.Checkout.Session();
+        SetProperty(session, "Id", "cs_async_failed");
+        SetProperty(session, "CustomerId", "cus_async_failed");
+        SetProperty(session, "SubscriptionId", "sub_async_failed");
+        SetProperty(session, "Mode", "subscription");
+        SetProperty(session, "Status", "complete");
+        SetProperty(session, "CustomerDetails", new global::Stripe.Checkout.SessionCustomerDetails
+        {
+            Email = "driver@example.com"
+        });
+        SetProperty(session, "RawJObject", JObject.Parse(@"{
+  'id': 'cs_async_failed',
+  'customer': 'cus_async_failed',
+  'subscription': 'sub_async_failed',
+  'payment_intent': 'pi_async_failed',
+  'mode': 'subscription',
+  'status': 'complete',
+  'amount_total': 10340,
+  'currency': 'usd'
+}"));
+
+        var evt = NewEvent("checkout.session.async_payment_failed", session, Utc(2026, 3, 10));
+
+        var parsed = _sut.Parse(evt);
+
+        Assert.NotNull(parsed.Data);
+        Assert.Equal("checkout.session.async_payment_failed", parsed.Data!.EventType);
+        Assert.Equal("cs_async_failed", parsed.Data.CheckoutSessionId);
+        Assert.Equal("pi_async_failed", parsed.Data.PaymentIntentId);
+        Assert.Equal("checkout_async_payment_failed", parsed.Data.FailureCode);
+        Assert.Equal(10340, parsed.Data.Amount);
+    }
+
+    [Fact]
+    public void Parse_CheckoutExpired_Should_HandleMissingCustomerSafely()
+    {
+        var session = new global::Stripe.Checkout.Session();
+        SetProperty(session, "Id", "cs_expired_missing_customer");
+        SetProperty(session, "Status", "expired");
+        SetProperty(session, "RawJObject", JObject.Parse(@"{
+  'id': 'cs_expired_missing_customer',
+  'customer': null,
+  'customer_details': { 'email': 'driver@example.com' },
+  'mode': 'subscription',
+  'status': 'expired',
+  'amount_total': 10340,
+  'currency': 'usd'
+}"));
+
+        var evt = NewEvent("checkout.session.expired", session, Utc(2026, 3, 10));
+
+        var parsed = _sut.Parse(evt);
+
+        Assert.NotNull(parsed.Data);
+        Assert.Null(parsed.Data!.CustomerId);
+        Assert.Equal("checkout.session.expired", parsed.Data.EventType);
+        Assert.Equal("cs_expired_missing_customer", parsed.Data.CheckoutSessionId);
+        Assert.Equal("driver@example.com", parsed.Data.CustomerEmail);
+        Assert.Equal("checkout_session_expired", parsed.Data.FailureCode);
+    }
+
     [Fact]
     public void Parse_InvoicePaid_Should_PreferTopLevelSubscription_WhenPresent()
     {
@@ -346,7 +497,6 @@ public sealed class StripeEventParserTests
         throw new InvalidOperationException($"Property '{propertyName}' not found on {target.GetType().FullName}.");
     }
 }
-
 
 
 

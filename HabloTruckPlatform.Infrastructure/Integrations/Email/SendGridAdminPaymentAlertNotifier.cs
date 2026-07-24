@@ -29,10 +29,10 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
         _http.BaseAddress ??= new Uri("https://api.sendgrid.com/");
     }
 
-    public async Task NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default)
+    public async Task<AdminPaymentAlertDeliveryResult> NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default)
     {
         if (alert is null)
-            return;
+            return AdminPaymentAlertDeliveryResult.Skipped("admin_payment_alert_null");
 
         alert.EnvironmentName = string.IsNullOrWhiteSpace(alert.EnvironmentName)
             ? _options.EnvironmentName
@@ -47,7 +47,7 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
                 "no_action_needed",
                 "admin_payment_alert_email_disabled",
                 alert.OperationName);
-            return;
+            return AdminPaymentAlertDeliveryResult.Skipped("admin_payment_alert_email_disabled");
         }
 
         if (string.IsNullOrWhiteSpace(_options.SendGridApiKey)
@@ -59,7 +59,7 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
                 "configuration_missing",
                 "sendgrid_or_email_settings_missing",
                 alert.OperationName);
-            return;
+            return AdminPaymentAlertDeliveryResult.Skipped("sendgrid_or_email_settings_missing");
         }
 
         var subject = BuildSubject(alert);
@@ -94,24 +94,49 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.SendGridApiKey.Trim());
 
-        var response = await _http.SendAsync(request, ct);
-        if (response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            _logger.LogInformation(
-                "Admin payment alert email sent. Outcome={Outcome} OperationName={OperationName} Reason={Reason}",
-                "completed",
-                alert.OperationName,
-                alert.FailureReason);
-            return;
+            response = await _http.SendAsync(request, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Admin payment alert email failed. Outcome={Outcome} Reason={Reason} OperationName={OperationName}",
+                "dependency_failed",
+                "sendgrid_unexpected_exception",
+                alert.OperationName);
+            return AdminPaymentAlertDeliveryResult.Failed("sendgrid_unexpected_exception");
         }
 
-        var body = await response.Content.ReadAsStringAsync(ct);
-        _logger.LogWarning(
-            "Admin payment alert email failed. Outcome={Outcome} StatusCode={StatusCode} OperationName={OperationName} ResponseBytes={ResponseBytes}",
-            "dependency_failed",
-            (int)response.StatusCode,
-            alert.OperationName,
-            body.Length);
+        using (response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation(
+                    "Admin payment alert email sent. Outcome={Outcome} Reason={Reason} OperationName={OperationName} StatusCode={StatusCode}",
+                    "completed",
+                    "sendgrid_accepted",
+                    alert.OperationName,
+                    (int)response.StatusCode);
+                return AdminPaymentAlertDeliveryResult.Sent("sendgrid_accepted", (int)response.StatusCode);
+            }
+
+            var body = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning(
+                "Admin payment alert email failed. Outcome={Outcome} Reason={Reason} StatusCode={StatusCode} OperationName={OperationName} ResponseBytes={ResponseBytes}",
+                "dependency_failed",
+                "sendgrid_provider_rejected",
+                (int)response.StatusCode,
+                alert.OperationName,
+                body.Length);
+            return AdminPaymentAlertDeliveryResult.Failed("sendgrid_provider_rejected", (int)response.StatusCode);
+        }
     }
 
     private static string BuildSubject(AdminPaymentAlert alert)
@@ -128,10 +153,29 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
         sb.AppendLine("<!doctype html><html><body style=\"margin:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#17202a;\">");
         sb.AppendLine("<div style=\"max-width:860px;margin:0 auto;padding:24px;\">");
         sb.AppendLine("<div style=\"background:#8b0000;color:#fff;padding:18px 22px;border-radius:8px 8px 0 0;\">");
-        sb.AppendLine("<h1 style=\"margin:0;font-size:22px;letter-spacing:0;\">ERROR DE PAGO EN PRODUCTION</h1>");
+        sb.AppendLine($"<h1 style=\"margin:0;font-size:22px;letter-spacing:0;\">ERROR DE PAGO EN {E(Upper(alert.EnvironmentName))}</h1>");
         sb.AppendLine($"<p style=\"margin:8px 0 0;font-size:14px;\">{E(alert.OperationName)} - {E(alert.FailureReason)}</p>");
         sb.AppendLine("</div>");
         sb.AppendLine("<div style=\"background:#fff;border:1px solid #d9dee3;border-top:0;padding:22px;border-radius:0 0 8px 8px;\">");
+
+        var declineCode = Detail(alert, "declineCode");
+        var failureCode = Detail(alert, "failureCode") ?? Detail(alert, "lastPaymentErrorCode");
+        var failureMessage = Detail(alert, "failureMessage") ?? Detail(alert, "lastPaymentErrorMessage");
+        var eventType = Detail(alert, "stripeEventType");
+
+        if (!string.IsNullOrWhiteSpace(declineCode) || !string.IsNullOrWhiteSpace(failureCode) || !string.IsNullOrWhiteSpace(eventType))
+        {
+            sb.AppendLine("<div style=\"border:2px solid #8b0000;background:#fff5f5;padding:14px;margin:0 0 18px;border-radius:6px;\">");
+            sb.AppendLine("<h2 style=\"font-size:16px;margin:0 0 8px;color:#8b0000;\">Falla Detectada Por Stripe</h2>");
+            sb.AppendLine("<table style=\"border-collapse:collapse;width:100%;font-size:14px;\">");
+            Row(sb, "Evento Stripe", eventType);
+            Row(sb, "Decline Code", declineCode);
+            Row(sb, "Failure Code", failureCode);
+            Row(sb, "Mensaje", failureMessage);
+            Row(sb, "Escenario Probable", DescribeFailureScenario(eventType, declineCode, failureCode));
+            sb.AppendLine("</table>");
+            sb.AppendLine("</div>");
+        }
 
         sb.AppendLine("<h2 style=\"font-size:18px;margin:0 0 10px;\">Resumen</h2>");
         sb.AppendLine("<table style=\"border-collapse:collapse;width:100%;font-size:14px;\">");
@@ -192,12 +236,17 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
 
     private static string BuildText(AdminPaymentAlert alert)
         => $"""
-        ERROR DE PAGO EN PRODUCTION
+        ERROR DE PAGO EN {Upper(alert.EnvironmentName)}
 
         Operacion: {alert.OperationName}
         Razon: {alert.FailureReason}
         Etapa: {alert.FailureStage}
         Fecha UTC: {alert.OccurredAtUtc.UtcDateTime:O}
+        Evento Stripe: {Detail(alert, "stripeEventType") ?? "-"}
+        Decline Code: {Detail(alert, "declineCode") ?? "-"}
+        Failure Code: {Detail(alert, "failureCode") ?? Detail(alert, "lastPaymentErrorCode") ?? "-"}
+        Payment Intent: {Detail(alert, "paymentIntentId") ?? "-"}
+        Charge: {Detail(alert, "chargeId") ?? "-"}
 
         Cliente:
         UserId: {alert.UserId ?? "-"}
@@ -226,8 +275,19 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
         var subId = EscapeKql(alert.StripeSubscriptionId);
         var customerId = EscapeKql(alert.StripeCustomerId);
         var userId = EscapeKql(alert.UserId);
+        var paymentIntentId = EscapeKql(Detail(alert, "paymentIntentId"));
+        var chargeId = EscapeKql(Detail(alert, "chargeId"));
+        var checkoutSessionId = EscapeKql(alert.StripeCheckoutSessionId ?? Detail(alert, "checkoutSessionId"));
 
         return $"""
+        let stripeEventIdParam = "{eventId}";
+        let stripeCustomerIdParam = "{customerId}";
+        let subscriptionIdParam = "{subId}";
+        let userIdParam = "{userId}";
+        let paymentIntentIdParam = "{paymentIntentId}";
+        let chargeIdParam = "{chargeId}";
+        let checkoutSessionIdParam = "{checkoutSessionId}";
+
         // 1) Ver webhooks y resultado final
         requests
         | where timestamp > ago(24h)
@@ -244,13 +304,16 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
         | extend stripeCustomerId = tostring(customDimensions["StripeCustomerId"])
         | extend subscriptionId = tostring(customDimensions["SubscriptionId"])
         | extend userId = tostring(customDimensions["UserId"])
-        | where stripeEventId == "{eventId}"
-            or stripeCustomerId == "{customerId}"
-            or subscriptionId == "{subId}"
-            or userId == "{userId}"
-            or message has "{eventId}"
-            or message has "{subId}"
-            or message has "{customerId}"
+        | extend paymentIntentId = tostring(customDimensions["PaymentIntentId"])
+        | extend chargeId = tostring(customDimensions["ChargeId"])
+        | extend checkoutSessionId = tostring(customDimensions["CheckoutSessionId"])
+        | where (isnotempty(stripeEventIdParam) and (stripeEventId == stripeEventIdParam or message has stripeEventIdParam))
+            or (isnotempty(stripeCustomerIdParam) and (stripeCustomerId == stripeCustomerIdParam or message has stripeCustomerIdParam))
+            or (isnotempty(subscriptionIdParam) and (subscriptionId == subscriptionIdParam or message has subscriptionIdParam))
+            or (isnotempty(userIdParam) and userId == userIdParam)
+            or (isnotempty(paymentIntentIdParam) and (paymentIntentId == paymentIntentIdParam or message has paymentIntentIdParam))
+            or (isnotempty(chargeIdParam) and (chargeId == chargeIdParam or message has chargeIdParam))
+            or (isnotempty(checkoutSessionIdParam) and (checkoutSessionId == checkoutSessionIdParam or message has checkoutSessionIdParam))
         | project timestamp, severityLevel, message, operation_Id, customDimensions
         | order by timestamp desc
 
@@ -263,11 +326,24 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
             | where timestamp > ago(24h)
             | extend stripeEventId = tostring(customDimensions["StripeEventId"])
             | extend subscriptionId = tostring(customDimensions["SubscriptionId"])
-            | where stripeEventId == "{eventId}" or subscriptionId == "{subId}"
+            | extend paymentIntentId = tostring(customDimensions["PaymentIntentId"])
+            | extend chargeId = tostring(customDimensions["ChargeId"])
+            | where (isnotempty(stripeEventIdParam) and stripeEventId == stripeEventIdParam)
+                or (isnotempty(subscriptionIdParam) and subscriptionId == subscriptionIdParam)
+                or (isnotempty(paymentIntentIdParam) and paymentIntentId == paymentIntentIdParam)
+                or (isnotempty(chargeIdParam) and chargeId == chargeIdParam)
             | distinct operation_Id
         )
         | project timestamp, target, name, resultCode, duration, operation_Id, customDimensions
         | order by timestamp desc
+
+        // 4) Eventos Stripe recibidos por tipo
+        customMetrics
+        | where timestamp > ago(24h)
+        | where name == "stripe.events.received"
+        | extend eventType = tostring(customDimensions["eventType"])
+        | summarize total = sum(value) by eventType
+        | order by total desc
         """;
     }
 
@@ -294,4 +370,31 @@ public sealed class SendGridAdminPaymentAlertNotifier : IAdminPaymentAlertNotifi
 
     private static string EscapeKql(string? value)
         => (value ?? "").Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private static string? Detail(AdminPaymentAlert alert, string key)
+        => alert.Details.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
+
+    private static string DescribeFailureScenario(string? eventType, string? declineCode, string? failureCode)
+    {
+        var code = declineCode ?? failureCode;
+        if (string.Equals(eventType, "checkout.session.expired", StringComparison.OrdinalIgnoreCase))
+            return "El cliente abandono o no completo Checkout antes de que expirara la sesion.";
+
+        return code switch
+        {
+            "generic_decline" => "Decline generico del banco emisor.",
+            "insufficient_funds" => "Fondos insuficientes en la tarjeta.",
+            "lost_card" => "Tarjeta reportada como perdida.",
+            "stolen_card" => "Tarjeta reportada como robada.",
+            "expired_card" => "Tarjeta expirada.",
+            "incorrect_cvc" => "CVC incorrecto.",
+            "processing_error" => "Error de procesamiento del proveedor/banco.",
+            "incorrect_number" => "Numero de tarjeta incorrecto.",
+            "card_velocity_exceeded" => "Limite de velocidad/frecuencia excedido.",
+            null or "" => "Stripe no envio un decline code; revisar Payment Intent y Charge.",
+            _ => $"Stripe reporto {code}; revisar Payment Intent y Charge para el detalle exacto."
+        };
+    }
 }
