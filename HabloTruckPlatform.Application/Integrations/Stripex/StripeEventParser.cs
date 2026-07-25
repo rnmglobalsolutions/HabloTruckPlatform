@@ -192,7 +192,8 @@ public sealed class StripeEventParser
                 Status = paymentIntent.Status ?? FirstRawString(raw, "status"),
                 FailureCode = FirstRawString(lastPaymentError, "code"),
                 FailureMessage = FirstRawString(lastPaymentError, "message"),
-                DeclineCode = FirstRawString(lastPaymentError, "decline_code")
+                DeclineCode = FirstRawString(lastPaymentError, "decline_code"),
+                Metadata = paymentIntent.Metadata
             }));
     }
 
@@ -221,7 +222,8 @@ public sealed class StripeEventParser
                 Status = charge.Status ?? FirstRawString(raw, "status"),
                 FailureCode = FirstRawString(raw, "failure_code"),
                 FailureMessage = FirstRawString(raw, "failure_message"),
-                DeclineCode = FirstRawString(outcome, "reason")
+                DeclineCode = FirstRawString(outcome, "reason"),
+                Metadata = charge.Metadata
             }));
     }
 

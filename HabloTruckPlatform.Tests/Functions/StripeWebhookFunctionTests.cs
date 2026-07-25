@@ -7,6 +7,7 @@ using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
 using HabloTruckPlatform.Domain.Ids;
+using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Functions.Functions;
 using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.ApplicationInsights;
@@ -211,7 +212,18 @@ public sealed class StripeWebhookFunctionTests
     public async Task Run_Should_SendAdminAlert_ForPaymentIntentPaymentFailed()
     {
         var alerts = new RecordingAdminPaymentAlertNotifier(AdminPaymentAlertDeliveryResult.Sent());
-        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts);
+        var users = new RecordingUserStore();
+        users.Add(new User
+        {
+            UserId = "U_WEBHOOK",
+            EmailNormalized = "driver@example.com",
+            PhoneE164 = "+15551234567",
+            ManyChatSubscriberId = "mc_123",
+            CompanyId = "C_123",
+            PlanType = "individual_monthly"
+        });
+
+        var fixture = BuildFixture(new StubStripeEventStore(StripeEventProcessingStartResult.Started), alerts, users);
         var json = BuildPaymentIntentFailedEventJson(
             "evt_pi_failed",
             "cus_pi_failed",
@@ -230,6 +242,13 @@ public sealed class StripeWebhookFunctionTests
         Assert.Equal("payment_intent.payment_failed", alert.FailureStage);
         Assert.Equal("cus_pi_failed", alert.StripeCustomerId);
         Assert.Equal("evt_pi_failed", alert.StripeEventId);
+        Assert.Equal(Buckets.UserBucketPk("U_WEBHOOK"), alert.UserPk);
+        Assert.Equal("U_WEBHOOK", alert.UserId);
+        Assert.Equal("driver@example.com", alert.Email);
+        Assert.Equal("+15551234567", alert.PhoneE164);
+        Assert.Equal("mc_123", alert.ManyChatSubscriberId);
+        Assert.Equal("C_123", alert.CompanyId);
+        Assert.Equal("individual_monthly", alert.PlanType);
         Assert.Equal("pi_failed", alert.Details["paymentIntentId"]);
         Assert.Equal("ch_failed", alert.Details["chargeId"]);
         Assert.Equal("insufficient_funds", alert.Details["declineCode"]);
@@ -275,6 +294,8 @@ public sealed class StripeWebhookFunctionTests
         var alert = Assert.Single(alerts.Alerts);
         Assert.Equal("checkout.session.expired", alert.FailureStage);
         Assert.Equal("cs_expired_123", alert.StripeCheckoutSessionId);
+        Assert.Equal("+15557654321", alert.PhoneE164);
+        Assert.Equal("mc_expired", alert.ManyChatSubscriberId);
         Assert.Equal("checkout_session_expired", alert.Details["failureCode"]);
 
         var audit = Assert.Single(fixture.AuditStore.Items);
@@ -402,6 +423,7 @@ public sealed class StripeWebhookFunctionTests
         var auditStore = new ThrowingStripeEventAuditStore();
         var handler = new RecordingStripeSubscriptionHandler();
         var userResolver = new StaticUserResolver();
+        var userStore = new RecordingUserStore();
         var metrics = new Metrics(new TelemetryClient(new TelemetryConfiguration()));
 
         var function = new StripeWebhookFunction(
@@ -411,6 +433,7 @@ public sealed class StripeWebhookFunctionTests
             auditStore,
             handler,
             userResolver,
+            userStore,
             metrics,
             NullLogger<StripeWebhookFunction>.Instance);
 
@@ -446,7 +469,10 @@ public sealed class StripeWebhookFunctionTests
             ? StripeEventProcessingStartResult.Started
             : StripeEventProcessingStartResult.AlreadyProcessed));
 
-    private static Fixture BuildFixture(IStripeEventStore eventStore, IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
+    private static Fixture BuildFixture(
+        IStripeEventStore eventStore,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null,
+        IUserStore? userStore = null)
     {
         const string webhookSecret = "whsec_test_webhook";
 
@@ -461,6 +487,7 @@ public sealed class StripeWebhookFunctionTests
         var auditStore = new RecordingStripeEventAuditStore();
         var handler = new RecordingStripeSubscriptionHandler();
         var userResolver = new StaticUserResolver();
+        userStore ??= new RecordingUserStore();
         var metrics = new Metrics(new TelemetryClient(new TelemetryConfiguration()));
 
         var function = new StripeWebhookFunction(
@@ -470,6 +497,7 @@ public sealed class StripeWebhookFunctionTests
             auditStore,
             handler,
             userResolver,
+            userStore,
             metrics,
             NullLogger<StripeWebhookFunction>.Instance,
             adminPaymentAlerts);
@@ -804,7 +832,12 @@ public sealed class StripeWebhookFunctionTests
       "mode": "subscription",
       "status": "expired",
       "amount_total": 10340,
-      "currency": "usd"
+      "currency": "usd",
+      "metadata": {
+        "phone": "+15557654321",
+        "manychatSubscriberId": "mc_expired",
+        "planType": "individual_monthly"
+      }
     }
   }
 }
@@ -1072,13 +1105,67 @@ public sealed class StripeWebhookFunctionTests
     private sealed class StaticUserResolver : IUserResolver
     {
         public Task<UserRef?> ResolveByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
-            => Task.FromResult<UserRef?>(new UserRef("HT_U_000", "U_WEBHOOK"));
+            => Task.FromResult<UserRef?>(new UserRef(Buckets.UserBucketPk("U_WEBHOOK"), "U_WEBHOOK"));
 
         public Task<UserRef?> ResolveByManyChatSubscriberIdAsync(string subscriberId, CancellationToken ct = default)
             => Task.FromResult<UserRef?>(null);
 
         public Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
             => Task.FromResult<UserRef?>(null);
+    }
+
+    private sealed class RecordingUserStore : IUserStore
+    {
+        private readonly Dictionary<(string UserPk, string UserId), User> _users = new();
+
+        public void Add(User user)
+            => _users[(Buckets.UserBucketPk(user.UserId), user.UserId)] = user;
+
+        public Task<User?> GetAsync(string userPk, string userId, CancellationToken ct = default)
+        {
+            _users.TryGetValue((userPk, userId), out var user);
+            return Task.FromResult(user);
+        }
+
+        public Task UpsertAsync(User user, CancellationToken ct = default)
+        {
+            Add(user);
+            return Task.CompletedTask;
+        }
+
+        public Task<User> GetOrCreateAsync(
+            string? emailNormalized,
+            string? manyChatSubscriberId,
+            string? phoneE164,
+            CancellationToken ct = default)
+        {
+            var existing = _users.Values.FirstOrDefault();
+            if (existing is not null)
+                return Task.FromResult(existing);
+
+            var user = new User
+            {
+                UserId = "U_WEBHOOK",
+                EmailNormalized = emailNormalized,
+                ManyChatSubscriberId = manyChatSubscriberId,
+                PhoneE164 = phoneE164
+            };
+
+            Add(user);
+            return Task.FromResult(user);
+        }
+
+        public Task UpsertLookupsAsync(User user, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<User>> QueryUsersWithStripeAsync(int take = 500, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<User>>(_users.Values.Take(take).ToList());
+
+        public Task<StripeUserScanPage> QueryUsersWithStripePageAsync(
+            int take = 500,
+            int startBucket = 0,
+            CancellationToken ct = default)
+            => Task.FromResult(new StripeUserScanPage(_users.Values.Take(take).ToList(), startBucket, startBucket, 0, false));
     }
 
     private sealed class RecordingAdminPaymentAlertNotifier : IAdminPaymentAlertNotifier

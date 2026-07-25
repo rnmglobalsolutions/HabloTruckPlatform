@@ -3,6 +3,7 @@ using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Integrations.Stripex;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Access;
+using HabloTruckPlatform.Domain.Models;
 using HabloTruckPlatform.Infrastructure.Telemetry;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -22,6 +23,7 @@ public sealed class StripeWebhookFunction
     private readonly IStripeEventAuditStore _auditStore;
     private readonly IStripeSubscriptionHandler _subscriptionHandler;
     private readonly IUserResolver _userResolver;
+    private readonly IUserStore _userStore;
     private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly Metrics _metrics;
     private readonly ILogger<StripeWebhookFunction> _logger;
@@ -33,6 +35,7 @@ public sealed class StripeWebhookFunction
         IStripeEventAuditStore auditStore,
         IStripeSubscriptionHandler subscriptionHandler,
         IUserResolver userResolver,
+        IUserStore userStore,
         Metrics metrics,
         ILogger<StripeWebhookFunction> logger,
         IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
@@ -43,6 +46,7 @@ public sealed class StripeWebhookFunction
         _auditStore = auditStore;
         _subscriptionHandler = subscriptionHandler;
         _userResolver = userResolver;
+        _userStore = userStore;
         _adminPaymentAlerts = adminPaymentAlerts;
         _metrics = metrics;
         _logger = logger;
@@ -392,7 +396,7 @@ public sealed class StripeWebhookFunction
         try
         {
             var dispatchWatch = Stopwatch.StartNew();
-            dispatch = await DispatchAsync(parsed, ct);
+            dispatch = await DispatchAsync(parsed, userRef, ct);
             await _eventStore.MarkProcessedAsync(stripeEvent.Id, ct);
 
             _logger.LogDebug(
@@ -470,7 +474,7 @@ public sealed class StripeWebhookFunction
             started.ElapsedMilliseconds);
     }
 
-    private async Task<DispatchResult> DispatchAsync(StripeParsedEvent parsed, CancellationToken ct)
+    private async Task<DispatchResult> DispatchAsync(StripeParsedEvent parsed, UserRef? userRef, CancellationToken ct)
     {
         _logger.LogDebug(
             "Dispatch started. LogCategory={LogCategory} Step={Step} EventType={EventType}",
@@ -501,7 +505,7 @@ public sealed class StripeWebhookFunction
             case "checkout.session.async_payment_failed":
             case "checkout.session.expired":
                 {
-                    var delivery = await NotifyPaymentFailureAsync(parsed.Data!, parsed.EventType, ct);
+                    var delivery = await NotifyPaymentFailureAsync(parsed.Data!, parsed.EventType, userRef, ct);
                     return ToPaymentFailureDispatchResult(delivery, parsed.EventType);
                 }
 
@@ -705,6 +709,7 @@ public sealed class StripeWebhookFunction
     private async Task<AdminPaymentAlertDeliveryResult> NotifyPaymentFailureAsync(
         StripeEventData data,
         string eventType,
+        UserRef? userRef,
         CancellationToken ct)
     {
         if (_adminPaymentAlerts is null)
@@ -723,7 +728,9 @@ public sealed class StripeWebhookFunction
             return AdminPaymentAlertDeliveryResult.Skipped("admin_payment_alert_not_registered");
         }
 
-        var alert = BuildPaymentFailureAlert(data, eventType);
+        var alertUserRef = userRef ?? await TryResolveUserRefForPaymentAlertAsync(data, eventType, ct);
+        var user = await TryLoadUserForPaymentAlertAsync(alertUserRef, data.CustomerId, data.StripeEventId, eventType, ct);
+        var alert = BuildPaymentFailureAlert(data, eventType, alertUserRef, user);
         var delivery = await _adminPaymentAlerts.NotifyAsync(alert, ct);
         LogPaymentFailureAlertOutcome(
             ToPaymentFailureTelemetryOutcome(delivery.Status),
@@ -740,7 +747,108 @@ public sealed class StripeWebhookFunction
         return delivery;
     }
 
-    private static AdminPaymentAlert BuildPaymentFailureAlert(StripeEventData data, string eventType)
+    private async Task<User?> TryLoadUserForPaymentAlertAsync(
+        UserRef? userRef,
+        string? stripeCustomerId,
+        string? stripeEventId,
+        string eventType,
+        CancellationToken ct)
+    {
+        if (userRef is null)
+            return null;
+
+        try
+        {
+            var user = await _userStore.GetAsync(userRef.Value.UserPk, userRef.Value.UserId, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} Success={Success} Found={Found} EventType={EventType} StripeEventId={StripeEventId} StripeCustomerId={StripeCustomerId}",
+                LogContext.Categories.Dependency,
+                "table_storage",
+                "user_store.get_for_payment_failure_alert",
+                "Users",
+                true,
+                user is not null,
+                eventType,
+                stripeEventId,
+                stripeCustomerId);
+
+            return user;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} EventType={EventType} StripeEventId={StripeEventId} StripeCustomerId={StripeCustomerId}",
+                LogContext.Categories.Exception,
+                "payment_failure_alert_user_enrichment_failed",
+                "table_storage",
+                "user_store.get_for_payment_failure_alert",
+                "Users",
+                eventType,
+                stripeEventId,
+                stripeCustomerId);
+
+            return null;
+        }
+    }
+
+    private async Task<UserRef?> TryResolveUserRefForPaymentAlertAsync(
+        StripeEventData data,
+        string eventType,
+        CancellationToken ct)
+    {
+        try
+        {
+            var manyChatSubscriberId = FirstNonBlankOrNull(
+                GetMeta(data, "manychatSubscriberId"),
+                GetMeta(data, "subscriberId"));
+
+            if (!string.IsNullOrWhiteSpace(manyChatSubscriberId))
+            {
+                var userRef = await _userResolver.ResolveByManyChatSubscriberIdAsync(manyChatSubscriberId, ct);
+                if (userRef is not null)
+                    return userRef;
+            }
+
+            var email = NormalizeEmail(FirstNonBlankOrNull(data.CustomerEmail, GetMeta(data, "email")));
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var userRef = await _userResolver.ResolveByEmailNormalizedAsync(email, ct);
+                if (userRef is not null)
+                    return userRef;
+            }
+
+            var phone = FirstNonBlankOrNull(GetMeta(data, "phone"), GetMeta(data, "phoneE164"));
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var userRef = await _userResolver.ResolveByPhoneE164Async(phone, ct);
+                if (userRef is not null)
+                    return userRef;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                ex,
+                "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} EventType={EventType} StripeEventId={StripeEventId} StripeCustomerId={StripeCustomerId}",
+                LogContext.Categories.Exception,
+                "payment_failure_alert_user_resolution_failed",
+                "table_storage",
+                "user_resolver.contact_fallback_for_payment_failure_alert",
+                eventType,
+                data.StripeEventId,
+                data.CustomerId);
+        }
+
+        return null;
+    }
+
+    private static AdminPaymentAlert BuildPaymentFailureAlert(
+        StripeEventData data,
+        string eventType,
+        UserRef? userRef,
+        User? user)
     {
         var failureReason = FirstNonBlank(
             data.DeclineCode,
@@ -759,7 +867,13 @@ public sealed class StripeWebhookFunction
             StripeSubscriptionId = data.SubscriptionId,
             StripeEventId = data.StripeEventId,
             StripeCheckoutSessionId = data.CheckoutSessionId,
-            Email = data.CustomerEmail,
+            UserPk = userRef?.UserPk,
+            UserId = userRef?.UserId,
+            Email = FirstNonBlankOrNull(data.CustomerEmail, user?.EmailNormalized, GetMeta(data, "email")),
+            PhoneE164 = FirstNonBlankOrNull(user?.PhoneE164, GetMeta(data, "phone"), GetMeta(data, "phoneE164")),
+            ManyChatSubscriberId = FirstNonBlankOrNull(user?.ManyChatSubscriberId, GetMeta(data, "manychatSubscriberId"), GetMeta(data, "subscriberId")),
+            CompanyId = FirstNonBlankOrNull(user?.CompanyId, GetMeta(data, "companyId"), GetMeta(data, "ht_company_id")),
+            PlanType = FirstNonBlankOrNull(user?.PlanType, GetMeta(data, "planType")),
             PriceId = data.PriceId
         };
 
@@ -846,6 +960,22 @@ public sealed class StripeWebhookFunction
         if (!string.IsNullOrWhiteSpace(value))
             alert.Details[key] = value.Trim();
     }
+
+    private static string? GetMeta(StripeEventData data, string key)
+    {
+        if (data.Metadata is null || string.IsNullOrWhiteSpace(key))
+            return null;
+
+        return data.Metadata.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+    }
+
+    private static string? FirstNonBlankOrNull(params string?[] values)
+        => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    private static string? NormalizeEmail(string? email)
+        => string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
 
     private static string FirstNonBlank(params string?[] values)
         => values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? "unknown";
