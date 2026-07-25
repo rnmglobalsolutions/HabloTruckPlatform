@@ -84,6 +84,7 @@ Current rules:
 - Seat increase must use `effectiveWhen=immediate`.
 - Seat decrease must use `effectiveWhen=next_invoice`.
 - Seat increases use Stripe `payment_behavior=error_if_incomplete`; if Stripe cannot collect the immediate invoice, the endpoint fails and local seat capacity is not increased.
+- If Stripe rejects a company/fleet seat increase or returns no updated subscription, the backend sends an admin payment alert email and leaves local seat capacity unchanged.
 - Unsafe decrease is rejected if `targetSeats < SeatsUsed`.
 - The actor must belong to the company or match the company admin email.
 - The Stripe customer on the subscription must match the company Stripe customer when the local company has one.

@@ -27,8 +27,8 @@ param stripeWebhookSecret = ''
 
 param adminPaymentAlertsEnabled = true
 param adminPaymentAlertsSendGridApiKey = ''
-param adminPaymentAlertsToEmail = 'info@rnmglobalsolutions.com'
-param adminPaymentAlertsFromEmail = 'alerts-platform@rnmglobalsolutions.com'
+param adminPaymentAlertsToEmail = 'grettadecien@gmail.com'
+param adminPaymentAlertsFromEmail = 'info@rnmglobalsolutions.com'
 param adminPaymentAlertsFromName = 'HabloTruck Production Alerts'
 
 param manyChatBaseUrl = 'https://api.manychat.com'

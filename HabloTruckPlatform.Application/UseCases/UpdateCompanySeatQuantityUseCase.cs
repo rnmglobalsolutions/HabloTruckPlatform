@@ -1,6 +1,7 @@
 using HabloTruckPlatform.Application.Abstractions;
 using HabloTruckPlatform.Application.Models;
 using HabloTruckPlatform.Domain.Abstractions;
+using HabloTruckPlatform.Domain.Ids;
 using HabloTruckPlatform.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,6 +21,7 @@ public sealed class UpdateCompanySeatQuantityUseCase
     private readonly IStripeSubscriptionGateway _stripeSubscriptions;
     private readonly IClock _clock;
     private readonly IAppMetrics? _metrics;
+    private readonly IAdminPaymentAlertNotifier? _adminPaymentAlerts;
     private readonly ILogger<UpdateCompanySeatQuantityUseCase> _logger;
 
     public UpdateCompanySeatQuantityUseCase(
@@ -29,7 +31,8 @@ public sealed class UpdateCompanySeatQuantityUseCase
         IStripeSubscriptionGateway stripeSubscriptions,
         IClock clock,
         ILogger<UpdateCompanySeatQuantityUseCase>? logger = null,
-        IAppMetrics? metrics = null)
+        IAppMetrics? metrics = null,
+        IAdminPaymentAlertNotifier? adminPaymentAlerts = null)
     {
         _users = users;
         _companies = companies;
@@ -38,6 +41,7 @@ public sealed class UpdateCompanySeatQuantityUseCase
         _clock = clock;
         _logger = logger ?? NullLogger<UpdateCompanySeatQuantityUseCase>.Instance;
         _metrics = metrics;
+        _adminPaymentAlerts = adminPaymentAlerts;
     }
 
     public async Task<UpdateCompanySeatQuantityResult> ExecuteAsync(
@@ -233,11 +237,43 @@ public sealed class UpdateCompanySeatQuantityUseCase
                 subscriptionId,
                 request.TargetSeats);
 
+            if (direction == "increase")
+            {
+                await NotifySeatIncreaseFailureSafeAsync(
+                    actor,
+                    company,
+                    current,
+                    entitlement,
+                    subscriptionId,
+                    request.TargetSeats,
+                    effectiveWhen,
+                    prorationBehavior,
+                    "stripe_update_failed",
+                    ct);
+            }
+
             return Fail("stripe_update_failed", opWatch, nowUtc, companyId, entitlementId, subscriptionId, entitlement.SeatsTotal, request.TargetSeats, entitlement.SeatsUsed, direction, effectiveWhen);
         }
 
         if (updated is null)
+        {
+            if (direction == "increase")
+            {
+                await NotifySeatIncreaseFailureSafeAsync(
+                    actor,
+                    company,
+                    current,
+                    entitlement,
+                    subscriptionId,
+                    request.TargetSeats,
+                    effectiveWhen,
+                    prorationBehavior,
+                    "stripe_update_returned_null",
+                    ct);
+            }
+
             return Fail("stripe_update_failed", opWatch, nowUtc, companyId, entitlementId, subscriptionId, entitlement.SeatsTotal, request.TargetSeats, entitlement.SeatsUsed, direction, effectiveWhen);
+        }
 
         var projected = new Entitlement
         {
@@ -287,6 +323,88 @@ public sealed class UpdateCompanySeatQuantityUseCase
             effectiveWhen);
 
         return Success(companyId, entitlementId, updated.SubscriptionId, projected, entitlement.SeatsTotal, request.TargetSeats, direction, effectiveWhen, updated.CurrentPeriodEndUtc, nowUtc);
+    }
+
+    private async Task NotifySeatIncreaseFailureSafeAsync(
+        User actor,
+        Company company,
+        StripeSubscriptionSnapshot current,
+        Entitlement entitlement,
+        string subscriptionId,
+        int targetSeats,
+        string effectiveWhen,
+        string prorationBehavior,
+        string reason,
+        CancellationToken ct)
+    {
+        if (_adminPaymentAlerts is null)
+            return;
+
+        AdminPaymentAlertDeliveryResult delivery;
+        try
+        {
+            delivery = await _adminPaymentAlerts.NotifyAsync(new AdminPaymentAlert
+            {
+                OperationName = OperationName,
+                FailureStage = "company_seat_quantity_increase",
+                FailureReason = reason,
+                Severity = "Critical",
+                OccurredAtUtc = _clock.UtcNow,
+                UserPk = Buckets.UserBucketPk(actor.UserId),
+                UserId = actor.UserId,
+                Email = FirstNonBlank(actor.EmailNormalized, company.AdminEmailNormalized),
+                PhoneE164 = actor.PhoneE164,
+                ManyChatSubscriberId = actor.ManyChatSubscriberId,
+                CompanyId = company.CompanyId,
+                StripeCustomerId = FirstNonBlank(current.CustomerId, company.StripeCustomerId),
+                StripeSubscriptionId = subscriptionId,
+                PlanType = "fleet",
+                PriceId = current.PriceId,
+                Details =
+                {
+                    ["companyName"] = company.Name,
+                    ["companyAdminEmail"] = company.AdminEmailNormalized,
+                    ["previousSeats"] = entitlement.SeatsTotal.ToString(),
+                    ["targetSeats"] = targetSeats.ToString(),
+                    ["seatsUsed"] = entitlement.SeatsUsed.ToString(),
+                    ["effectiveWhen"] = effectiveWhen,
+                    ["prorationBehavior"] = prorationBehavior,
+                    ["subscriptionStatus"] = current.Status,
+                    ["stripeQuantity"] = current.Quantity?.ToString(),
+                    ["stripeInterval"] = current.Interval,
+                    ["currentPeriodEndUtc"] = current.CurrentPeriodEndUtc?.UtcDateTime.ToString("O")
+                }
+            }, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Admin payment alert failed after company seat increase failure. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} OperationName={OperationName} CompanyId={CompanyId} SubscriptionId={SubscriptionId} TargetSeats={TargetSeats}",
+                "exception",
+                "dependency_failed",
+                "admin_payment_alert_unexpected_exception",
+                OperationName,
+                company.CompanyId,
+                subscriptionId,
+                targetSeats);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Admin payment alert outcome. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason} StatusCode={StatusCode} OperationName={OperationName} CompanyId={CompanyId} SubscriptionId={SubscriptionId} TargetSeats={TargetSeats}",
+            "outcome",
+            ToAdminPaymentAlertOutcome(delivery.Status),
+            delivery.Reason,
+            delivery.StatusCode,
+            OperationName,
+            company.CompanyId,
+            subscriptionId,
+            targetSeats);
     }
 
     private UpdateCompanySeatQuantityResult Fail(
@@ -401,6 +519,17 @@ public sealed class UpdateCompanySeatQuantityUseCase
 
     private static string BuildIdempotencyKey(string subscriptionId, int targetSeats, string effectiveWhen)
         => $"company-seat-quantity:{subscriptionId.Trim()}:{targetSeats}:{effectiveWhen}";
+
+    private static string ToAdminPaymentAlertOutcome(AdminPaymentAlertDeliveryStatus status)
+        => status switch
+        {
+            AdminPaymentAlertDeliveryStatus.Sent => "company_seat_increase_alert_sent",
+            AdminPaymentAlertDeliveryStatus.Skipped => "company_seat_increase_alert_skipped",
+            _ => "company_seat_increase_alert_failed"
+        };
+
+    private static string? FirstNonBlank(params string?[] values)
+        => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string? NullIfBlank(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -77,6 +77,97 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
         Assert.Equal("next_invoice", result.EffectiveWhen);
         Assert.Null(fixture.Gateway.LastTargetQuantity);
         Assert.Equal(10, fixture.Entitlements.Items[("C1", "ent_sub_fleet_1")].SeatsTotal);
+        Assert.Empty(fixture.AdminPaymentAlerts.Alerts);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_NotifyAdmin_WhenSeatIncreaseStripeUpdateThrows()
+    {
+        var now = Utc(2026, 4, 14);
+        var fixture = BuildFixture(now, seatsTotal: 10, seatsUsed: 6);
+        fixture.Gateway.UpdateException = new InvalidOperationException("Stripe rejected invoice payment");
+
+        var result = await fixture.Sut.ExecuteAsync(new UpdateCompanySeatQuantityRequest
+        {
+            ActorUserPk = "U_PK",
+            ActorUserId = "ADMIN",
+            CompanyId = "C1",
+            SubscriptionId = "sub_fleet_1",
+            TargetSeats = 15
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("stripe_update_failed", result.Error);
+        Assert.Equal(10, fixture.Entitlements.Items[("C1", "ent_sub_fleet_1")].SeatsTotal);
+
+        var alert = Assert.Single(fixture.AdminPaymentAlerts.Alerts);
+        Assert.Equal("company_seat_quantity_change", alert.OperationName);
+        Assert.Equal("company_seat_quantity_increase", alert.FailureStage);
+        Assert.Equal("stripe_update_failed", alert.FailureReason);
+        Assert.Equal("Critical", alert.Severity);
+        Assert.Equal("ADMIN", alert.UserId);
+        Assert.Equal("admin@company.com", alert.Email);
+        Assert.Equal("+15551234567", alert.PhoneE164);
+        Assert.Equal("mc_admin", alert.ManyChatSubscriberId);
+        Assert.Equal("C1", alert.CompanyId);
+        Assert.Equal("cus_company", alert.StripeCustomerId);
+        Assert.Equal("sub_fleet_1", alert.StripeSubscriptionId);
+        Assert.Equal("fleet", alert.PlanType);
+        Assert.Equal("price_fleet", alert.PriceId);
+        Assert.Equal("10", alert.Details["previousSeats"]);
+        Assert.Equal("15", alert.Details["targetSeats"]);
+        Assert.Equal("6", alert.Details["seatsUsed"]);
+        Assert.Equal("immediate", alert.Details["effectiveWhen"]);
+        Assert.Equal("always_invoice", alert.Details["prorationBehavior"]);
+        Assert.Equal("RNM Fleet", alert.Details["companyName"]);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_NotifyAdmin_WhenSeatIncreaseStripeUpdateReturnsNull()
+    {
+        var now = Utc(2026, 4, 14);
+        var fixture = BuildFixture(now, seatsTotal: 10, seatsUsed: 6);
+        fixture.Gateway.Updated = null;
+
+        var result = await fixture.Sut.ExecuteAsync(new UpdateCompanySeatQuantityRequest
+        {
+            ActorUserPk = "U_PK",
+            ActorUserId = "ADMIN",
+            CompanyId = "C1",
+            SubscriptionId = "sub_fleet_1",
+            TargetSeats = 15
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("stripe_update_failed", result.Error);
+
+        var alert = Assert.Single(fixture.AdminPaymentAlerts.Alerts);
+        Assert.Equal("company_seat_quantity_change", alert.OperationName);
+        Assert.Equal("company_seat_quantity_increase", alert.FailureStage);
+        Assert.Equal("stripe_update_returned_null", alert.FailureReason);
+        Assert.Equal("15", alert.Details["targetSeats"]);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_PreserveStripeFailure_WhenAdminAlertThrows()
+    {
+        var now = Utc(2026, 4, 14);
+        var fixture = BuildFixture(now, seatsTotal: 10, seatsUsed: 6);
+        fixture.Gateway.UpdateException = new InvalidOperationException("Stripe rejected invoice payment");
+        fixture.AdminPaymentAlerts.ExceptionToThrow = new InvalidOperationException("SendGrid client failed unexpectedly");
+
+        var result = await fixture.Sut.ExecuteAsync(new UpdateCompanySeatQuantityRequest
+        {
+            ActorUserPk = "U_PK",
+            ActorUserId = "ADMIN",
+            CompanyId = "C1",
+            SubscriptionId = "sub_fleet_1",
+            TargetSeats = 15
+        });
+
+        Assert.False(result.Result);
+        Assert.Equal("stripe_update_failed", result.Error);
+        Assert.Equal(10, fixture.Entitlements.Items[("C1", "ent_sub_fleet_1")].SeatsTotal);
     }
 
     [Fact]
@@ -149,13 +240,17 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
         {
             UserId = "ADMIN",
             EmailNormalized = "admin@company.com",
-            CompanyId = "C1"
+            PhoneE164 = "+15551234567",
+            ManyChatSubscriberId = "mc_admin",
+            CompanyId = "C1",
+            PlanType = "individual_monthly"
         };
 
         var companies = new InMemoryCompanyStore();
         companies.Items["C1"] = new Company
         {
             CompanyId = "C1",
+            Name = "RNM Fleet",
             AdminEmailNormalized = "admin@company.com",
             StripeCustomerId = "cus_company"
         };
@@ -179,15 +274,17 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
             Updated = new StripeSubscriptionSnapshot("sub_fleet_1", "cus_company", "active", "price_fleet", "month", seatsTotal, false, now.AddDays(20), null, null)
         };
 
+        var adminPaymentAlerts = new RecordingAdminPaymentAlertNotifier();
         var sut = new UpdateCompanySeatQuantityUseCase(
             users,
             companies,
             entitlements,
             gateway,
             new FixedClock(now),
-            NullLogger<UpdateCompanySeatQuantityUseCase>.Instance);
+            NullLogger<UpdateCompanySeatQuantityUseCase>.Instance,
+            adminPaymentAlerts: adminPaymentAlerts);
 
-        return new Fixture(sut, entitlements, gateway);
+        return new Fixture(sut, entitlements, gateway, adminPaymentAlerts);
     }
 
     private static DateTimeOffset Utc(int year, int month, int day)
@@ -196,7 +293,23 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
     private sealed record Fixture(
         UpdateCompanySeatQuantityUseCase Sut,
         InMemoryEntitlementStore Entitlements,
-        FakeStripeSubscriptionGateway Gateway);
+        FakeStripeSubscriptionGateway Gateway,
+        RecordingAdminPaymentAlertNotifier AdminPaymentAlerts);
+
+    private sealed class RecordingAdminPaymentAlertNotifier : IAdminPaymentAlertNotifier
+    {
+        public List<AdminPaymentAlert> Alerts { get; } = [];
+        public Exception? ExceptionToThrow { get; set; }
+
+        public Task<AdminPaymentAlertDeliveryResult> NotifyAsync(AdminPaymentAlert alert, CancellationToken ct = default)
+        {
+            if (ExceptionToThrow is not null)
+                throw ExceptionToThrow;
+
+            Alerts.Add(alert);
+            return Task.FromResult(AdminPaymentAlertDeliveryResult.Sent());
+        }
+    }
 
     private sealed class FixedClock(DateTimeOffset utcNow) : IClock
     {
@@ -264,6 +377,7 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
     {
         public StripeSubscriptionSnapshot? Current { get; set; }
         public StripeSubscriptionSnapshot? Updated { get; set; }
+        public Exception? UpdateException { get; set; }
         public int? LastTargetQuantity { get; private set; }
         public string? LastProrationBehavior { get; private set; }
 
@@ -277,6 +391,10 @@ public sealed class CompanySeatQuantityChangeUseCaseTests
         {
             LastTargetQuantity = targetQuantity;
             LastProrationBehavior = prorationBehavior;
+
+            if (UpdateException is not null)
+                throw UpdateException;
+
             Updated = Updated is null
                 ? null
                 : Updated with { Quantity = targetQuantity };

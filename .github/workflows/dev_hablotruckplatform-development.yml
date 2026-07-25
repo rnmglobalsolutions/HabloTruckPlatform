@@ -80,8 +80,8 @@ jobs:
                 stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_DEV" \
                 adminPaymentAlertsEnabled=true \
                 adminPaymentAlertsSendGridApiKey="$ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV" \
-                adminPaymentAlertsToEmail="info@rnmglobalsolutions.com" \
-                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_DEV:-alerts-platform@rnmglobalsolutions.com}" \
+                adminPaymentAlertsToEmail="grettadecien@gmail.com" \
+                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_DEV:-info@rnmglobalsolutions.com}" \
                 adminPaymentAlertsFromName="HabloTruck Development Alerts" \
               --query "properties.outputs" \
               --output json

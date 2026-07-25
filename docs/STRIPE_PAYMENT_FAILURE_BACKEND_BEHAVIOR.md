@@ -27,6 +27,14 @@ Tambien sigue procesando eventos exitosos o de lifecycle:
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
 
+Ademas de webhooks, el backend envia alerta admin cuando una operacion interna relacionada con cobro falla, por ejemplo:
+
+- Crear un Stripe Checkout link.
+- Crear un Billing Portal link para actualizar metodo de pago.
+- Reintentar una invoice abierta.
+- Cambiar plan mensual/anual cuando Stripe no acepta el cobro o actualizacion.
+- Aumentar seats de company/fleet cuando Stripe no acepta el cobro inmediato.
+
 ## Diferencia Entre Los Eventos De Fallo
 
 ### `invoice.payment_failed`
@@ -293,8 +301,8 @@ traces
 Para que el email funcione en el environment correspondiente:
 
 - `AdminPaymentAlerts__Enabled=true`
-- `AdminPaymentAlerts__ToEmail=info@rnmglobalsolutions.com`
-- `AdminPaymentAlerts__FromEmail=alerts-platform@rnmglobalsolutions.com`
+- `AdminPaymentAlerts__ToEmail=grettadecien@gmail.com`
+- `AdminPaymentAlerts__FromEmail=info@rnmglobalsolutions.com`
 - `AdminPaymentAlerts__SendGridApiKey` configurado como secret/app setting.
 
 En Stripe, el webhook debe tener seleccionados al menos estos eventos:

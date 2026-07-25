@@ -156,7 +156,7 @@ Si tu rama productiva usa otro nombre, ajusta el trigger del workflow de producc
 - `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD`
 
 `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD` habilita emails de alerta para fallos de pago en producción.
-El destinatario por defecto es `info@rnmglobalsolutions.com`.
+El destinatario por defecto es `grettadecien@gmail.com`.
 `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV` habilita el mismo flujo en desarrollo para pruebas.
 
 ## Variables opcionales en GitHub

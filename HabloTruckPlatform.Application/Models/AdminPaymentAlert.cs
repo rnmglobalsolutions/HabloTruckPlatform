@@ -2,7 +2,7 @@ namespace HabloTruckPlatform.Application.Models;
 
 public sealed class AdminPaymentAlert
 {
-    public string EnvironmentName { get; set; } = "Production";
+    public string EnvironmentName { get; set; } = "";
     public string OperationName { get; set; } = "";
     public string FailureStage { get; set; } = "";
     public string FailureReason { get; set; } = "";

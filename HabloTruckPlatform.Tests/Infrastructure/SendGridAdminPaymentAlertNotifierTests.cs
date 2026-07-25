@@ -20,8 +20,8 @@ public sealed class SendGridAdminPaymentAlertNotifierTests
                 Enabled = true,
                 EnvironmentName = "Production",
                 SendGridApiKey = "SG.test",
-                ToEmail = "info@rnmglobalsolutions.com",
-                FromEmail = "alerts-platform@rnmglobalsolutions.com",
+                ToEmail = "grettadecien@gmail.com",
+                FromEmail = "info@rnmglobalsolutions.com",
                 FromName = "HabloTruck Production Alerts"
             }),
             NullLogger<SendGridAdminPaymentAlertNotifier>.Instance);
@@ -61,7 +61,7 @@ public sealed class SendGridAdminPaymentAlertNotifierTests
         using var doc = JsonDocument.Parse(request.Body);
         var root = doc.RootElement;
         var personalization = root.GetProperty("personalizations")[0];
-        Assert.Equal("info@rnmglobalsolutions.com", personalization.GetProperty("to")[0].GetProperty("email").GetString());
+        Assert.Equal("grettadecien@gmail.com", personalization.GetProperty("to")[0].GetProperty("email").GetString());
 
         var subject = personalization.GetProperty("subject").GetString();
         Assert.Contains("URGENTE: ERROR DE PAGO EN PRODUCTION", subject);
@@ -92,8 +92,8 @@ public sealed class SendGridAdminPaymentAlertNotifierTests
                 Enabled = false,
                 EnvironmentName = "Development",
                 SendGridApiKey = "SG.test",
-                ToEmail = "info@rnmglobalsolutions.com",
-                FromEmail = "alerts-platform@rnmglobalsolutions.com"
+                ToEmail = "grettadecien@gmail.com",
+                FromEmail = "info@rnmglobalsolutions.com"
             }),
             NullLogger<SendGridAdminPaymentAlertNotifier>.Instance);
 
@@ -108,6 +108,41 @@ public sealed class SendGridAdminPaymentAlertNotifierTests
     }
 
     [Fact]
+    public async Task NotifyAsync_Should_UseConfiguredEnvironmentName_WhenAlertDoesNotOverrideIt()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.Accepted);
+        var sut = new SendGridAdminPaymentAlertNotifier(
+            new HttpClient(handler) { BaseAddress = new Uri("https://api.sendgrid.com/") },
+            Options.Create(new AdminPaymentAlertEmailOptions
+            {
+                Enabled = true,
+                EnvironmentName = "Testing",
+                SendGridApiKey = "SG.test",
+                ToEmail = "grettadecien@gmail.com",
+                FromEmail = "info@rnmglobalsolutions.com"
+            }),
+            NullLogger<SendGridAdminPaymentAlertNotifier>.Instance);
+
+        var result = await sut.NotifyAsync(new AdminPaymentAlert
+        {
+            OperationName = "stripe_payment_failure_webhook",
+            FailureReason = "insufficient_funds"
+        });
+
+        Assert.Equal(AdminPaymentAlertDeliveryStatus.Sent, result.Status);
+
+        var request = Assert.Single(handler.Requests);
+        using var doc = JsonDocument.Parse(request.Body);
+        var root = doc.RootElement;
+        var personalization = root.GetProperty("personalizations")[0];
+        var subject = personalization.GetProperty("subject").GetString();
+        Assert.Contains("URGENTE: ERROR DE PAGO EN TESTING", subject);
+
+        var html = root.GetProperty("content")[1].GetProperty("value").GetString();
+        Assert.Contains("ERROR DE PAGO EN TESTING", html);
+    }
+
+    [Fact]
     public async Task NotifyAsync_Should_ReturnFailed_WhenSendGridRejectsRequest()
     {
         var handler = new RecordingHandler(HttpStatusCode.Unauthorized);
@@ -118,8 +153,8 @@ public sealed class SendGridAdminPaymentAlertNotifierTests
                 Enabled = true,
                 EnvironmentName = "Development",
                 SendGridApiKey = "SG.bad",
-                ToEmail = "info@rnmglobalsolutions.com",
-                FromEmail = "alerts-platform@rnmglobalsolutions.com"
+                ToEmail = "grettadecien@gmail.com",
+                FromEmail = "info@rnmglobalsolutions.com"
             }),
             NullLogger<SendGridAdminPaymentAlertNotifier>.Instance);
 
