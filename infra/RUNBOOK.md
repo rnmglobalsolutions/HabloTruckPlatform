@@ -95,7 +95,7 @@ El despliegue queda reservado al merge sobre la rama destino.
 - `STRIPE_WEBHOOK_SECRET_PROD`
 - `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD`
 
-`ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD` se usa para enviar alertas administrativas de fallos de pago en producción a `info@rnmglobalsolutions.com`.
+`ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD` se usa para enviar alertas administrativas de fallos de pago en producción a `grettadecien@gmail.com`.
 `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV` se usa para probar esas mismas alertas en desarrollo.
 
 ## 5. Configurar Variables en GitHub

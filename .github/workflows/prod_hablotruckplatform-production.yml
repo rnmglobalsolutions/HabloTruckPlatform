@@ -91,8 +91,8 @@ jobs:
                 stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_PROD" \
                 adminPaymentAlertsEnabled=true \
                 adminPaymentAlertsSendGridApiKey="$ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_PROD" \
-                adminPaymentAlertsToEmail="info@rnmglobalsolutions.com" \
-                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_PROD:-alerts-platform@rnmglobalsolutions.com}" \
+                adminPaymentAlertsToEmail="grettadecien@gmail.com" \
+                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_PROD:-info@rnmglobalsolutions.com}" \
                 adminPaymentAlertsFromName="HabloTruck Production Alerts" \
                 stripeIndividualMonthlyPriceId="$STRIPE_INDIVIDUAL_MONTHLY_PRICE_ID_PROD" \
                 stripeIndividualYearlyPriceId="$STRIPE_INDIVIDUAL_YEARLY_PRICE_ID_PROD" \

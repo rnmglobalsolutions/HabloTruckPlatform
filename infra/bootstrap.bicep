@@ -94,8 +94,8 @@ param adminPaymentAlertsEnabled bool = false
 @secure()
 param adminPaymentAlertsSendGridApiKey string = ''
 
-param adminPaymentAlertsToEmail string = 'info@rnmglobalsolutions.com'
-param adminPaymentAlertsFromEmail string = 'alerts-platform@rnmglobalsolutions.com'
+param adminPaymentAlertsToEmail string = 'grettadecien@gmail.com'
+param adminPaymentAlertsFromEmail string = 'info@rnmglobalsolutions.com'
 param adminPaymentAlertsFromName string = 'HabloTruck Production Alerts'
 
 param manyChatBaseUrl string = 'https://api.manychat.com'

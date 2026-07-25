@@ -98,10 +98,10 @@ param adminPaymentAlertsEnabled bool = false
 param adminPaymentAlertsSendGridApiKey string = ''
 
 @description('Admin recipient for payment failure email alerts.')
-param adminPaymentAlertsToEmail string = 'info@rnmglobalsolutions.com'
+param adminPaymentAlertsToEmail string = 'grettadecien@gmail.com'
 
 @description('Sender email for payment failure email alerts.')
-param adminPaymentAlertsFromEmail string = 'alerts-platform@rnmglobalsolutions.com'
+param adminPaymentAlertsFromEmail string = 'info@rnmglobalsolutions.com'
 
 @description('Sender name for payment failure email alerts.')
 param adminPaymentAlertsFromName string = 'HabloTruck Production Alerts'
@@ -399,7 +399,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
         {
           name: 'AdminPaymentAlerts__EnvironmentName'
-          value: environmentName == 'prod' ? 'Production' : environmentName
+          value: environmentName == 'prod' ? 'Production' : 'Testing'
         }
         {
           name: 'AdminPaymentAlerts__ToEmail'
