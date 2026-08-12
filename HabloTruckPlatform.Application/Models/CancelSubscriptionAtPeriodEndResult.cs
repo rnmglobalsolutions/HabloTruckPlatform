@@ -5,6 +5,8 @@ public sealed class CancelSubscriptionAtPeriodEndResult
     public bool Result { get; set; }
 
     public string Scope { get; set; } = "individual";
+    public string? ActorUserPk { get; set; }
+    public string? ActorUserId { get; set; }
     public string? SubscriptionId { get; set; }
 
     public bool CancelAtPeriodEnd { get; set; }

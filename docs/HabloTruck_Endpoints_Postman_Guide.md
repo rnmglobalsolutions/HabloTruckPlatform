@@ -762,28 +762,38 @@ x-correlation-id: <optional>
 ```json
 {
   "scope": "individual",
-  "actorUserPk": "U_20260331",
-  "actorUserId": "USER_123",
-  "companyId": "C1",
+  "manyChatSubscriberId": "123456789",
   "subscriptionId": "sub_123"
 }
 ```
+
+For ManyChat individual cancellation, `subscriptionId` is optional. If omitted, the backend resolves the user by `manyChatSubscriberId` and uses the stored `StripeSubscriptionId`.
+
+Legacy/internal callers can still pass `actorUserPk` and `actorUserId` directly. Company/fleet cancellation still requires `companyId` and authorization checks.
 
 **Response Object**  
 ```json
 {
   "ok": true,
   "scope": "individual",
+  "actorUserPk": "U_20260331",
+  "actorUserId": "USER_123",
   "subscriptionId": "sub_123",
   "cancelAtPeriodEnd": true,
   "alreadyScheduled": false,
   "effectivePeriodEndUtc": "2026-04-30T00:00:00.0000000Z",
+  "effectivePeriodEndFormatted": "30 de abril de 2026",
   "currentPeriodEndUtc": "2026-04-30T00:00:00.0000000Z",
+  "currentPeriodEndFormatted": "30 de abril de 2026",
   "cancelRequestedAtUtc": "2026-03-31T22:00:00.0000000Z",
+  "cancelRequestedAtFormatted": "31 de marzo de 2026",
   "canceledAtUtc": "",
+  "canceledAtFormatted": "",
   "error": null
 }
 ```
+
+Formatted date fields are returned as Spanish display strings, for example `30 de abril de 2026`. If the source date is missing or null, the formatted value is an empty string.
 
 ---
 

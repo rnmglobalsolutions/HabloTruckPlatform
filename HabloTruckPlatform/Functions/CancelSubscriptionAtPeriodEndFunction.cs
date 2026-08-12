@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using HabloTruckPlatform.Application.Models;
@@ -15,6 +16,8 @@ namespace HabloTruckPlatform.Functions.Functions;
 
 public sealed class CancelSubscriptionAtPeriodEndFunction
 {
+    private static readonly CultureInfo SpanishCulture = CultureInfo.GetCultureInfo("es-ES");
+
     private readonly CancelSubscriptionAtPeriodEndUseCase _useCase;
     private readonly ILogger<CancelSubscriptionAtPeriodEndFunction> _logger;
     private readonly IApiKeyValidator _apiKeyValidator;
@@ -98,6 +101,7 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
             Scope = body?.Scope ?? "individual",
             ActorUserPk = body?.ActorUserPk?.Trim() ?? string.Empty,
             ActorUserId = body?.ActorUserId?.Trim() ?? string.Empty,
+            ManyChatSubscriberId = string.IsNullOrWhiteSpace(body?.ManyChatSubscriberId) ? null : body!.ManyChatSubscriberId!.Trim(),
             CompanyId = string.IsNullOrWhiteSpace(body?.CompanyId) ? null : body!.CompanyId!.Trim(),
             SubscriptionId = string.IsNullOrWhiteSpace(body?.SubscriptionId) ? null : body!.SubscriptionId!.Trim()
         }, ctx.CancellationToken);
@@ -128,16 +132,27 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
         {
             ok = result.Result,
             scope = result.Scope,
+            actorUserPk = result.ActorUserPk ?? "",
+            actorUserId = result.ActorUserId ?? "",
             subscriptionId = result.SubscriptionId ?? "",
             cancelAtPeriodEnd = result.CancelAtPeriodEnd,
             alreadyScheduled = result.AlreadyScheduled,
             effectivePeriodEndUtc = result.EffectivePeriodEndUtc?.UtcDateTime.ToString("O") ?? "",
+            effectivePeriodEndFormatted = FormatSpanishDate(result.EffectivePeriodEndUtc),
             currentPeriodEndUtc = result.CurrentPeriodEndUtc?.UtcDateTime.ToString("O") ?? "",
+            currentPeriodEndFormatted = FormatSpanishDate(result.CurrentPeriodEndUtc),
             cancelRequestedAtUtc = result.CancelRequestedAtUtc.UtcDateTime.ToString("O"),
+            cancelRequestedAtFormatted = FormatSpanishDate(result.CancelRequestedAtUtc),
             canceledAtUtc = result.CanceledAtUtc?.UtcDateTime.ToString("O") ?? "",
+            canceledAtFormatted = FormatSpanishDate(result.CanceledAtUtc),
             error = result.Error
         });
     }
+
+    private static string FormatSpanishDate(DateTimeOffset? value)
+        => value is null
+            ? string.Empty
+            : value.Value.UtcDateTime.ToString("d 'de' MMMM 'de' yyyy", SpanishCulture);
 
     private static HttpStatusCode ToStatusCode(string? error)
     {
@@ -176,5 +191,3 @@ public sealed class CancelSubscriptionAtPeriodEndFunction
         return null;
     }
 }
-
-

@@ -256,6 +256,49 @@ public sealed class ManyChatSyncClient : IManyChatSync
             await AddTagByNameAsync(sid, _opt.TagBillingRecovered, ct);
     }
 
+    public async Task SyncSubscriptionDeletedLifecycleAsync(
+        ManyChatSubscriptionDeletedLifecycleUpdate update,
+        CancellationToken ct = default)
+    {
+        if (update is null)
+            throw new ArgumentNullException(nameof(update));
+
+        if (string.IsNullOrWhiteSpace(update.SubscriberId))
+            return;
+
+        var sid = update.SubscriberId.Trim();
+
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "manychat_sync_subscription_deleted_lifecycle",
+            ["UserId"] = update.UserId,
+            ["CompanyId"] = update.CompanyId,
+            ["SubscriptionId"] = update.SubscriptionId,
+            ["CorrelationId"] = update.CorrelationId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} SubscriberIdSuffix={SubscriberIdSuffix} AccessBlocked={AccessBlocked}",
+            "entry",
+            "manychat_sync_subscription_deleted_lifecycle",
+            MaskSubscriberId(sid),
+            update.AccessBlocked);
+
+        await RemoveTagByNameAsync(sid, _opt.TagCancelScheduled, ct);
+
+        if (update.AccessBlocked)
+        {
+            await RemoveTagByNameAsync(sid, _opt.TagAccessFull, ct);
+            await AddTagByNameAsync(sid, _opt.TagChurned, ct);
+        }
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
+            "outcome",
+            "completed",
+            update.AccessBlocked ? "subscription_deleted_churn_synced" : "subscription_deleted_cancel_tag_cleared");
+    }
+
     public async Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
     {
         var payload = new

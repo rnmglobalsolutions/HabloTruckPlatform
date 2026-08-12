@@ -1043,6 +1043,68 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.NotNull(saved);
         Assert.Equal("deleted", saved!.SubscriptionStatus);
         Assert.Null(saved.IndividualGraceEndsAtUtc);
+        Assert.Contains(("remove", "sid_deleted_1", ManyChatLifecycleTags.CancelScheduled), fixture.ManyChatSync.TagCalls);
+        Assert.Contains(("remove", "sid_deleted_1", ManyChatLifecycleTags.AccessFull), fixture.ManyChatSync.TagCalls);
+        Assert.Contains(("add", "sid_deleted_1", ManyChatLifecycleTags.Churned), fixture.ManyChatSync.TagCalls);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionDeletedAsync_Should_NotMarkChurned_When_CompanyAccessKeepsUserFull()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_deleted_company_full",
+            StripeCustomerId = "cus_deleted_company_full",
+            StripeSubscriptionId = "sub_deleted_company_full",
+            SubscriptionStatus = "active",
+            CompanyId = "C_deleted_company_full",
+            SeatEntitlementId = "ent_company_full",
+            ManyChatSubscriberId = "sid_deleted_company_full"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_deleted_company_full", user);
+        await fixture.SeatStore.UpsertAsync(new SeatAssignment
+        {
+            CompanyId = "C_deleted_company_full",
+            UserId = "U_deleted_company_full",
+            EntitlementId = "ent_company_full",
+            Status = "active",
+            AssignedAtUtc = now.AddDays(-5),
+            UpdatedAtUtc = now.AddDays(-5)
+        });
+        await fixture.EntitlementStore.UpsertAsync(new Entitlement
+        {
+            CompanyId = "C_deleted_company_full",
+            EntitlementId = "ent_company_full",
+            SeatsTotal = 10,
+            SeatsUsed = 1,
+            Status = "active",
+            StartUtc = now.AddDays(-5),
+            EndUtc = now.AddDays(20),
+            UpdatedAtUtc = now.AddDays(-5)
+        });
+
+        var decision = await fixture.Handler.HandleSubscriptionDeletedAsync(new StripeSubscriptionDeleted(
+            StripeEventId: "evt_deleted_company_full",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_deleted_company_full",
+            StripeSubscriptionId: "sub_deleted_company_full",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now,
+            CanceledAtUtc: now,
+            EndedAtUtc: now));
+
+        Assert.NotNull(decision);
+        Assert.Equal(AccessMode.Full, decision!.Mode);
+        Assert.Contains(("remove", "sid_deleted_company_full", ManyChatLifecycleTags.CancelScheduled), fixture.ManyChatSync.TagCalls);
+        Assert.DoesNotContain(("remove", "sid_deleted_company_full", ManyChatLifecycleTags.AccessFull), fixture.ManyChatSync.TagCalls);
+        Assert.DoesNotContain(("add", "sid_deleted_company_full", ManyChatLifecycleTags.Churned), fixture.ManyChatSync.TagCalls);
     }
 
     [Fact]
@@ -1126,7 +1188,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         var graceIndexStore = new InMemoryGraceIndexStore();
         var manyChat = new RecordingManyChatSync();
         var failedActions = new NoopFailedActionStore();
-        var seatStore = new NoopSeatAssignmentStore();
+        var seatStore = new InMemorySeatAssignmentStore();
         var companyStore = new InMemoryCompanyStore();
         var inviteStore = new InMemoryInviteCodeStore();
         var expiryIndexStore = new InMemoryEntitlementExpiryIndexStore();
@@ -1178,7 +1240,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
             billingRecoveryNotifier,
             NullLogger<StripeSubscriptionHandler>.Instance);
 
-        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin, entitlementStore, companyStore, inviteStore);
+        return new HandlerFixture(handler, userStore, userResolver, manyChat, priceCatalog, failedActions, stripeAdmin, entitlementStore, companyStore, inviteStore, seatStore);
     }
 
     private sealed record HandlerFixture(
@@ -1191,7 +1253,8 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         NoopStripeAdminClient StripeAdmin,
         InMemoryEntitlementStore EntitlementStore,
         InMemoryCompanyStore CompanyStore,
-        InMemoryInviteCodeStore InviteStore);
+        InMemoryInviteCodeStore InviteStore,
+        InMemorySeatAssignmentStore SeatStore);
 
     private static DateTimeOffset Utc(int y, int m, int d, int h)
         => new(y, m, d, h, 0, 0, TimeSpan.Zero);
@@ -1300,6 +1363,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         public int SyncCalls { get; private set; }
         public int PaymentFailedFlowCalls { get; private set; }
         public List<BillingRecoveryManyChatUpdate> BillingRecoveryUpdates { get; } = new();
+        public List<(string Action, string SubscriberId, string TagName)> TagCalls { get; } = new();
         public Exception? PaymentFailedFlowException { get; set; }
 
         public Task SyncUserAccessAsync(User user, AccessDecision decision, CancellationToken ct = default)
@@ -1332,6 +1396,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
         public Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
         {
+            TagCalls.Add(("remove", subscriberId, tagName));
             return Task.FromResult(new ManyChatResponse
             {
                 status = "ok",
@@ -1341,6 +1406,7 @@ public sealed class StripeSubscriptionHandlerProjectionTests
 
         public Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
         {
+            TagCalls.Add(("add", subscriberId, tagName));
             return Task.FromResult(new ManyChatResponse
             {
                 status = "ok",
@@ -1358,19 +1424,35 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         }
     }
 
-    private sealed class NoopSeatAssignmentStore : ISeatAssignmentStore
+    private sealed class InMemorySeatAssignmentStore : ISeatAssignmentStore
     {
+        private readonly Dictionary<(string CompanyId, string UserId), SeatAssignment> _rows = new();
+
         public Task<SeatAssignment?> GetAsync(string companyId, string userId, CancellationToken ct = default)
-            => Task.FromResult<SeatAssignment?>(null);
+            => Task.FromResult(_rows.TryGetValue((companyId, userId), out var seat) ? seat : null);
 
         public Task UpsertAsync(SeatAssignment seat, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            _rows[(seat.CompanyId, seat.UserId)] = seat;
+            return Task.CompletedTask;
+        }
 
         public Task RevokeAsync(string companyId, string userId, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            if (_rows.TryGetValue((companyId, userId), out var seat))
+            {
+                seat.Status = "revoked";
+                seat.RevokedAtUtc = DateTimeOffset.UtcNow;
+            }
+
+            return Task.CompletedTask;
+        }
 
         public Task<int> CountActiveSeatsAsync(string companyId, string entitlementId, CancellationToken ct = default)
-            => Task.FromResult(0);
+            => Task.FromResult(_rows.Values.Count(seat =>
+                string.Equals(seat.CompanyId, companyId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(seat.EntitlementId, entitlementId, StringComparison.OrdinalIgnoreCase)
+                && seat.IsActive()));
     }
 
     private sealed class InMemoryCompanyStore : ICompanyStore

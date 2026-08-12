@@ -128,6 +128,115 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_Should_ScheduleCancel_When_IndividualActorIsResolvedByManyChatSubscriberId()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var userStore = new InMemoryUserStore();
+        var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
+        var userResolver = new InMemoryUserResolver();
+
+        var gateway = new FakeStripeSubscriptionGateway
+        {
+            Current = new StripeSubscriptionSnapshot(
+                SubscriptionId: "sub_ind_manychat",
+                CustomerId: "cus_ind_manychat",
+                Status: "active",
+                PriceId: "price_ind_monthly",
+                Interval: "month",
+                CancelAtPeriodEnd: false,
+                CurrentPeriodEndUtc: now.AddDays(21),
+                CanceledAtUtc: null,
+                EndedAtUtc: null),
+            Updated = new StripeSubscriptionSnapshot(
+                SubscriptionId: "sub_ind_manychat",
+                CustomerId: "cus_ind_manychat",
+                Status: "active",
+                PriceId: "price_ind_monthly",
+                Interval: "month",
+                CancelAtPeriodEnd: true,
+                CurrentPeriodEndUtc: now.AddDays(21),
+                CanceledAtUtc: now,
+                EndedAtUtc: null)
+        };
+
+        userStore.Users[("HT_U_006", "U6")] = new User
+        {
+            UserId = "U6",
+            StripeCustomerId = "cus_ind_manychat",
+            StripeSubscriptionId = "sub_ind_manychat",
+            ManyChatSubscriberId = "mc_cancel_6"
+        };
+        userResolver.ManyChat["mc_cancel_6"] = new UserRef("HT_U_006", "U6");
+
+        var sut = new CancelSubscriptionAtPeriodEndUseCase(
+            userStore,
+            companyStore,
+            entitlementStore,
+            gateway,
+            new FixedClock(now),
+            userResolver: userResolver);
+
+        // Act
+        var result = await sut.ExecuteAsync(new CancelSubscriptionAtPeriodEndRequest
+        {
+            Scope = "individual",
+            ManyChatSubscriberId = "mc_cancel_6"
+        });
+
+        // Assert
+        Assert.True(result.Result);
+        Assert.Equal("HT_U_006", result.ActorUserPk);
+        Assert.Equal("U6", result.ActorUserId);
+        Assert.Equal("sub_ind_manychat", result.SubscriptionId);
+        Assert.True(result.CancelAtPeriodEnd);
+        Assert.Equal(1, gateway.ScheduleCalls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_ReturnForbidden_When_ManyChatActorProvidesDifferentSubscriptionId()
+    {
+        // Arrange
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var userStore = new InMemoryUserStore();
+        var companyStore = new InMemoryCompanyStore();
+        var entitlementStore = new InMemoryEntitlementStore();
+        var userResolver = new InMemoryUserResolver();
+        var gateway = new FakeStripeSubscriptionGateway();
+
+        userStore.Users[("HT_U_007", "U7")] = new User
+        {
+            UserId = "U7",
+            StripeCustomerId = "cus_ind_manychat_7",
+            StripeSubscriptionId = "sub_ind_real_7",
+            ManyChatSubscriberId = "mc_cancel_7"
+        };
+        userResolver.ManyChat["mc_cancel_7"] = new UserRef("HT_U_007", "U7");
+
+        var sut = new CancelSubscriptionAtPeriodEndUseCase(
+            userStore,
+            companyStore,
+            entitlementStore,
+            gateway,
+            new FixedClock(now),
+            userResolver: userResolver);
+
+        // Act
+        var result = await sut.ExecuteAsync(new CancelSubscriptionAtPeriodEndRequest
+        {
+            Scope = "individual",
+            ManyChatSubscriberId = "mc_cancel_7",
+            SubscriptionId = "sub_someone_else"
+        });
+
+        // Assert
+        Assert.False(result.Result);
+        Assert.Equal("forbidden", result.Error);
+        Assert.Equal(0, gateway.ScheduleCalls);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Should_ReturnForbidden_When_CompanyActorIsNotAuthorized()
     {
         // Arrange
@@ -429,6 +538,23 @@ public sealed class CancelSubscriptionAtPeriodEndUseCaseTests
             entitlement.Status = status;
             _items[(companyId, entitlementId)] = entitlement;
         }
+    }
+
+    private sealed class InMemoryUserResolver : IUserResolver
+    {
+        public Dictionary<string, UserRef> ManyChat { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<UserRef?> ResolveByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
+            => Task.FromResult<UserRef?>(null);
+
+        public Task<UserRef?> ResolveByManyChatSubscriberIdAsync(string subscriberId, CancellationToken ct = default)
+        {
+            var key = subscriberId.Trim();
+            return Task.FromResult(ManyChat.TryGetValue(key, out var userRef) ? userRef : (UserRef?)null);
+        }
+
+        public Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
+            => Task.FromResult<UserRef?>(null);
     }
 
     private sealed class FakeStripeSubscriptionGateway : IStripeSubscriptionGateway

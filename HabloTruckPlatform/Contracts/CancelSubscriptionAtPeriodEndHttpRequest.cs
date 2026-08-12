@@ -7,6 +7,7 @@ public sealed class CancelSubscriptionAtPeriodEndHttpRequest
 
     public string? ActorUserPk { get; set; }
     public string? ActorUserId { get; set; }
+    public string? ManyChatSubscriberId { get; set; }
 
     public string? CompanyId { get; set; }
     public string? SubscriptionId { get; set; }

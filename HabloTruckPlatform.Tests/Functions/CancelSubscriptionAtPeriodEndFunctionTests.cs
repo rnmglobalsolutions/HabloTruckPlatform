@@ -71,7 +71,73 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(body.GetProperty("ok").GetBoolean());
         Assert.True(body.GetProperty("cancelAtPeriodEnd").GetBoolean());
+        Assert.Equal("HT_U_001", body.GetProperty("actorUserPk").GetString());
+        Assert.Equal("U1", body.GetProperty("actorUserId").GetString());
         Assert.Equal("sub_ind_ok", body.GetProperty("subscriptionId").GetString());
+        Assert.Equal("30 de marzo de 2026", body.GetProperty("effectivePeriodEndFormatted").GetString());
+        Assert.Equal("30 de marzo de 2026", body.GetProperty("currentPeriodEndFormatted").GetString());
+        Assert.Equal("10 de marzo de 2026", body.GetProperty("cancelRequestedAtFormatted").GetString());
+        Assert.Equal("10 de marzo de 2026", body.GetProperty("canceledAtFormatted").GetString());
+    }
+
+    [Fact]
+    public async Task Run_Should_ReturnOk_ForManyChatIndividualCancelRequest()
+    {
+        var now = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
+        var fixture = BuildFixture(now);
+
+        fixture.UserStore.Users[("HT_U_MC", "U_MC")] = new User
+        {
+            UserId = "U_MC",
+            StripeCustomerId = "cus_ind_mc",
+            StripeSubscriptionId = "sub_ind_mc",
+            ManyChatSubscriberId = "mc_cancel_contact"
+        };
+        fixture.UserResolver.ManyChat["mc_cancel_contact"] = new UserRef("HT_U_MC", "U_MC");
+
+        fixture.Gateway.Current = new StripeSubscriptionSnapshot(
+            SubscriptionId: "sub_ind_mc",
+            CustomerId: "cus_ind_mc",
+            Status: "active",
+            PriceId: "price_ind_monthly",
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: now.AddDays(20),
+            CanceledAtUtc: null,
+            EndedAtUtc: null);
+
+        fixture.Gateway.Updated = new StripeSubscriptionSnapshot(
+            SubscriptionId: "sub_ind_mc",
+            CustomerId: "cus_ind_mc",
+            Status: "active",
+            PriceId: "price_ind_monthly",
+            Interval: "month",
+            CancelAtPeriodEnd: true,
+            CurrentPeriodEndUtc: now.AddDays(20),
+            CanceledAtUtc: now,
+            EndedAtUtc: null);
+
+        var req = NewRequest("""
+{
+  "scope": "individual",
+  "manyChatSubscriberId": "mc_cancel_contact",
+  "subscriptionId": "sub_ind_mc"
+}
+""");
+
+        var response = await fixture.Function.Run(req, req.FunctionContext);
+        var body = await ReadJsonAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(body.GetProperty("ok").GetBoolean());
+        Assert.Equal("HT_U_MC", body.GetProperty("actorUserPk").GetString());
+        Assert.Equal("U_MC", body.GetProperty("actorUserId").GetString());
+        Assert.Equal("sub_ind_mc", body.GetProperty("subscriptionId").GetString());
+        Assert.True(body.GetProperty("cancelAtPeriodEnd").GetBoolean());
+        Assert.Equal("30 de marzo de 2026", body.GetProperty("effectivePeriodEndFormatted").GetString());
+        Assert.Equal("30 de marzo de 2026", body.GetProperty("currentPeriodEndFormatted").GetString());
+        Assert.Equal("10 de marzo de 2026", body.GetProperty("cancelRequestedAtFormatted").GetString());
+        Assert.Equal("10 de marzo de 2026", body.GetProperty("canceledAtFormatted").GetString());
     }
 
     [Fact]
@@ -269,6 +335,7 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         var userStore = new InMemoryUserStore();
         var companyStore = new InMemoryCompanyStore();
         var entitlementStore = new InMemoryEntitlementStore();
+        var userResolver = new InMemoryUserResolver();
         var gateway = new FakeStripeSubscriptionGateway();
 
         var useCase = new CancelSubscriptionAtPeriodEndUseCase(
@@ -276,14 +343,15 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
             companyStore,
             entitlementStore,
             gateway,
-            new FixedClock(now));
+            new FixedClock(now),
+            userResolver: userResolver);
 
         var validator = new ApiKeyValidator(
             Options.Create(new HttpSecurityOptions { HttpApiKey = ValidApiKey }),
             NullLogger<ApiKeyValidator>.Instance);
 
         var function = new CancelSubscriptionAtPeriodEndFunction(useCase, validator);
-        return new Fixture(function, userStore, companyStore, entitlementStore, gateway);
+        return new Fixture(function, userStore, companyStore, entitlementStore, userResolver, gateway);
     }
 
     private static TestHttpRequestData NewRequest(string body, string? apiKey = ValidApiKey)
@@ -311,6 +379,7 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         InMemoryUserStore UserStore,
         InMemoryCompanyStore CompanyStore,
         InMemoryEntitlementStore EntitlementStore,
+        InMemoryUserResolver UserResolver,
         FakeStripeSubscriptionGateway Gateway);
 
     private sealed class FixedClock : IClock
@@ -400,6 +469,23 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
             => Task.CompletedTask;
     }
 
+    private sealed class InMemoryUserResolver : IUserResolver
+    {
+        public Dictionary<string, UserRef> ManyChat { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<UserRef?> ResolveByStripeCustomerIdAsync(string stripeCustomerId, CancellationToken ct = default)
+            => Task.FromResult<UserRef?>(null);
+
+        public Task<UserRef?> ResolveByManyChatSubscriberIdAsync(string subscriberId, CancellationToken ct = default)
+        {
+            var key = subscriberId.Trim();
+            return Task.FromResult(ManyChat.TryGetValue(key, out var userRef) ? userRef : (UserRef?)null);
+        }
+
+        public Task<UserRef?> ResolveByEmailNormalizedAsync(string emailNormalized, CancellationToken ct = default)
+            => Task.FromResult<UserRef?>(null);
+    }
+
     private sealed class FakeStripeSubscriptionGateway : IStripeSubscriptionGateway
     {
         public StripeSubscriptionSnapshot? Current { get; set; }
@@ -467,7 +553,5 @@ public sealed class CancelSubscriptionAtPeriodEndFunctionTests
         public override CancellationToken CancellationToken { get; } = CancellationToken.None;
     }
 }
-
-
 
 
