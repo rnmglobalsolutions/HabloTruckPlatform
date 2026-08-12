@@ -1,3 +1,5 @@
+using HabloTruckPlatform.Application.Models;
+
 namespace HabloTruckPlatform.Infrastructure.Integrations.ManyChat;
 
 public sealed class ManyChatOptions
@@ -14,6 +16,8 @@ public sealed class ManyChatOptions
     public string TagSourceCompany { get; set; } = "HT_SRC_COMPANY";
     public string TagBillingActionRequired { get; set; } = "HT_BILLING_ACTION_REQUIRED";
     public string TagBillingRecovered { get; set; } = "HT_PAYMENT_RECOVERED";
+    public string TagCancelScheduled { get; set; } = ManyChatLifecycleTags.CancelScheduled;
+    public string TagChurned { get; set; } = ManyChatLifecycleTags.Churned;
 
     // Optional: flow_ns for recovery
     public string? PaymentFailedFlowNs { get; set; }

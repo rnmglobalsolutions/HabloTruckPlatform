@@ -659,7 +659,7 @@
           }
         },
         {
-          "name": "01.11 Cancel Subscription At Period End (Individual)",
+          "name": "01.11 Cancel Subscription At Period End (Individual - ManyChat)",
           "request": {
             "method": "POST",
             "header": [
@@ -674,7 +674,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"scope\": \"individual\",\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\"\n}",
+              "raw": "{\n  \"scope\": \"individual\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

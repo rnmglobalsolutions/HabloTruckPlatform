@@ -19,6 +19,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
     private readonly IStripeSubscriptionGateway _stripeSubscriptions;
     private readonly IClock _clock;
     private readonly ILogger<CancelSubscriptionAtPeriodEndUseCase> _logger;
+    private readonly IUserResolver? _userResolver;
 
     public CancelSubscriptionAtPeriodEndUseCase(
         IUserStore users,
@@ -26,7 +27,8 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         IEntitlementStore entitlements,
         IStripeSubscriptionGateway stripeSubscriptions,
         IClock clock,
-        ILogger<CancelSubscriptionAtPeriodEndUseCase>? logger = null)
+        ILogger<CancelSubscriptionAtPeriodEndUseCase>? logger = null,
+        IUserResolver? userResolver = null)
     {
         _users = users;
         _companies = companies;
@@ -34,6 +36,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         _stripeSubscriptions = stripeSubscriptions;
         _clock = clock;
         _logger = logger ?? NullLogger<CancelSubscriptionAtPeriodEndUseCase>.Instance;
+        _userResolver = userResolver;
     }
 
     public async Task<CancelSubscriptionAtPeriodEndResult> ExecuteAsync(
@@ -62,8 +65,22 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
             ["OperationName"] = "cancel_subscription_at_period_end",
             ["CompanyId"] = request.CompanyId,
             ["UserId"] = actorId,
+            ["ManyChatSubscriberId"] = request.ManyChatSubscriberId,
             ["SubscriptionId"] = request.SubscriptionId
         });
+
+        var actorRef = await ResolveActorRefAsync(request, actorPk, actorId, ct);
+        if (actorRef is null)
+        {
+            var reason = HasActorResolutionInput(request)
+                ? "actor_not_found"
+                : "actor_required";
+
+            return FailLogged(reason, opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
+        }
+
+        actorPk = actorRef.Value.UserPk;
+        actorId = actorRef.Value.UserId;
 
         if (actorPk is null || actorId is null)
             return FailLogged("actor_required", opWatch, scope, actorId, request.CompanyId, request.SubscriptionId);
@@ -186,7 +203,7 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         }
 
         if (current.CancelAtPeriodEnd)
-            return SuccessLogged(scope, current, nowUtc, alreadyScheduled: true, opWatch);
+            return SuccessLogged(scope, actorPk, actorId, current, nowUtc, alreadyScheduled: true, opWatch);
 
         StripeSubscriptionSnapshot? updated;
         try
@@ -245,11 +262,13 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
                 true);
         }
 
-        return SuccessLogged(scope, updated, nowUtc, alreadyScheduled: false, opWatch);
+        return SuccessLogged(scope, actorPk, actorId, updated, nowUtc, alreadyScheduled: false, opWatch);
     }
 
     private CancelSubscriptionAtPeriodEndResult SuccessLogged(
         string scope,
+        string actorUserPk,
+        string actorUserId,
         StripeSubscriptionSnapshot snapshot,
         DateTimeOffset requestedAtUtc,
         bool alreadyScheduled,
@@ -269,6 +288,8 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         {
             Result = true,
             Scope = scope,
+            ActorUserPk = actorUserPk,
+            ActorUserId = actorUserId,
             SubscriptionId = snapshot.SubscriptionId,
             CancelAtPeriodEnd = snapshot.CancelAtPeriodEnd,
             AlreadyScheduled = alreadyScheduled,
@@ -303,6 +324,8 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
         {
             Result = false,
             Scope = scope ?? ScopeIndividual,
+            ActorUserPk = null,
+            ActorUserId = actorUserId,
             SubscriptionId = subscriptionId,
             CancelAtPeriodEnd = false,
             AlreadyScheduled = false,
@@ -316,6 +339,27 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
 
     private static string BuildIdempotencyKey(string subscriptionId)
         => $"hablotruck-cancel-{subscriptionId}";
+
+    private async Task<UserRef?> ResolveActorRefAsync(
+        CancelSubscriptionAtPeriodEndRequest request,
+        string? actorPk,
+        string? actorId,
+        CancellationToken ct)
+    {
+        if (actorPk is not null && actorId is not null)
+            return new UserRef(actorPk, actorId);
+
+        var manyChatSubscriberId = NullIfBlank(request.ManyChatSubscriberId);
+        if (manyChatSubscriberId is null || _userResolver is null)
+            return null;
+
+        return await _userResolver.ResolveByManyChatSubscriberIdAsync(manyChatSubscriberId, ct);
+    }
+
+    private static bool HasActorResolutionInput(CancelSubscriptionAtPeriodEndRequest request)
+        => NullIfBlank(request.ActorUserPk) is not null
+           || NullIfBlank(request.ActorUserId) is not null
+           || NullIfBlank(request.ManyChatSubscriberId) is not null;
 
     private static string ResolveEntitlementIdForFleetSubscription(string subscriptionId)
         => $"ent_{subscriptionId.Trim()}";
@@ -347,4 +391,3 @@ public sealed class CancelSubscriptionAtPeriodEndUseCase
     private static string? NullIfBlank(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
-

@@ -35,6 +35,27 @@ public interface IManyChatSync
         => Task.CompletedTask;
 
     /// <summary>
+    /// Sync lifecycle tags after Stripe confirms a subscription deletion.
+    /// This is separate from access-state sync because churn/retention tags are not access tags.
+    /// </summary>
+    async Task SyncSubscriptionDeletedLifecycleAsync(
+        ManyChatSubscriptionDeletedLifecycleUpdate update,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(update.SubscriberId))
+            return;
+
+        var subscriberId = update.SubscriberId.Trim();
+        await RemoveTagByNameAsync(subscriberId, ManyChatLifecycleTags.CancelScheduled, ct);
+
+        if (!update.AccessBlocked)
+            return;
+
+        await RemoveTagByNameAsync(subscriberId, ManyChatLifecycleTags.AccessFull, ct);
+        await AddTagByNameAsync(subscriberId, ManyChatLifecycleTags.Churned, ct);
+    }
+
+    /// <summary>
     /// Optional: remove tag by name
     /// </summary>
     Task<ManyChatResponse> RemoveTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default);

@@ -744,6 +744,8 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             user.StripeCurrentPeriodEndUtc,
             user.IndividualGraceEndsAtUtc);
 
+        await SyncSubscriptionDeletedLifecycleAsync(user, userRef.Value, decision, signal, ct);
+
         if (paymentRecoveryJustStarted)
         {
             await _billingRecoveryNotifier.NotifyRecoveryActiveAsync(user, signal.StripeEventId, ct);
@@ -949,6 +951,178 @@ public sealed class StripeSubscriptionHandler : IStripeSubscriptionHandler
             return string.IsNullOrWhiteSpace(user.ManyChatSubscriberId) ? null : user.ManyChatSubscriberId.Trim();
 
         return await _manyChatAudienceResolver.ResolvePreferredSubscriberIdAsync(user, ExternalAudiencePurposes.PaymentFailedFlow, ct);
+    }
+
+    private async Task SyncSubscriptionDeletedLifecycleAsync(
+        User user,
+        UserRef userRef,
+        AccessDecision decision,
+        StripeSignal signal,
+        CancellationToken ct)
+    {
+        if (signal.Kind != StripeSignalKind.SubscriptionDeleted)
+            return;
+
+        var subscriberIds = await ResolveStateSyncSubscriberIdsAsync(user, ct);
+        if (subscriberIds.Count == 0)
+        {
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason} UserId={UserId}",
+                "decision",
+                "manychat_subscription_deleted_lifecycle",
+                "no_action_needed",
+                "missing_manychat_audience",
+                user.UserId);
+            return;
+        }
+
+        var accessBlocked = decision.Mode == AccessMode.Blocked
+                            && string.Equals(user.SubscriptionStatus, "deleted", StringComparison.OrdinalIgnoreCase);
+
+        foreach (var subscriberId in subscriberIds)
+        {
+            var update = new ManyChatSubscriptionDeletedLifecycleUpdate(
+                SubscriberId: subscriberId,
+                UserId: user.UserId,
+                CompanyId: user.CompanyId,
+                SubscriptionId: user.StripeSubscriptionId ?? signal.StripeSubscriptionId,
+                AccessBlocked: accessBlocked,
+                CorrelationId: signal.StripeEventId);
+
+            var payload = JsonSerializer.Serialize(
+                new ManyChatSubscriptionDeletedLifecycleFailedActionPayload(
+                    Update: update,
+                    UserPk: userRef.UserPk,
+                    UserId: user.UserId,
+                    CorrelationId: signal.StripeEventId,
+                    Reason: "subscription_deleted_lifecycle",
+                    OperationName: "manychat_sync_subscription_deleted_lifecycle"),
+                JsonOpts);
+
+            try
+            {
+                if (_manyChatDispatchQueue is not null)
+                {
+                    await _manyChatDispatchQueue.EnqueueAsync(
+                        new ManyChatDispatchMessage(
+                            FailedActionRetryService.ActionManyChatSubscriptionDeletedLifecycle,
+                            payload,
+                            signal.StripeEventId,
+                            _clock.UtcNow),
+                        ct);
+                    _metrics?.ManyChatDispatchQueued(FailedActionRetryService.ActionManyChatSubscriptionDeletedLifecycle);
+
+                    _logger.LogDebug(
+                        "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} Success={Success} AccessBlocked={AccessBlocked}",
+                        "dependency",
+                        "manychat_dispatch_queue",
+                        "enqueue_subscription_deleted_lifecycle",
+                        "Azure Queue Storage",
+                        true,
+                        accessBlocked);
+                    continue;
+                }
+
+                await _manyChatSync.SyncSubscriptionDeletedLifecycleAsync(update, ct);
+
+                _logger.LogDebug(
+                    "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} Success={Success} AccessBlocked={AccessBlocked}",
+                    "dependency",
+                    "manychat",
+                    "sync_subscription_deleted_lifecycle",
+                    "ManyChat API",
+                    true,
+                    accessBlocked);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ManyChatRequestException ex) when (ex.IsRetryable)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "dependency_failed",
+                    "manychat",
+                    "sync_subscription_deleted_lifecycle",
+                    "ManyChat API",
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
+
+                await EnqueueSubscriptionDeletedLifecycleFailedActionAsync(payload, ct);
+            }
+            catch (ManyChatRequestException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} IsRetryable={IsRetryable} StatusCode={StatusCode} FailureCategory={FailureCategory}",
+                    "exception",
+                    "validation_failed",
+                    "manychat",
+                    "sync_subscription_deleted_lifecycle",
+                    "ManyChat API",
+                    ex.IsRetryable,
+                    ex.StatusCode is null ? null : (int)ex.StatusCode.Value,
+                    ex.FailureCategory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Dependency failed. LogCategory={LogCategory} Outcome={Outcome} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target}",
+                    "exception",
+                    "dependency_failed",
+                    _manyChatDispatchQueue is null ? "manychat" : "manychat_dispatch_queue",
+                    _manyChatDispatchQueue is null ? "sync_subscription_deleted_lifecycle" : "enqueue_subscription_deleted_lifecycle",
+                    _manyChatDispatchQueue is null ? "ManyChat API" : "Azure Queue Storage");
+
+                await EnqueueSubscriptionDeletedLifecycleFailedActionAsync(payload, ct);
+            }
+        }
+    }
+
+    private async Task EnqueueSubscriptionDeletedLifecycleFailedActionAsync(string payload, CancellationToken ct)
+    {
+        try
+        {
+            await _failedActionStore.EnqueueAsync(
+                FailedActionRetryService.ActionManyChatSubscriptionDeletedLifecycle,
+                payload,
+                _clock.UtcNow.AddMinutes(2),
+                ct);
+
+            _logger.LogInformation(
+                "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                "decision",
+                "manychat_subscription_deleted_lifecycle",
+                "queued_for_retry",
+                "subscription_deleted_lifecycle_retry_enqueued");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Persistence failed. LogCategory={LogCategory} Outcome={Outcome} PersistenceOperation={PersistenceOperation} Target={Target}",
+                "exception",
+                "dependency_failed",
+                "failed_action.enqueue",
+                "FailedActions");
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> ResolveStateSyncSubscriberIdsAsync(User user, CancellationToken ct)
+    {
+        if (_manyChatAudienceResolver is null)
+        {
+            return string.IsNullOrWhiteSpace(user.ManyChatSubscriberId)
+                ? []
+                : [user.ManyChatSubscriberId.Trim()];
+        }
+
+        return await _manyChatAudienceResolver.ResolveStateSyncSubscriberIdsAsync(user, ct);
     }
 
     private void ApplySignalFacts(User user, StripeSignal signal, DateTimeOffset nowUtc)

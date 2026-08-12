@@ -8,6 +8,7 @@ public sealed class CancelSubscriptionAtPeriodEndRequest
     // Required actor context (used for authorization checks)
     public string ActorUserPk { get; set; } = string.Empty;
     public string ActorUserId { get; set; } = string.Empty;
+    public string? ManyChatSubscriberId { get; set; }
 
     // company/fleet scope
     public string? CompanyId { get; set; }
