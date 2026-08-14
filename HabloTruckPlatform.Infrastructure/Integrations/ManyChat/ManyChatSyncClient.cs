@@ -299,6 +299,46 @@ public sealed class ManyChatSyncClient : IManyChatSync
             update.AccessBlocked ? "subscription_deleted_churn_synced" : "subscription_deleted_cancel_tag_cleared");
     }
 
+    public async Task SyncSubscriptionCancelScheduledLifecycleAsync(
+        ManyChatSubscriptionCancelScheduledLifecycleUpdate update,
+        CancellationToken ct = default)
+    {
+        if (update is null)
+            throw new ArgumentNullException(nameof(update));
+
+        if (string.IsNullOrWhiteSpace(update.SubscriberId))
+            return;
+
+        var sid = update.SubscriberId.Trim();
+
+        using var scope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["OperationName"] = "manychat_sync_subscription_cancel_scheduled_lifecycle",
+            ["UserId"] = update.UserId,
+            ["CompanyId"] = update.CompanyId,
+            ["SubscriptionId"] = update.SubscriptionId,
+            ["CorrelationId"] = update.CorrelationId
+        });
+
+        _logger.LogInformation(
+            "Operation started. LogCategory={LogCategory} OperationName={OperationName} SubscriberIdSuffix={SubscriberIdSuffix} CancelScheduled={CancelScheduled}",
+            "entry",
+            "manychat_sync_subscription_cancel_scheduled_lifecycle",
+            MaskSubscriberId(sid),
+            update.CancelScheduled);
+
+        if (update.CancelScheduled)
+            await AddTagByNameAsync(sid, _opt.TagCancelScheduled, ct);
+        else
+            await RemoveTagByNameAsync(sid, _opt.TagCancelScheduled, ct);
+
+        _logger.LogInformation(
+            "Operation completed. LogCategory={LogCategory} Outcome={Outcome} Reason={Reason}",
+            "outcome",
+            "completed",
+            update.CancelScheduled ? "subscription_cancel_scheduled_tag_added" : "subscription_cancel_scheduled_tag_removed");
+    }
+
     public async Task<ManyChatResponse> AddTagByNameAsync(string subscriberId, string tagName, CancellationToken ct = default)
     {
         var payload = new

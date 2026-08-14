@@ -802,6 +802,49 @@ public sealed class StripeSubscriptionHandlerProjectionTests
         Assert.True(saved.StripeCancelAtPeriodEnd);
         Assert.Equal(periodEnd, saved.StripeCurrentPeriodEndUtc);
         Assert.True(fixture.ManyChatSync.SyncCalls > 0);
+        Assert.Contains(("add", "sid_proj_1", ManyChatLifecycleTags.CancelScheduled), fixture.ManyChatSync.TagCalls);
+    }
+
+    [Fact]
+    public async Task HandleSubscriptionUpdatedAsync_Should_RemoveCancelScheduledTag_When_CancelAtPeriodEndIsFalse()
+    {
+        var now = Utc(2026, 3, 10, 12);
+        var periodEnd = now.AddDays(14);
+        var fixture = BuildFixture(now);
+
+        var user = new User
+        {
+            UserId = "U_proj_uncancel_1",
+            StripeCustomerId = "cus_proj_uncancel_1",
+            StripeSubscriptionId = "sub_proj_uncancel_1",
+            SubscriptionStatus = "active",
+            StripeCancelAtPeriodEnd = true,
+            ManyChatSubscriberId = "sid_proj_uncancel_1"
+        };
+
+        fixture.UserStore.Add(user);
+        fixture.UserResolver.Map("cus_proj_uncancel_1", user);
+
+        var decision = await fixture.Handler.HandleSubscriptionUpdatedAsync(new StripeSubscriptionUpdate(
+            StripeEventId: "evt_proj_uncancel_1",
+            StripeEventCreatedUtc: now,
+            StripeCustomerId: "cus_proj_uncancel_1",
+            StripeSubscriptionId: "sub_proj_uncancel_1",
+            SubscriptionStatus: "active",
+            PriceId: fixture.PriceCatalog.IndividualMonthlyPriceId,
+            Interval: "month",
+            CancelAtPeriodEnd: false,
+            CurrentPeriodEndUtc: periodEnd,
+            CanceledAtUtc: null,
+            EndedAtUtc: null));
+
+        var saved = fixture.UserStore.GetById("U_proj_uncancel_1");
+
+        Assert.NotNull(saved);
+        Assert.NotNull(decision);
+        Assert.Equal(AccessMode.Full, decision!.Mode);
+        Assert.False(saved!.StripeCancelAtPeriodEnd);
+        Assert.Contains(("remove", "sid_proj_uncancel_1", ManyChatLifecycleTags.CancelScheduled), fixture.ManyChatSync.TagCalls);
     }
 
     [Fact]

@@ -41,6 +41,7 @@ public static class FailedActionTypes
     public const string ManyChatPaymentFailedFlow = "manychat.payment_failed_flow";
     public const string ManyChatSubscriptionReminder = "manychat.subscription_reminder";
     public const string ManyChatBillingRecoveryState = "manychat.billing_recovery_state";
+    public const string ManyChatSubscriptionCancelScheduledLifecycle = "manychat.subscription_cancel_scheduled_lifecycle";
     public const string ManyChatSubscriptionDeletedLifecycle = "manychat.subscription_deleted_lifecycle";
 }
 
@@ -100,6 +101,24 @@ public sealed record ManyChatSubscriptionDeletedLifecycleUpdate(
 
 public sealed record ManyChatSubscriptionDeletedLifecycleFailedActionPayload(
     ManyChatSubscriptionDeletedLifecycleUpdate? Update,
+    string? UserPk,
+    string? UserId,
+    string? CorrelationId,
+    string? Reason,
+    string? OperationName
+);
+
+public sealed record ManyChatSubscriptionCancelScheduledLifecycleUpdate(
+    string? SubscriberId,
+    string? UserId,
+    string? CompanyId,
+    string? SubscriptionId,
+    bool CancelScheduled,
+    string? CorrelationId
+);
+
+public sealed record ManyChatSubscriptionCancelScheduledLifecycleFailedActionPayload(
+    ManyChatSubscriptionCancelScheduledLifecycleUpdate? Update,
     string? UserPk,
     string? UserId,
     string? CorrelationId,
