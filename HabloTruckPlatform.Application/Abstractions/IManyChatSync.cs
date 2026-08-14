@@ -35,6 +35,23 @@ public interface IManyChatSync
         => Task.CompletedTask;
 
     /// <summary>
+    /// Sync lifecycle tags after Stripe confirms cancel_at_period_end changed.
+    /// </summary>
+    async Task SyncSubscriptionCancelScheduledLifecycleAsync(
+        ManyChatSubscriptionCancelScheduledLifecycleUpdate update,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(update.SubscriberId))
+            return;
+
+        var subscriberId = update.SubscriberId.Trim();
+        if (update.CancelScheduled)
+            await AddTagByNameAsync(subscriberId, ManyChatLifecycleTags.CancelScheduled, ct);
+        else
+            await RemoveTagByNameAsync(subscriberId, ManyChatLifecycleTags.CancelScheduled, ct);
+    }
+
+    /// <summary>
     /// Sync lifecycle tags after Stripe confirms a subscription deletion.
     /// This is separate from access-state sync because churn/retention tags are not access tags.
     /// </summary>

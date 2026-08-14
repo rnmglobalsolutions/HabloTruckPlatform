@@ -17,6 +17,7 @@ public sealed class FailedActionRetryService
     public const string ActionManyChatPaymentFailedFlow = FailedActionTypes.ManyChatPaymentFailedFlow;
     public const string ActionManyChatSubscriptionReminder = FailedActionTypes.ManyChatSubscriptionReminder;
     public const string ActionManyChatBillingRecoveryState = FailedActionTypes.ManyChatBillingRecoveryState;
+    public const string ActionManyChatSubscriptionCancelScheduledLifecycle = FailedActionTypes.ManyChatSubscriptionCancelScheduledLifecycle;
     public const string ActionManyChatSubscriptionDeletedLifecycle = FailedActionTypes.ManyChatSubscriptionDeletedLifecycle;
     // Metadata sync operations (tags/custom fields) are effectively convergent, so they can tolerate
     // a higher retry budget than user-facing flow sends.
@@ -419,6 +420,49 @@ public sealed class FailedActionRetryService
             return;
         }
 
+        if (item.ActionType == ActionManyChatSubscriptionCancelScheduledLifecycle)
+        {
+            var p = JsonSerializer.Deserialize<ManyChatSubscriptionCancelScheduledLifecycleFailedActionPayload>(item.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                    ?? throw new InvalidOperationException("Invalid payload");
+
+            if (p.Update is null || string.IsNullOrWhiteSpace(p.Update.SubscriberId))
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_subscription_cancel_scheduled_lifecycle_retry",
+                    "no_action_needed",
+                    "missing_update_or_subscriber_id");
+                return;
+            }
+
+            var update = await RefreshSubscriptionCancelScheduledLifecycleUpdateAsync(p, ct);
+            if (update is null)
+            {
+                _logger.LogInformation(
+                    "Decision recorded. LogCategory={LogCategory} Decision={Decision} Outcome={Outcome} Reason={Reason}",
+                    "decision",
+                    "dispatch_manychat_subscription_cancel_scheduled_lifecycle_retry",
+                    "no_action_needed",
+                    "subscription_cancel_scheduled_lifecycle_no_longer_current");
+                return;
+            }
+
+            var dependencyWatch = Stopwatch.StartNew();
+            await _manyChat.SyncSubscriptionCancelScheduledLifecycleAsync(update, ct);
+
+            _logger.LogDebug(
+                "Dependency completed. LogCategory={LogCategory} DependencyType={DependencyType} DependencyOperation={DependencyOperation} Target={Target} DurationMs={DurationMs} Success={Success}",
+                "dependency",
+                "manychat",
+                "sync_subscription_cancel_scheduled_lifecycle_retry",
+                "ManyChat API",
+                dependencyWatch.ElapsedMilliseconds,
+                true);
+
+            return;
+        }
+
         throw new InvalidOperationException($"Unknown actionType: {item.ActionType}");
     }
 
@@ -556,6 +600,9 @@ public sealed class FailedActionRetryService
 
         var sameSubscription = string.IsNullOrWhiteSpace(update.SubscriptionId)
                                || string.Equals(user.StripeSubscriptionId, update.SubscriptionId, StringComparison.OrdinalIgnoreCase);
+        if (!sameSubscription)
+            return null;
+
         var stillDeleted = string.Equals(user.SubscriptionStatus, "deleted", StringComparison.OrdinalIgnoreCase);
         var accessBlocked = sameSubscription
                             && stillDeleted
@@ -567,6 +614,38 @@ public sealed class FailedActionRetryService
             CompanyId = user.CompanyId,
             SubscriptionId = user.StripeSubscriptionId,
             AccessBlocked = accessBlocked
+        };
+    }
+
+    private async Task<ManyChatSubscriptionCancelScheduledLifecycleUpdate?> RefreshSubscriptionCancelScheduledLifecycleUpdateAsync(
+        ManyChatSubscriptionCancelScheduledLifecycleFailedActionPayload payload,
+        CancellationToken ct)
+    {
+        var update = payload.Update!;
+
+        var userPk = string.IsNullOrWhiteSpace(payload.UserPk) ? null : payload.UserPk.Trim();
+        var userId = string.IsNullOrWhiteSpace(payload.UserId) ? update.UserId?.Trim() : payload.UserId.Trim();
+        if (string.IsNullOrWhiteSpace(userPk) || string.IsNullOrWhiteSpace(userId))
+            return update;
+
+        var user = await _users.GetAsync(userPk, userId, ct);
+        if (user is null)
+            return null;
+
+        var sameSubscription = string.IsNullOrWhiteSpace(update.SubscriptionId)
+                               || string.Equals(user.StripeSubscriptionId, update.SubscriptionId, StringComparison.OrdinalIgnoreCase);
+        if (!sameSubscription)
+            return null;
+
+        var cancelScheduled = user.StripeCancelAtPeriodEnd
+                              && !string.Equals(user.SubscriptionStatus, "deleted", StringComparison.OrdinalIgnoreCase);
+
+        return update with
+        {
+            UserId = user.UserId,
+            CompanyId = user.CompanyId,
+            SubscriptionId = user.StripeSubscriptionId,
+            CancelScheduled = cancelScheduled
         };
     }
 

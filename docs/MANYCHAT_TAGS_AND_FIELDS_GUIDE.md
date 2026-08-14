@@ -33,8 +33,10 @@ These tags are part of the backend integration and should be created in ManyChat
 | `HT_SRC_COMPANY` | Tag | Backend | Marks access coming from a company or school entitlement | Yes |
 | `HT_BILLING_ACTION_REQUIRED` | Tag | Backend | Marks a user who needs billing recovery action | Yes |
 | `HT_BILLING_RECOVERED` | Tag | Backend | Marks a user whose billing issue has been recovered | Yes |
-| `HT_CANCEL_SCHEDULED` | Tag | Backend / ManyChat | Marks a subscription scheduled to cancel at period end; backend removes it after Stripe confirms deletion | Yes |
+| `HT_CANCEL_SCHEDULED` | Tag | Backend | Marks a subscription scheduled to cancel at period end; backend adds it when Stripe confirms `cancel_at_period_end=true` and removes it when cancellation is reverted or deleted | Yes |
 | `HT_CHURNED` | Tag | Backend | Marks a user whose subscription deletion left effective access blocked | Yes |
+
+`HT_CANCEL_SCHEDULED` is added after `customer.subscription.updated` when Stripe confirms `cancel_at_period_end=true`. It is removed after `customer.subscription.updated` with `cancel_at_period_end=false` or after `customer.subscription.deleted`.
 
 `HT_CHURNED` is only added after `customer.subscription.deleted` when the backend's final `AccessDecision` is `Blocked`. If the deleted subscription does not remove effective access, for example because company access remains active, the backend removes `HT_CANCEL_SCHEDULED` but does not remove `HT_ACCESS_FULL` and does not add `HT_CHURNED`.
 
