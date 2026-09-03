@@ -1,6 +1,6 @@
 # ManyChat Individual Subscription Flows
 
-This document describes the end-to-end ManyChat flow for HabloTruck individual subscriptions only:
+Raisel:This document describes the end-to-end ManyChat flow for HabloTruck individual subscriptions only:
 
 1. Monthly individual subscription.
 2. Yearly individual subscription.
