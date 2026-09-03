@@ -6,8 +6,8 @@ This document explains, step by step, what you need to configure in Azure and Gi
 
 - `feature/* -> PR to dev`: runs tests only
 - `merge to dev`: deploys to `dev`
-- `dev -> PR to prod`: runs tests only
-- `merge to prod`: deploys to `prod`
+- `dev -> PR to main`: runs tests only
+- `merge to main`: deploys to production
 
 Related files:
 
@@ -56,10 +56,11 @@ Create one credential for `dev`:
 - branch: `dev`
 - audience: `api://AzureADTokenExchange`
 
-Create another credential for `prod`:
+Create another credential for production:
 
 - same repository
-- branch: `prod`
+- entity type: `Environment`
+- GitHub environment name: `production`
 - audience: `api://AzureADTokenExchange`
 
 ## 4. Make sure your branches exist in GitHub
@@ -67,12 +68,12 @@ Create another credential for `prod`:
 You should have:
 
 - `dev`
-- `prod`
+- `main`
 
 Expected branch flow:
 
 - `feature/* -> dev`
-- `dev -> prod`
+- `dev -> main`
 
 ## 5. Configure GitHub repository secrets
 
@@ -80,11 +81,13 @@ Go to:
 
 - `Repository > Settings > Secrets and variables > Actions`
 
-Create these repository secrets:
+Create these repository secrets for dev or shared Azure OIDC:
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+If dev and production use different app registrations, add the production `AZURE_*` values as `production` environment secrets instead of relying on repository-level values.
 
 Create these repository secrets for `dev`:
 
@@ -94,7 +97,7 @@ Create these repository secrets for `dev`:
 - `STRIPE_WEBHOOK_SECRET_DEV`
 - `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV`
 
-Create these repository secrets for `prod`:
+For production, prefer adding these as `production` environment secrets:
 
 - `HTTP_API_KEY_PROD`
 - `MANYCHAT_API_KEY_PROD`
@@ -119,7 +122,7 @@ Create:
 
 - `production`
 
-Inside the `production` environment, add these environment variables:
+Inside the `production` environment, add the Azure OIDC secrets and production runtime secrets listed above, then add these environment variables:
 
 - `AZURE_RESOURCE_GROUP_PROD = hablotruck-prod-rg`
 - `AZURE_LOCATION_PROD = Central US`
@@ -140,7 +143,7 @@ Inside the `production` environment, add these environment variables:
 Recommended environment protections:
 
 - required reviewers
-- deployment branch restriction for `prod`
+- deployment branch restriction for `main`
 
 ## 8. Configure branch protection rules
 
@@ -156,9 +159,9 @@ For `dev`:
 - require the PR validation workflow check
 - enable `Require conversation resolution before merging`
 
-For `prod`:
+For production:
 
-- branch name pattern: `prod`
+- branch name pattern: `main`
 - enable the same protections
 - block direct pushes if possible
 
@@ -173,7 +176,7 @@ File:
 Runs on:
 
 - PR to `dev`
-- PR to `prod`
+- PR to `main`
 
 Does:
 
@@ -208,7 +211,7 @@ File:
 
 Runs on:
 
-- push to `prod`
+- push to `main`
 
 Does:
 
@@ -242,9 +245,9 @@ The current infrastructure creates:
 6. Confirm that Azure resources are created in `dev`.
 7. Validate the app with `/api/health`.
 8. Configure the remaining `prod` variables and secrets.
-9. Open a PR from `dev` into `prod`.
+9. Open a PR from `dev` into `main`.
 10. Confirm that only tests run.
-11. Merge into `prod`.
+11. Merge into `main`.
 12. Confirm the `prod` deployment.
 
 ## 12. Expected resource group names
