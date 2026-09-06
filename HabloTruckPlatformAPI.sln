@@ -1,0 +1,56 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HabloTruckPlatform.Tests", "HabloTruckPlatform.Tests", "{ED8D8C09-F185-6CAD-B8E6-6A5DF89317A8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HabloTruckPlatform", "HabloTruckPlatform", "{817ED7EC-BF81-D695-2FE6-2849B50F2E90}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HabloTruckPlatform.Domain", "HabloTruckPlatform.Domain\HabloTruckPlatform.Domain.csproj", "{CD2F224C-7ADE-2D63-1E80-9D05AF235B94}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HabloTruckPlatform.Application", "HabloTruckPlatform.Application\HabloTruckPlatform.Application.csproj", "{030AA92B-1A5C-A64B-BB82-D4B7FA784B02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HabloTruckPlatform.Infrastructure", "HabloTruckPlatform.Infrastructure\HabloTruckPlatform.Infrastructure.csproj", "{508CC7AD-15D7-9636-59C7-E28936459772}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HabloTruckPlatform.Domain.Tests", "HabloTruckPlatform.Tests\HabloTruckPlatform.Domain.Tests.csproj", "{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HabloTruckPlatform.Functions", "HabloTruckPlatform\HabloTruckPlatform.Functions.csproj", "{2DB3CB46-31F0-F5A5-9809-4656BFC8523E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CD2F224C-7ADE-2D63-1E80-9D05AF235B94}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD2F224C-7ADE-2D63-1E80-9D05AF235B94}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD2F224C-7ADE-2D63-1E80-9D05AF235B94}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD2F224C-7ADE-2D63-1E80-9D05AF235B94}.Release|Any CPU.Build.0 = Release|Any CPU
+		{030AA92B-1A5C-A64B-BB82-D4B7FA784B02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{030AA92B-1A5C-A64B-BB82-D4B7FA784B02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{030AA92B-1A5C-A64B-BB82-D4B7FA784B02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{030AA92B-1A5C-A64B-BB82-D4B7FA784B02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{508CC7AD-15D7-9636-59C7-E28936459772}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{508CC7AD-15D7-9636-59C7-E28936459772}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{508CC7AD-15D7-9636-59C7-E28936459772}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{508CC7AD-15D7-9636-59C7-E28936459772}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2DB3CB46-31F0-F5A5-9809-4656BFC8523E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DB3CB46-31F0-F5A5-9809-4656BFC8523E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DB3CB46-31F0-F5A5-9809-4656BFC8523E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DB3CB46-31F0-F5A5-9809-4656BFC8523E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D8DC7C47-BD25-0909-1E8A-D5954EFC3BFC} = {ED8D8C09-F185-6CAD-B8E6-6A5DF89317A8}
+		{2DB3CB46-31F0-F5A5-9809-4656BFC8523E} = {817ED7EC-BF81-D695-2FE6-2849B50F2E90}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {32F3E3AF-67AF-40B5-9627-60DC5CEA9387}
+	EndGlobalSection
+EndGlobal

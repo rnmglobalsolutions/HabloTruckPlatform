@@ -1,0 +1,47 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.51.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HabloTruckPlatform.Application\HabloTruckPlatform.Application.csproj" />
+    <ProjectReference Include="..\HabloTruckPlatform.Domain\HabloTruckPlatform.Domain.csproj" />
+    <ProjectReference Include="..\HabloTruckPlatform.Infrastructure\HabloTruckPlatform.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\HabloTruckPlatform\Functions\StripeWebhookFunction.cs" Link="Functions\StripeWebhookFunction.cs" />
+    <Compile Include="..\HabloTruckPlatform\Functions\CancelSubscriptionAtPeriodEndFunction.cs" Link="Functions\CancelSubscriptionAtPeriodEndFunction.cs" />
+    <Compile Include="..\HabloTruckPlatform\Functions\JoinCompanyFunction.cs" Link="Functions\JoinCompanyFunction.cs" />
+    <Compile Include="..\HabloTruckPlatform\Functions\Timer\SubscriptionReminderTimerFunction.cs" Link="Functions\Timer\SubscriptionReminderTimerFunction.cs" />
+    <Compile Include="..\HabloTruckPlatform\Contracts\CancelSubscriptionAtPeriodEndHttpRequest.cs" Link="Functions\Contracts\CancelSubscriptionAtPeriodEndHttpRequest.cs" />
+    <Compile Include="..\HabloTruckPlatform\Contracts\JoinCompanyHttpRequest.cs" Link="Functions\Contracts\JoinCompanyHttpRequest.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyAuthorizationHelper.cs" Link="Security\ApiKeyAuthorizationHelper.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyValidationResult.cs" Link="Security\ApiKeyValidationResult.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\IApiKeyValidator.cs" Link="Security\IApiKeyValidator.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\HttpSecurityOptions.cs" Link="Security\HttpSecurityOptions.cs" />
+    <Compile Include="..\HabloTruckPlatform\Security\ApiKeyValidator.cs" Link="Security\ApiKeyValidator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
+
+

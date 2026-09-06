@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HabloTruck Checkout Status</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-title-key="indexTitle">
+  <main class="page-shell">
+    <section class="status-card">
+      <div class="card-header">
+        <p class="eyebrow" data-i18n="indexEyebrow">HabloTruck</p>
+        <div class="lang-picker">
+          <span class="lang-picker-label" data-i18n="languageLabel">Language</span>
+          <div class="lang-picker-buttons">
+            <button class="lang-button" type="button" data-lang-option="en" aria-pressed="false" data-i18n="languageEnglish">English</button>
+            <button class="lang-button" type="button" data-lang-option="es" aria-pressed="false" data-i18n="languageSpanish">Spanish</button>
+          </div>
+        </div>
+      </div>
+      <h1 data-i18n="indexHeading">Checkout status pages</h1>
+      <p class="lead" data-i18n="indexLead">
+        This static site hosts the success and cancel pages used by Stripe Checkout and billing recovery flows.
+      </p>
+
+      <div class="stack">
+        <a class="button" href="./success.html" data-i18n="indexIndividualSuccess">Individual success</a>
+        <a class="button secondary" href="./cancel.html" data-i18n="indexIndividualCancel">Individual cancel</a>
+        <a class="button secondary" href="./company-success.html" data-i18n="indexCompanySuccess">Company success</a>
+        <a class="button secondary" href="./company-cancel.html" data-i18n="indexCompanyCancel">Company cancel</a>
+        <a class="button secondary" href="./billing-return.html" data-i18n="indexBillingReturn">Billing return</a>
+      </div>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+name: Build and deploy dotnet core project to Azure Function App - HabloTruckPlatform-development
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  FUNCTIONS_PROJECT_PATH: './HabloTruckPlatform/HabloTruckPlatform.Functions.csproj'
+  OUTPUT_PATH: './published'
+  CHECKOUT_STATUS_SITE_PATH: './web/checkout-status'
+  BICEP_TEMPLATE_PATH: './infra/bootstrap.bicep'
+  BICEP_PARAMETERS_PATH: './infra/environments/dev.bicepparam'
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION_DEV }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP_DEV }}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: hablotruck-dev-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout GitHub Action
+        uses: actions/checkout@v4
+
+      - name: Setup DotNet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ${{ env.FUNCTIONS_PROJECT_PATH }}
+
+      - name: Publish
+        run: dotnet publish ${{ env.FUNCTIONS_PROJECT_PATH }} --configuration Release --output ${{ env.OUTPUT_PATH }}
+
+      - name: List published files
+        run: ls -R ${{ env.OUTPUT_PATH }}
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure with Bicep
+        id: deploy_infra
+        env:
+          HTTP_API_KEY_DEV: ${{ secrets.HTTP_API_KEY_DEV }}
+          MANYCHAT_API_KEY_DEV: ${{ secrets.MANYCHAT_API_KEY_DEV }}
+          STRIPE_SECRET_KEY_DEV: ${{ secrets.STRIPE_SECRET_KEY_DEV }}
+          STRIPE_WEBHOOK_SECRET_DEV: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEV }}
+          ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV: ${{ secrets.ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV }}
+        run: |
+          set -euo pipefail
+
+          LOCATION_NAME="${AZURE_LOCATION:-Central US}"
+          DEPLOYMENT_OUTPUT="$(
+            az deployment sub create \
+              --location "$LOCATION_NAME" \
+              --template-file "${BICEP_TEMPLATE_PATH}" \
+              --parameters "${BICEP_PARAMETERS_PATH}" \
+              --parameters \
+                location="$LOCATION_NAME" \
+                resourceGroupName="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}" \
+                httpApiKey="$HTTP_API_KEY_DEV" \
+                manyChatApiKey="$MANYCHAT_API_KEY_DEV" \
+                stripeSecretKey="$STRIPE_SECRET_KEY_DEV" \
+                stripeWebhookSecret="$STRIPE_WEBHOOK_SECRET_DEV" \
+                adminPaymentAlertsEnabled=true \
+                adminPaymentAlertsSendGridApiKey="$ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV" \
+                adminPaymentAlertsToEmail="grettadecien@gmail.com" \
+                adminPaymentAlertsFromEmail="${ADMIN_PAYMENT_ALERTS_FROM_EMAIL_DEV:-info@rnmglobalsolutions.com}" \
+                adminPaymentAlertsFromName="HabloTruck Development Alerts" \
+              --query "properties.outputs" \
+              --output json
+          )"
+
+          echo "function_app_name=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.functionAppName.value')" >> "$GITHUB_OUTPUT"
+          echo "storage_account_name=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.storageAccountName.value')" >> "$GITHUB_OUTPUT"
+          echo "static_website_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.staticWebsiteUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "checkout_success_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.checkoutSuccessUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "checkout_cancel_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.checkoutCancelUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "company_checkout_success_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.companyCheckoutSuccessUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "company_checkout_cancel_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.companyCheckoutCancelUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "billing_return_url=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.billingReturnUrl.value')" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy checkout status static site
+        run: |
+          set -euo pipefail
+
+          STORAGE_ACCOUNT_NAME="${{ steps.deploy_infra.outputs.storage_account_name }}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+
+          STORAGE_KEY="$(
+            az storage account keys list \
+              --resource-group "$RG_NAME" \
+              --account-name "$STORAGE_ACCOUNT_NAME" \
+              --query '[0].value' \
+              --output tsv
+          )"
+
+          az storage blob service-properties update \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --account-key "$STORAGE_KEY" \
+            --static-website \
+            --index-document index.html \
+            --404-document 404.html \
+            --only-show-errors
+
+          az storage blob upload-batch \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --account-key "$STORAGE_KEY" \
+            --destination '$web' \
+            --source "${CHECKOUT_STATUS_SITE_PATH}" \
+            --overwrite true \
+            --only-show-errors
+
+      - name: Configure checkout redirect allow-list
+        run: |
+          set -euo pipefail
+
+          FUNCTION_APP_NAME="${{ steps.deploy_infra.outputs.function_app_name }}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+          STATIC_WEBSITE_URL="${{ steps.deploy_infra.outputs.static_website_url }}"
+          STATIC_WEBSITE_HOST="${STATIC_WEBSITE_URL#https://}"
+          STATIC_WEBSITE_HOST="${STATIC_WEBSITE_HOST%/}"
+
+          az functionapp config appsettings set \
+            --name "$FUNCTION_APP_NAME" \
+            --resource-group "$RG_NAME" \
+            --settings "Stripe__AllowedCheckoutRedirectHosts__0=$STATIC_WEBSITE_HOST" \
+            --output none
+
+      - name: Print checkout status URLs
+        run: |
+          echo "Static website: ${{ steps.deploy_infra.outputs.static_website_url }}"
+          echo "Checkout success: ${{ steps.deploy_infra.outputs.checkout_success_url }}"
+          echo "Checkout cancel: ${{ steps.deploy_infra.outputs.checkout_cancel_url }}"
+          echo "Company success: ${{ steps.deploy_infra.outputs.company_checkout_success_url }}"
+          echo "Company cancel: ${{ steps.deploy_infra.outputs.company_checkout_cancel_url }}"
+          echo "Billing return: ${{ steps.deploy_infra.outputs.billing_return_url }}"
+
+      - name: Dump Azure deployment operations on failure
+        if: failure()
+        run: |
+          LOCATION_NAME="${AZURE_LOCATION:-Central US}"
+          RG_NAME="${AZURE_RESOURCE_GROUP:-hablotruck-dev-rg}"
+
+          echo "=== Subscription deployment operations ==="
+          az deployment operation sub list \
+            --location "$LOCATION_NAME" \
+            --name bootstrap \
+            --query "[].properties.{target:targetResource.resourceName,provisioningState:provisioningState,statusMessage:statusMessage}" \
+            --output jsonc || true
+
+          echo "=== Resource group deployment operations ==="
+          az deployment operation group list \
+            --resource-group "$RG_NAME" \
+            --name hablotruck-dev-environment \
+            --query "[].properties.{target:targetResource.resourceName,provisioningState:provisioningState,statusMessage:statusMessage}" \
+            --output jsonc || true
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.deploy_infra.outputs.function_app_name }}
+          package: '${{ env.OUTPUT_PATH }}'
+          sku: 'flexconsumption'

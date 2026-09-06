@@ -1,0 +1,1596 @@
+{
+  "info": {
+    "_postman_id": "8d7c3f62-1e17-4c31-a5a8-e0c2d1f1903c",
+    "name": "HabloTruckPlatform - POST Flows (ManageApp + ManyChat)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "functionHost",
+      "value": "https://<your-func-app>.azurewebsites.net"
+    },
+    {
+      "key": "functionKey",
+      "value": "<FUNCTION_KEY>"
+    },
+    {
+      "key": "httpApiKey",
+      "value": "<HTTP_API_KEY>"
+    },
+    {
+      "key": "manychatBaseUrl",
+      "value": "https://api.manychat.com"
+    },
+    {
+      "key": "manychatApiKey",
+      "value": "<MANYCHAT_API_KEY>"
+    },
+    {
+      "key": "stripeSignature",
+      "value": "t=<timestamp>,v1=<signature>"
+    },
+    {
+      "key": "companyId",
+      "value": "C1"
+    },
+    {
+      "key": "entitlementId",
+      "value": "E1"
+    },
+    {
+      "key": "inviteCode",
+      "value": "HT-AB12CD"
+    },
+    {
+      "key": "manyChatSubscriberId",
+      "value": "mc_12345"
+    },
+    {
+      "key": "email",
+      "value": "driver@example.com"
+    },
+    {
+      "key": "phoneE164",
+      "value": "+15551234567"
+    },
+    {
+      "key": "actorUserPk",
+      "value": "HT_U_001"
+    },
+    {
+      "key": "actorUserId",
+      "value": "U1"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "sub_123"
+    },
+    {
+      "key": "targetPlanType",
+      "value": "individual_yearly"
+    },
+    {
+      "key": "stripeEventId",
+      "value": "evt_123"
+    },
+    {
+      "key": "failedPk",
+      "value": "HT_FA_2026031012"
+    },
+    {
+      "key": "failedRk",
+      "value": "638455000000000000_01HV..."
+    },
+    {
+      "key": "manychatFlowNs",
+      "value": "flow_ns_here"
+    },
+    {
+      "key": "returnUrl",
+      "value": "https://<static-website-host>/billing-return.html"
+    },
+    {
+      "key": "checkoutSuccessUrl",
+      "value": "https://<static-website-host>/success.html"
+    },
+    {
+      "key": "checkoutCancelUrl",
+      "value": "https://<static-website-host>/cancel.html"
+    },
+    {
+      "key": "companyCheckoutSuccessUrl",
+      "value": "https://<static-website-host>/company-success.html"
+    },
+    {
+      "key": "companyCheckoutCancelUrl",
+      "value": "https://<static-website-host>/company-cancel.html"
+    },
+    {
+      "key": "manyChatChannel",
+      "value": "facebook"
+    },
+    {
+      "key": "checkoutGeneratedAtUtc",
+      "value": ""
+    },
+    {
+      "key": "companyName",
+      "value": "Fleet Co"
+    },
+    {
+      "key": "seatQuantity",
+      "value": "20"
+    },
+    {
+      "key": "stripeCustomerId",
+      "value": "cus_123"
+    },
+    {
+      "key": "invoiceId",
+      "value": "in_123"
+    },
+    {
+      "key": "billingRecoveryStatus",
+      "value": "recovery_active"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - ManageApp Core",
+      "item": [
+        {
+          "name": "01.0 Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{functionHost}}/api/health",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.1 Create Stripe Payment Link (Individual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planType\": \"individual_monthly\",\n  \"quantity\": 1,\n  \"successUrl\": \"{{checkoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{checkoutCancelUrl}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/payment-link?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "payment-link"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.generatedAtUtc) pm.collectionVariables.set('checkoutGeneratedAtUtc', data.generatedAtUtc);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.2 Create Stripe Payment Link (Company Seats)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planType\": \"company_seat\",\n  \"quantity\": {{seatQuantity}},\n  \"successUrl\": \"{{companyCheckoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{companyCheckoutCancelUrl}}\",\n  \"email\": \"{{email}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"companyName\": \"{{companyName}}\",\n  \"seats\": {{seatQuantity}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/payment-link?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "payment-link"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.3 Start Fleet Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{companyName}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"seats\": {{seatQuantity}},\n  \"successUrl\": \"{{companyCheckoutSuccessUrl}}\",\n  \"cancelUrl\": \"{{companyCheckoutCancelUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/fleet/start-checkout?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "fleet",
+                "start-checkout"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.companyId) pm.collectionVariables.set('companyId', data.companyId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.4 Get Active Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/active?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.code) pm.collectionVariables.set('inviteCode', data.code);",
+                  "  if (data && data.entitlementId) pm.collectionVariables.set('entitlementId', data.entitlementId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.5 Resend Admin Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"entitlementId\": \"{{entitlementId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/resend?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "resend"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.code) pm.collectionVariables.set('inviteCode', data.code);",
+                  "  if (data && data.entitlementId) pm.collectionVariables.set('entitlementId', data.entitlementId);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.6 Create Company Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"entitlementId\": \"{{entitlementId}}\",\n  \"maxUses\": 25,\n  \"expiresInDays\": 30,\n  \"createdBy\": \"admin@company.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const data = pm.response.json();",
+                  "  if (data && data.code) pm.collectionVariables.set('inviteCode', data.code);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.7 Get Invite Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/info?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "info"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.8 Join Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"manyChatChannel\": \"{{manyChatChannel}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/join?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "join"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.9 List Invites (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"take\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/list?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "list"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.10 Disable Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteCode\": \"{{inviteCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/company/invite/disable?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "company",
+                "invite",
+                "disable"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.11 Cancel Subscription At Period End (Individual - ManyChat)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"individual\",\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/cancel-at-period-end?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "cancel-at-period-end"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.12 Cancel Subscription At Period End (Company)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scope\": \"company\",\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/cancel-at-period-end?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "cancel-at-period-end"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.13 Change Individual Plan - Upgrade Monthly To Yearly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_yearly\",\n  \"effectiveWhen\": \"immediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/change-plan?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "change-plan"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.14 Change Individual Plan - Downgrade Yearly To Monthly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manyChatSubscriberId\": \"{{manyChatSubscriberId}}\",\n  \"email\": \"{{email}}\",\n  \"phoneE164\": \"{{phoneE164}}\",\n  \"targetPlanType\": \"individual_monthly\",\n  \"effectiveWhen\": \"period_end\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/change-plan?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "change-plan"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.15 Update Company Seat Quantity - Increase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetSeats\": {{seatQuantity}},\n  \"effectiveWhen\": \"immediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/update-seat-quantity?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "update-seat-quantity"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.16 Update Company Seat Quantity - Decrease",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"targetSeats\": {{seatQuantity}},\n  \"effectiveWhen\": \"next_invoice\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/update-seat-quantity?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "update-seat-quantity"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.17 Get Payment Method Update Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"returnUrl\": \"{{returnUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/payment-method-update-link?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "payment-method-update-link"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "01.18 Retry Open Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actorUserPk\": \"{{actorUserPk}}\",\n  \"actorUserId\": \"{{actorUserId}}\",\n  \"subscriptionId\": \"{{subscriptionId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/subscription/retry-payment?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "subscription",
+                "retry-payment"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Stripe Webhook Ingress",
+      "item": [
+        {
+          "name": "02.1 Stripe Webhook (invoice.paid sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_invoice_paid\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"invoice.paid\",\n  \"created\": 1770000000,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{invoiceId}}\",\n      \"object\": \"invoice\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"subscription\": \"{{subscriptionId}}\",\n      \"lines\": {\n        \"data\": [\n          {\n            \"quantity\": 1,\n            \"price\": {\n              \"id\": \"price_ind_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"period\": {\n              \"end\": 1772600000\n            }\n          }\n        ]\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.2 Stripe Webhook (invoice.payment_failed sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_invoice_failed\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"invoice.payment_failed\",\n  \"created\": 1770000100,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{invoiceId}}\",\n      \"object\": \"invoice\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"subscription\": \"{{subscriptionId}}\",\n      \"lines\": {\n        \"data\": [\n          {\n            \"quantity\": {{seatQuantity}},\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"period\": {\n              \"end\": 1772600000\n            }\n          }\n        ]\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.3 Stripe Webhook (customer.updated - payment method update sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_customer_updated\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.updated\",\n  \"created\": 1770000200,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{stripeCustomerId}}\",\n      \"object\": \"customer\",\n      \"invoice_settings\": {\n        \"default_payment_method\": \"pm_new_123\"\n      }\n    },\n    \"previous_attributes\": {\n      \"invoice_settings\": {\n        \"default_payment_method\": \"pm_old_123\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.4 Stripe Webhook (customer.subscription.updated sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_sub_updated\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.subscription.updated\",\n  \"created\": 1770000300,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{subscriptionId}}\",\n      \"object\": \"subscription\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"status\": \"active\",\n      \"cancel_at_period_end\": false,\n      \"current_period_end\": 1772600000,\n      \"items\": {\n        \"data\": [\n          {\n            \"quantity\": {{seatQuantity}},\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"current_period_end\": \"2026-04-15T00:00:00Z\"\n          }\n        ]\n      },\n      \"metadata\": {\n        \"planType\": \"fleet\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "02.5 Stripe Webhook (customer.subscription.deleted sample)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripeSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_sub_deleted\",\n  \"object\": \"event\",\n  \"api_version\": \"2024-06-20\",\n  \"type\": \"customer.subscription.deleted\",\n  \"created\": 1770000400,\n  \"livemode\": false,\n  \"pending_webhooks\": 1,\n  \"request\": {\n    \"id\": \"req_test\",\n    \"idempotency_key\": null\n  },\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{subscriptionId}}\",\n      \"object\": \"subscription\",\n      \"customer\": \"{{stripeCustomerId}}\",\n      \"status\": \"canceled\",\n      \"cancel_at_period_end\": false,\n      \"ended_at\": 1770000400,\n      \"items\": {\n        \"data\": [\n          {\n            \"quantity\": 0,\n            \"price\": {\n              \"id\": \"price_fleet_monthly\",\n              \"recurring\": {\n                \"interval\": \"month\"\n              }\n            },\n            \"current_period_end\": \"2026-04-15T00:00:00Z\"\n          }\n        ]\n      },\n      \"metadata\": {\n        \"planType\": \"fleet\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/stripe/webhook?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "stripe",
+                "webhook"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Admin / Ops",
+      "item": [
+        {
+          "name": "03.1 Replay Stripe Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"{{stripeEventId}}\",\n  \"eventType\": \"customer.updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/admin/stripe/replay?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stripe",
+                "replay"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "03.2 List Failed Actions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{functionHost}}/api/admin/failed-actions?status=dead&lookbackHours=48&take=200&code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "failed-actions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "dead"
+                },
+                {
+                  "key": "lookbackHours",
+                  "value": "48"
+                },
+                {
+                  "key": "take",
+                  "value": "200"
+                },
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "03.3 Requeue Failed Action",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{httpApiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pk\": \"{{failedPk}}\",\n  \"rk\": \"{{failedRk}}\",\n  \"delayMinutes\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{functionHost}}/api/admin/failed-actions/requeue?code={{functionKey}}",
+              "host": [
+                "{{functionHost}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "failed-actions",
+                "requeue"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{functionKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - ManyChat API Calls (Outbound from backend)",
+      "item": [
+        {
+          "name": "04.1 addTagByName",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"HT_ACCESS_FULL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/subscriber/addTagByName",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "addTagByName"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.2 removeTagByName",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"tag_name\": \"HT_ACCESS_GRACE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/subscriber/removeTagByName",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "removeTagByName"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.3 setCustomFieldByName (Access Mode)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"field_name\": \"ht_access_mode\",\n  \"field_value\": \"Full\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/subscriber/setCustomFieldByName",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "setCustomFieldByName"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.4 setCustomFieldByName (Billing Recovery Status)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"field_name\": \"ht_billing_recovery_status\",\n  \"field_value\": \"{{billingRecoveryStatus}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/subscriber/setCustomFieldByName",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "subscriber",
+                "setCustomFieldByName"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.5 sendFlow (Payment Failed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"flow_ns\": \"{{manychatFlowNs}}\",\n  \"payload\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/sending/sendFlow",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "sending",
+                "sendFlow"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04.6 sendFlow (Renewal / Save-before-churn Reminder)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{manychatApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriber_id\": \"{{manyChatSubscriberId}}\",\n  \"flow_ns\": \"{{manychatFlowNs}}\",\n  \"payload\": {\n    \"reminder_type\": \"renewal_reminder_1d\",\n    \"journey\": \"auto_renew\",\n    \"days_until_period_end\": 1,\n    \"period_end_utc\": \"2026-04-01T00:00:00.0000000Z\",\n    \"positive_continuity\": true,\n    \"reminder_tone\": \"RenewalTransparencyValue\",\n    \"template_key\": \"renewal.auto_renew.1d.positive_continuity\",\n    \"audience_segment\": \"active\",\n    \"subscription_id\": \"{{subscriptionId}}\",\n    \"user_id\": \"{{actorUserId}}\",\n    \"company_id\": \"{{companyId}}\",\n    \"is_company_reminder\": false,\n    \"plan_term\": \"monthly\",\n    \"journey_day\": 1,\n    \"journey_anchor_utc\": \"2026-03-31T00:00:00.0000000Z\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{manychatBaseUrl}}/fb/sending/sendFlow",
+              "host": [
+                "{{manychatBaseUrl}}"
+              ],
+              "path": [
+                "fb",
+                "sending",
+                "sendFlow"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

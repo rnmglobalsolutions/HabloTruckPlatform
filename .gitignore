@@ -52,3 +52,24 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# VS
+.vs
+
+# HT App Settings Config
+HT_App_Settings.json
+
+# nuget
+.nuget/
+
+# dotnet
+.dotnet/
+
+# KQL Queries
+HabloTruck - KQL.txt
+
+# Azure Functions Guide
+Guide/
+
+# Documentation
+exports/

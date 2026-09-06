@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HabloTruck | Payment Not Completed</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-title-key="cancelTitle">
+  <main class="page-shell">
+    <section class="status-card">
+      <div class="card-header">
+        <p class="eyebrow" data-i18n="indexEyebrow">HabloTruck</p>
+        <div class="lang-picker">
+          <span class="lang-picker-label" data-i18n="languageLabel">Language</span>
+          <div class="lang-picker-buttons">
+            <button class="lang-button" type="button" data-lang-option="en" aria-pressed="false" data-i18n="languageEnglish">English</button>
+            <button class="lang-button" type="button" data-lang-option="es" aria-pressed="false" data-i18n="languageSpanish">Spanish</button>
+          </div>
+        </div>
+      </div>
+      <div class="status-chip warn" data-i18n="cancelChip">Payment not completed</div>
+      <h1 data-i18n="cancelHeading">Your checkout was not completed.</h1>
+      <p class="lead" data-i18n="cancelLead">
+        No worries. Return to ManyChat and try again whenever you are ready.
+      </p>
+
+      <div class="action-row">
+        <a class="button secondary" href="./index.html" data-i18n="cancelButton">Back to status home</a>
+      </div>
+
+      <section class="notes">
+        <h2 data-i18n="cancelNotesHeading">Recommended next step</h2>
+        <ul>
+          <li data-i18n="cancelNote1">Go back to the HabloTruck chat.</li>
+          <li data-i18n="cancelNote2">Choose your plan again.</li>
+          <li data-i18n="cancelNote3">If the payment page did not load correctly, try one more time before contacting support.</li>
+        </ul>
+      </section>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
