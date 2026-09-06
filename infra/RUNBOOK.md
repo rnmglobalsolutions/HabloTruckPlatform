@@ -56,28 +56,31 @@ Configúrala para:
 Configúrala para:
 
 - organización/repositorio: tu repo actual
-- branch: `prod`
+- entity type: `Environment`
+- GitHub environment name: `production`
 - audience: `api://AzureADTokenExchange`
 
-Si usas otra rama para producción, cambia eso en la credencial y en el workflow.
+La GitHub environment `production` debe restringirse a la rama `main`.
 
 ## 3.1 Validación de PRs
 
 El repositorio ahora tiene un workflow dedicado para PRs:
 
 - PR hacia `dev`: solo corre tests
-- PR hacia `prod`: solo corre tests
+- PR hacia `main`: solo corre tests
 
 No despliega nada durante el PR.
 El despliegue queda reservado al merge sobre la rama destino.
 
 ## 4. Configurar Secrets en GitHub
 
-### Compartidos
+### OIDC de Azure
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+Si `dev` y producción usan app registrations distintas, configura los valores de producción como secrets de la GitHub environment `production`.
 
 ### `dev`
 
@@ -88,6 +91,8 @@ El despliegue queda reservado al merge sobre la rama destino.
 - `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV`
 
 ### `prod`
+
+Para producción, configúralos también preferiblemente como secrets de la GitHub environment `production`, porque el workflow productivo corre con `environment: production`.
 
 - `HTTP_API_KEY_PROD`
 - `MANYCHAT_API_KEY_PROD`
@@ -148,8 +153,8 @@ Hazlo así:
 5. Verifica que el workflow cree el resource group, despliegue la infraestructura y publique la app.
 6. Valida la app en `dev`.
 7. Configura los secrets y variables de `prod`.
-8. Crea un PR desde `dev` hacia `prod` y deja que corran los tests.
-9. Haz merge a `prod`.
+8. Crea un PR desde `dev` hacia `main` y deja que corran los tests.
+9. Haz merge a `main`.
 10. Valida `prod`.
 
 ## 7. Qué crea el workflow

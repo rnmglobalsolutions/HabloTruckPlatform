@@ -3,7 +3,7 @@ name: Build and deploy dotnet core project to Azure Function App - HabloTruckPla
 on:
   push:
     branches:
-      - prod
+      - main
   workflow_dispatch:
 
 env:

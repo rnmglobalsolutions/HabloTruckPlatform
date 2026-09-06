@@ -88,7 +88,7 @@ El workflow de `dev` ahora:
 6. publica las páginas estáticas de checkout en el static website del Storage Account.
 7. usa `concurrency` para evitar despliegues solapados del mismo ambiente.
 
-El workflow de `prod` sigue la misma idea, pero está orientado a la rama `prod` y usa `environment: production`.
+El workflow de producción sigue la misma idea, pero está orientado a la rama `main` y usa `environment: production`.
 Además, existe un workflow de validación para PRs que solo corre tests y no despliega.
 También serializa despliegues con `concurrency` y usa un timeout mayor para evitar quedar colgado indefinidamente.
 
@@ -121,23 +121,25 @@ en los requests de Stripe checkout y billing portal.
 ## Ramas asumidas
 
 - `dev` despliega desde la rama `dev`
-- `prod` despliega desde la rama `prod`
+- producción despliega desde la rama `main`
 
-Si tu rama productiva usa otro nombre, ajusta el trigger del workflow de producción.
+La GitHub environment `production` debe restringirse a la rama `main`.
 
 ## Validación de PR
 
 - PR hacia `dev`: corre solo tests
-- PR hacia `prod`: corre solo tests
-- El despliegue sucede únicamente después del merge sobre `dev` o `prod`
+- PR hacia `main`: corre solo tests
+- El despliegue sucede únicamente después del merge sobre `dev` o `main`
 
 ## Secrets requeridos en GitHub
 
-### Compartidos para OIDC
+### OIDC de Azure
 
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+
+Si `dev` y producción usan app registrations distintas, configura los valores de producción como secrets de la GitHub environment `production`.
 
 ### `dev`
 
@@ -148,6 +150,8 @@ Si tu rama productiva usa otro nombre, ajusta el trigger del workflow de producc
 - `ADMIN_PAYMENT_ALERTS_SENDGRID_API_KEY_DEV`
 
 ### `prod`
+
+Para producción, estos valores también deben existir preferiblemente como secrets de la GitHub environment `production`, porque el workflow productivo corre con `environment: production`.
 
 - `HTTP_API_KEY_PROD`
 - `MANYCHAT_API_KEY_PROD`
@@ -189,7 +193,7 @@ Si no las defines, el workflow de `dev` usa:
 - `MANYCHAT_RENEWAL_REMINDER_FLOW_NS_PROD`
 - `MANYCHAT_SAVE_BEFORE_CHURN_FLOW_NS_PROD`
 
-Si no defines `AZURE_RESOURCE_GROUP_PROD` y `AZURE_LOCATION_PROD`, el workflow de `prod` usa:
+Si no defines `AZURE_RESOURCE_GROUP_PROD` y `AZURE_LOCATION_PROD`, el workflow de producción usa:
 
 - resource group: `hablotruck-prod-rg`
 - location: `Central US`
